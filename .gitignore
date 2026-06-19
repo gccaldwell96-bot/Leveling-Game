@@ -1,0 +1,5 @@
+node_modules/
+_verify.js
+.DS_Store
+Thumbs.db
+*.log

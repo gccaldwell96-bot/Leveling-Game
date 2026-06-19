@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>iTrustCapital — Algorithmic Trading POC</title>
+<style>
+  :root {
+    --bg: #0b1020; --panel: #131a2e; --panel2: #1a2440; --line: #263252;
+    --ink: #e8edf7; --muted: #8da0c5; --accent: #4f8cff; --accent2: #25c2a0;
+    --good: #25c2a0; --bad: #ff5d6c; --warn: #ffb648;
+    --radius: 12px; --shadow: 0 6px 24px rgba(0,0,0,.35);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: radial-gradient(1200px 600px at 70% -10%, #16224a 0, transparent 60%), var(--bg);
+    color: var(--ink); font: 14px/1.5 -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  }
+  header {
+    display: flex; align-items: center; gap: 16px; padding: 18px 24px;
+    border-bottom: 1px solid var(--line); background: linear-gradient(180deg, #121a30, #0d1326);
+    position: sticky; top: 0; z-index: 5;
+  }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: .2px; }
+  header .sub { color: var(--muted); font-size: 12px; }
+  .badge {
+    margin-left: auto; display: inline-flex; align-items: center; gap: 8px;
+    background: #10231c; color: var(--good); border: 1px solid #1c4a3c;
+    padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 0 rgba(37,194,160,.6); animation: pulse 1.8s infinite; }
+  @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(37,194,160,.5)} 70%{box-shadow:0 0 0 8px rgba(37,194,160,0)} 100%{box-shadow:0 0 0 0 rgba(37,194,160,0)} }
+  .wrap { display: grid; grid-template-columns: 380px 1fr; gap: 18px; padding: 18px 24px; align-items: start; }
+  @media (max-width: 980px) { .wrap { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+  .panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin: 0; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  .panel .body { padding: 14px 16px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+  input, select, button { font: inherit; color: var(--ink); }
+  input, select {
+    width: 100%; background: var(--panel2); border: 1px solid var(--line);
+    border-radius: 8px; padding: 8px 10px; outline: none;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  button {
+    cursor: pointer; background: var(--accent); border: none; border-radius: 8px;
+    padding: 10px 14px; font-weight: 600; color: white; transition: filter .15s;
+  }
+  button:hover { filter: brightness(1.08); }
+  button.ghost { background: var(--panel2); border: 1px solid var(--line); color: var(--ink); font-weight: 500; }
+  button.tiny { padding: 4px 8px; font-size: 12px; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .row + .row { margin-top: 8px; }
+  .chip { display:inline-block; background: var(--panel2); border:1px solid var(--line); border-radius:999px; padding:3px 10px; font-size:12px; color:var(--muted); }
+  .presets { display: flex; flex-wrap: wrap; gap: 6px; }
+  .presets button { background: var(--panel2); border: 1px solid var(--line); color: var(--ink); font-weight: 500; font-size: 12px; padding: 6px 10px; }
+  .cond, .indrow { display: grid; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .indrow { grid-template-columns: 1fr 1fr 70px 24px; }
+  .cond { grid-template-columns: 1fr 1fr 1fr 24px; }
+  .cond select, .cond input, .indrow select, .indrow input { padding: 6px 8px; font-size: 12px; }
+  .x { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 16px; padding: 0; }
+  .x:hover { color: var(--bad); }
+  .logic { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .logic button { background: var(--panel2); color: var(--muted); border: none; border-radius: 0; padding: 5px 12px; font-size: 12px; }
+  .logic button.on { background: var(--accent); color: white; }
+  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  @media (max-width: 1280px) { .cards { grid-template-columns: repeat(2, 1fr); } }
+  .card { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .card .k { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
+  .card .v { font-size: 22px; font-weight: 700; margin-top: 4px; }
+  .v.good { color: var(--good); } .v.bad { color: var(--bad); }
+  canvas { width: 100%; height: 320px; display: block; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--muted); font-weight: 600; position: sticky; top: 0; background: var(--panel); }
+  .scroll { max-height: 280px; overflow: auto; }
+  .muted { color: var(--muted); }
+  .signal-box { display:flex; align-items:center; gap:14px; }
+  .signal-pill { font-size: 18px; font-weight: 800; padding: 8px 16px; border-radius: 10px; }
+  .BUY { background:#10231c; color: var(--good); border:1px solid #1c4a3c; }
+  .FLAT { background:#23201a; color: var(--warn); border:1px solid #4a3c1c; }
+  .empty { color: var(--muted); text-align:center; padding: 40px 10px; }
+  .err { background:#2a141a; border:1px solid #5a2230; color:#ffb3bd; padding:10px 12px; border-radius:8px; margin-top:10px; }
+  .legend { display:flex; gap:16px; font-size:12px; color:var(--muted); margin-bottom:6px; }
+  .legend i { display:inline-block; width:12px; height:3px; vertical-align:middle; margin-right:6px; border-radius:2px; }
+  .foot { padding: 10px 24px; color: var(--muted); font-size: 11px; border-top: 1px solid var(--line); }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>iTrustCapital &middot; Algorithmic Trading <span class="muted">— Strategy Builder POC</span></h1>
+    <div class="sub">Compose a strategy &rarr; backtest on live Coinbase history &rarr; emit a signal. Long-only, no leverage, net of fees.</div>
+  </div>
+  <div class="badge"><span class="dot"></span> Live Coinbase data</div>
+</header>
+
+<div class="wrap">
+  <!-- LEFT: builder -->
+  <div class="panel" style="position:sticky; top:84px;">
+    <h2>Build a strategy</h2>
+    <div class="body">
+      <div class="presets" id="presets"></div>
+
+      <div class="grid2">
+        <div><label>Symbol</label><select id="symbol"></select></div>
+        <div><label>Granularity</label><select id="granularity"></select></div>
+      </div>
+      <div class="grid2">
+        <div><label>Start</label><input type="date" id="start" /></div>
+        <div><label>End</label><input type="date" id="end" /></div>
+      </div>
+      <div class="grid2">
+        <div><label>Fee (bps / trade)</label><input type="number" id="fee" value="40" step="5" min="0" /></div>
+        <div><label>Starting equity ($)</label><input type="number" id="equity" value="10000" step="1000" min="1" /></div>
+      </div>
+
+      <label style="margin-top:16px;">Indicators</label>
+      <div id="indicators"></div>
+      <button class="ghost tiny" id="addInd">+ indicator</button>
+
+      <label style="margin-top:16px;">Entry — go long when
+        <span class="logic" id="entryLogic"><button data-v="all" class="on">ALL</button><button data-v="any">ANY</button></span>
+      </label>
+      <div id="entry"></div>
+      <button class="ghost tiny" id="addEntry">+ condition</button>
+
+      <label style="margin-top:16px;">Exit — go flat when
+        <span class="logic" id="exitLogic"><button data-v="all">ALL</button><button data-v="any" class="on">ANY</button></span>
+      </label>
+      <div id="exit"></div>
+      <button class="ghost tiny" id="addExit">+ condition</button>
+
+      <button id="run" style="width:100%; margin-top:18px;">Run backtest</button>
+      <div id="builderErr"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT: results -->
+  <div style="display:grid; gap:18px;">
+    <div class="panel">
+      <h2>Result <span id="resultMeta" class="muted" style="text-transform:none; letter-spacing:0; font-weight:400;"></span></h2>
+      <div class="body">
+        <div id="cards" class="cards"></div>
+        <div id="signal" style="margin-top:14px;"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Equity curve — strategy vs. buy &amp; hold</h2>
+      <div class="body">
+        <div class="legend">
+          <span><i style="background:#4f8cff"></i>Strategy (net of fees)</span>
+          <span><i style="background:#8da0c5"></i>Buy &amp; hold</span>
+        </div>
+        <canvas id="chart"></canvas>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Signals emitted <span id="tradeCount" class="muted" style="text-transform:none; letter-spacing:0; font-weight:400;"></span></h2>
+      <div class="body scroll">
+        <table id="trades"><thead><tr><th>Date</th><th>Side</th><th>Target weight</th><th>Price</th></tr></thead><tbody></tbody></table>
+        <div id="tradesEmpty" class="empty">Run a backtest to see the signal stream this strategy would fire into ITC.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="foot">
+  Scope: this POC builds everything up to <b>emitting a normalized signal</b>. ITC owns signal&nbsp;&rarr;&nbsp;trade execution.
+  Data: Coinbase public Exchange API. Numbers are backtested, net of fees, and reproduce live — nothing is stored.
+</div>
+
+<script src="engine.js"></script>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
