@@ -2047,6 +2047,15 @@ renderAll();
   <div class="flow-wrap" id="rbBody"></div>
 </div>
 
+<!-- ============================ SCREEN: ASSET DETAILS ============================ -->
+<div id="screen-asset-detail" style="display:none">
+  <div class="topbar">
+    <button class="back" id="adBack"><svg width="20" height="20" fill="none" stroke-width="2.2" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>Back</button>
+    <button class="cancel" id="adHome">Home</button>
+  </div>
+  <div class="flow-wrap" id="adBody"></div>
+</div>
+
 <!-- ============================ SCREEN: BUY / ORDER ============================ -->
 <div id="screen-buy" style="display:none">
   <div class="topbar">
@@ -2124,6 +2133,7 @@ renderAll();
   screens.rebalance   = document.getElementById('screen-rebalance');
   screens.buy         = document.getElementById('screen-buy');
   screens.review      = document.getElementById('screen-review');
+  screens.adetail     = document.getElementById('screen-asset-detail');
 
   // ================= TRANSLATOR: builder signals -> engine BotSpec =================
   function buildSpec(){
@@ -2312,7 +2322,7 @@ renderAll();
     q('#bdBody').innerHTML=
       '<div class="flow-head"><span class="eyebrow b">Premade Basket</span><h1>'+b.name+'</h1><p>'+b.blurb+'</p></div>'
       +'<div class="bd-hero">'
-      +' <div class="dcard"><div class="card-title" style="margin-bottom:8px">Performance <span class="small">(90d, simulated)</span></div>'
+      +' <div class="dcard"><div class="card-title" style="margin-bottom:8px">Performance <span class="small">(180d, live Coinbase blend)</span></div>'
       +'   <canvas id="bdChart" style="width:100%;height:170px;display:block"></canvas></div>'
       +' <div class="bd-stats">'
       +'  <div class="bd-stat"><div class="k">90d Change</div><div class="v '+(b.chg>=0?'up':'down')+'">'+(b.chg>=0?'▲ +':'▼ ')+b.chg.toFixed(1)+'%</div></div>'
@@ -2322,10 +2332,10 @@ renderAll();
       +' </div></div>'
       +'<div class="dcard"><div class="card-title" style="margin-bottom:8px">Composition</div><div class="alloc-bar">'+bar+'</div>'
       +'<table class="hold-table"><thead><tr><th>Asset</th><th class="r">Target Weight</th></tr></thead><tbody>'
-      + b.comp.map(c=>'<tr><td><div class="coin"><span class="ic" style="background:'+c[2]+'">'+c[0][0]+'</span><span class="nm"><b>'+c[0]+'</b></span></div></td><td class="r">'+c[1]+'%</td></tr>').join('')
+      + b.comp.map(c=>'<tr'+(CB_SYM[c[0]]?' data-asset="'+c[0]+'" style="cursor:pointer"':'')+'><td><div class="coin"><span class="ic" style="background:'+c[2]+'">'+c[0][0]+'</span><span class="nm"><b>'+c[0]+'</b>'+(CB_SYM[c[0]]?'<span style="font-size:11px;color:var(--blue)">View asset →</span>':'')+'</span></div></td><td class="r">'+c[1]+'%</td></tr>').join('')
       +'</tbody></table>'
       +'<div style="display:flex;gap:10px;margin-top:18px"><button class="btn green" id="bdOrder" style="flex:1">Allocate</button><button class="btn ghost" id="bdRebal" style="flex:1">Rebalancing details</button></div></div>';
-    drawChart(q('#bdChart'), [{pts:walk(90, b.chg/100*1.2, 0.05, b.name.length+3), color:'#8FB14E', width:2}], {});
+    loadChart('bdChart', basketSeries(b.comp, 180), '#8FB14E', {equity:true});
     q('#bdOrder').addEventListener('click', ()=>openBuy('basket', id));
     q('#bdRebal').addEventListener('click', ()=>{ renderRebalance(id); show('rebalance'); });
   }
@@ -2372,13 +2382,79 @@ renderAll();
   const PX = {BTC:63383.50,ETH:3450,SOL:172,XRP:0.62,LINK:18.4,AVAX:38,ADA:0.62,DOGE:0.16,LTC:92};
   let order = null;
 
+  // ----- real Coinbase data for the detail-page charts (real prices + dates) -----
+  const CB_SYM = {BTC:'BTC-USD',ETH:'ETH-USD',SOL:'SOL-USD',XRP:'XRP-USD',LINK:'LINK-USD',AVAX:'AVAX-USD',ADA:'ADA-USD',DOGE:'DOGE-USD',LTC:'LTC-USD',XLM:'XLM-USD',HBAR:'HBAR-USD'};
+  const NAMES = {BTC:'Bitcoin',ETH:'Ethereum',SOL:'Solana',XRP:'XRP',LINK:'Chainlink',AVAX:'Avalanche',ADA:'Cardano',DOGE:'Dogecoin',LTC:'Litecoin',XLM:'Stellar',HBAR:'Hedera'};
+  let adFrom='baskets';
+
+  async function realCloses(symbol, days){
+    const end=new Date(), start=new Date(end.getTime()-days*86400000);
+    const bars=await CB.getHistory(symbol, start, end, '1d');
+    return bars.map(b=>[b.timestamp.getTime(), b.close]);
+  }
+  // weighted blend of the tradable constituents -> a real index, normalized to 1.0 at start
+  async function basketSeries(comp, days){
+    const items=comp.filter(c=>CB_SYM[c[0]]);
+    if(!items.length) return await realCloses('BTC-USD', days);
+    const wsum=items.reduce((a,c)=>a+c[1],0);
+    const series=await Promise.all(items.map(c=>realCloses(CB_SYM[c[0]], days)));
+    const maps=series.map(s=>{ const m=new Map(); s.forEach(p=>m.set(p[0],p[1])); return m; });
+    const out=[];
+    for(const p of series[0]){
+      const ts=p[0]; let val=0, ok=true;
+      for(let i=0;i<items.length;i++){ const c=maps[i].get(ts), c0=series[i][0][1]; if(c==null){ ok=false; break; } val += (items[i][1]/wsum)*(c/c0); }
+      if(ok) out.push([ts, val]);
+    }
+    return out.length>1 ? out : await realCloses('BTC-USD', days);
+  }
+  function chartMsg(c, msg){ const ctx=c.getContext('2d'); const w=c.clientWidth||600,h=c.clientHeight||160; c.width=w;c.height=h; ctx.clearRect(0,0,w,h); ctx.fillStyle='#6B7199'; ctx.font='12px DM Sans,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(msg, w/2, h/2); }
+  async function loadChart(id, promise, color, opts){
+    const c=q('#'+id); if(!c) return; opts=opts||{}; chartMsg(c, 'Loading live Coinbase prices…');
+    try{ let pts=await promise; if(!pts||pts.length<2){ chartMsg(c,'Live price data unavailable'); return; }
+      if(opts.equity){ const c0=pts[0][1]; pts=pts.map(p=>[p[0], 10000*p[1]/c0]); }
+      drawChart(c, [{pts, color, width:2}], {log:!!opts.log});
+    }catch(e){ chartMsg(c, 'Live price data unavailable (network/Coinbase)'); }
+  }
+  function curScreen(){ for(const k in screens){ const s=screens[k]; if(s && s.style && s.style.display!=='none') return k; } return 'home'; }
+
+  function renderAssetDetail(sym, from){
+    adFrom = from||'baskets';
+    const name=NAMES[sym]||sym, prod=CB_SYM[sym]||(sym+'-USD');
+    q('#adBody').innerHTML=
+      '<div class="flow-head"><span class="eyebrow b">Asset</span><h1>'+name+' <span style="color:var(--muted);font-size:20px;font-weight:600">'+sym+'</span></h1>'
+      +'<p>Live price history straight from Coinbase. Trade '+name+' directly into your IRA.</p></div>'
+      +'<div class="pf-cards" id="adCards"><div class="pf-card"><div class="k">Loading…</div><div class="v">—</div></div></div>'
+      +'<div class="dcard"><div class="card-title" style="margin-bottom:6px">Price <span class="small">(1y, live Coinbase)</span></div>'
+      +'<canvas id="adChart" style="width:100%;height:240px;display:block"></canvas></div>'
+      +'<button class="btn green" id="adTrade" style="width:100%;margin-top:18px">Trade '+sym+'</button>';
+    q('#adTrade').addEventListener('click', ()=>openBuy('asset', sym));
+    loadAssetStats(prod);
+  }
+  async function loadAssetStats(prod){
+    chartMsg(q('#adChart'),'Loading live Coinbase prices…');
+    try{
+      const pts=await realCloses(prod, 365);
+      if(pts.length<2){ chartMsg(q('#adChart'),'Live price data unavailable'); q('#adCards').innerHTML=''; return; }
+      const cl=pts.map(p=>p[1]), cur=cl[cl.length-1], first=cl[0];
+      const hi=Math.max.apply(null,cl), lo=Math.min.apply(null,cl), ret=cur/first-1;
+      const dp=v=>v<10?4:2, card=(k,v,col)=>'<div class="pf-card"><div class="k">'+k+'</div><div class="v" style="color:'+(col||'var(--text)')+'">'+v+'</div></div>';
+      q('#adCards').innerHTML = card('Price','$'+cur.toLocaleString(undefined,{maximumFractionDigits:dp(cur)}))
+        + card('1y Return',(ret>=0?'+':'')+(ret*100).toFixed(1)+'%', ret<0?'var(--coral)':'var(--green)')
+        + card('1y High','$'+hi.toLocaleString(undefined,{maximumFractionDigits:dp(hi)}))
+        + card('1y Low','$'+lo.toLocaleString(undefined,{maximumFractionDigits:dp(lo)}));
+      drawChart(q('#adChart'), [{pts, color:'#82A0E4', width:2}], {});
+    }catch(e){ chartMsg(q('#adChart'),'Live price data unavailable (network/Coinbase)'); q('#adCards').innerHTML=''; }
+  }
+  function openAssetDetail(sym, from){ renderAssetDetail(sym, from); show('adetail'); }
+
   function renderStrategyDetail(id){
     const s=STRATS.find(x=>x.id===id); if(!s) return;
+    const _t=(s.tag||'').match(/^([A-Z]+)/); const asym=(_t&&CB_SYM[_t[1]])?_t[1]:'BTC';
     q('#sdBody').innerHTML=
       '<div class="flow-head"><span class="eyebrow v">Professional Quant Strategy</span><h1>'+s.name+'</h1>'
       +'<p>Copy an algorithmic strategy run by a professional quant trader. Allocate part of your balance and it trades for you'+(s.stop?', with stop-losses enabled.':'.')+'</p></div>'
       +'<div class="bd-hero">'
-      +' <div class="dcard"><div class="card-title" style="margin-bottom:8px">Performance <span class="small">(90d, simulated)</span></div><canvas id="sdChart" style="width:100%;height:170px;display:block"></canvas></div>'
+      +' <div class="dcard"><div class="card-title" style="margin-bottom:8px">Performance <span class="small">(180d, live Coinbase underlying)</span></div><canvas id="sdChart" style="width:100%;height:170px;display:block"></canvas></div>'
       +' <div class="dcard" style="display:flex;flex-direction:column;gap:9px;align-items:center;justify-content:center">'
       +'   <div class="qavatar" style="background:'+s.av+';margin:0">'+s.sym+'</div>'
       +'   <div style="font-size:26px;font-weight:700;color:var(--green)">▲ '+s.roi.toFixed(2)+'%</div>'
@@ -2390,8 +2466,9 @@ renderAll();
          ['Followers PnL',usd(s.fpnl)],['Avg PnL / Trade','▲ '+s.avg.toFixed(2)+'%'],['Trades / Week',s.tpw.toFixed(2)]]
         .map(r=>'<div class="bd-stat"><div class="k">'+r[0]+'</div><div class="v">'+r[1]+'</div></div>').join('')
       +'</div>'
-      +'<button class="btn violet" id="sdAlloc" style="width:100%">Allocate to this strategy</button>';
-    drawChart(q('#sdChart'), [{pts:walk(90, s.roi/100, 0.045, s.name.length+5), color:'#9B8CFF', width:2}], {});
+      +'<div style="display:flex;gap:10px"><button class="btn violet" id="sdAlloc" style="flex:1">Allocate to this strategy</button><button class="btn ghost" data-asset="'+asym+'" style="flex:1">View '+asym+' asset →</button></div>';
+    const _m=(s.tag||'').match(/^([A-Z]+)/); const _sym=(_m&&CB_SYM[_m[1]])?_m[1]:'BTC';
+    loadChart('sdChart', realCloses(CB_SYM[_sym], 180), '#9B8CFF', {equity:true});
     q('#sdAlloc').addEventListener('click', ()=>openBuy('strategy', id));
   }
 
@@ -2413,6 +2490,7 @@ renderAll();
       +' <div class="pf-card"><div class="k">Current Drift</div><div class="v" style="color:'+(totalDrift>5?'var(--coral)':'var(--green)')+'">'+totalDrift.toFixed(1)+'%</div></div>'
       +' <div class="pf-card"><div class="k">Rebalance Fee</div><div class="v">50%</div></div>'
       +'</div>'
+      +'<div class="dcard" style="margin-bottom:18px"><div class="card-title" style="margin-bottom:8px">Basket Performance <span class="small">(180d, live Coinbase blend)</span></div><canvas id="rbChart" style="width:100%;height:160px;display:block"></canvas></div>'
       +'<div class="dcard"><div class="card-title" style="margin-bottom:10px">Target vs. Current Weights</div>'
       +'<div style="font-size:12px;color:var(--muted);margin-bottom:4px">Target</div><div class="alloc-bar">'+tBar+'</div>'
       +'<div style="font-size:12px;color:var(--muted);margin-bottom:4px">Current (drifted)</div><div class="alloc-bar">'+cBar+'</div>'
@@ -2425,6 +2503,7 @@ renderAll();
         .map(h=>'<div class="txn"><div class="l"><span class="tag buy">⇄</span><div><div style="font-weight:600">'+h[1]+'</div><div style="font-size:12px;color:var(--muted)">'+h[0]+'</div></div></div><div style="font-weight:600;color:var(--muted)">'+h[2]+'</div></div>').join('')
       +'</div>';
     q('#rbNow').addEventListener('click', ()=>toast('Rebalanced <b>'+b.name+'</b> back to target weights'));
+    loadChart('rbChart', basketSeries(b.comp, 180), '#82A0E4', {equity:true});
   }
 
   function openBuy(kind,id){
@@ -2540,7 +2619,10 @@ renderAll();
   document.addEventListener('click', e=>{
     const sd=e.target.closest('[data-stratdetail]'); if(sd){ renderStrategyDetail(sd.dataset.stratdetail); show('sdetail'); return; }
     const bb=e.target.closest('[data-buybasket]'); if(bb){ openBuy('basket', bb.dataset.buybasket); return; }
+    const ad=e.target.closest('[data-asset]'); if(ad){ openAssetDetail(ad.dataset.asset, curScreen()); return; }
   });
+  document.getElementById('adBack').addEventListener('click', ()=>show(adFrom));
+  document.getElementById('adHome').addEventListener('click', ()=>show('home'));
 
   // ================= navigation wiring =================
   function go(name){ show(name); }
