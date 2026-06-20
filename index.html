@@ -2442,7 +2442,7 @@ renderAll();
   const KELT={name:'Keltner breakout',size:1,indicators:{kcu:{type:'KC_UPPER',period:20,mult:2},ema:{type:'EMA',period:20}},entry:{all:[{left:'close',op:'>',right:'kcu'}]},exit:{any:[{left:'close',op:'<',right:'ema'}]}};
   const DUALMA={name:'Dual-MA cross',size:1,indicators:{f:{type:'SMA',period:20},s:{type:'SMA',period:100}},entry:{all:[{left:'f',op:'>',right:'s'}]},exit:{any:[{left:'f',op:'<',right:'s'}]}};
   const SPEC_BY_ID = {
-    flag:{method:'Regime-Switch MACD', spec:REGIME, fee:40},
+    flag:{method:'Multi-asset catalog', spec:REGIME, fee:40},
     btc: {method:'Regime-Switch MACD', spec:REGIME, fee:40},
     xrp: {method:'Bollinger breakout', spec:BOLL,   fee:70},
     eth: {method:'Keltner breakout',   spec:KELT,   fee:70},
@@ -2450,13 +2450,53 @@ renderAll();
     ada: {method:'Regime-Switch MACD', spec:REGIME, fee:70},
   };
   function stratDef(id){ return SPEC_BY_ID[id] || {method:'Regime-Switch MACD', spec:REGIME, fee:70}; }
+
+  // ITC Flagship = the full multi-asset catalog: each asset runs its own
+  // bake-off winner, equal-weighted into one portfolio (matches catalog_portfolio.py).
+  const CATALOG=[
+    {sym:'BTC',spec:REGIME,fee:40},{sym:'ETH',spec:KELT,fee:70},{sym:'SOL',spec:BOLL,fee:70},
+    {sym:'XRP',spec:BOLL,fee:70},{sym:'LTC',spec:DUALMA,fee:70},{sym:'LINK',spec:KELT,fee:70},
+    {sym:'AVAX',spec:BOLL,fee:70},
+  ];
+  function portfolioMetrics(eq, trades){
+    const n=eq.length, rets=[]; for(let i=1;i<n;i++) rets.push(eq[i][1]/eq[i-1][1]-1);
+    const total=eq[n-1][1]/eq[0][1]-1;
+    const mean=rets.reduce((a,b)=>a+b,0)/(rets.length||1);
+    const sd=Math.sqrt(rets.reduce((a,b)=>a+(b-mean)*(b-mean),0)/(rets.length||1));
+    const sharpe=sd>0?mean/sd*Math.sqrt(365):0;
+    const cagr=Math.pow(eq[n-1][1]/eq[0][1], 365/(rets.length||1))-1;
+    let peak=-Infinity,mdd=0; for(const p of eq){ peak=Math.max(peak,p[1]); if(peak>0) mdd=Math.min(mdd,(p[1]-peak)/peak); }
+    const closed=trades.filter(t=>t.net!=null), win=closed.length?closed.filter(t=>t.net>0).length/closed.length:0;
+    return {total_return:total, cagr, sharpe, max_drawdown:mdd, win_rate:win, num_trades:trades.length};
+  }
+  async function runCatalog(days){
+    days=days||730;
+    const settled=await Promise.all(CATALOG.map(c=>backtestFor(c.sym,c.spec,days,c.fee).then(r=>({c,r})).catch(()=>null)));
+    const ok=settled.filter(Boolean); if(!ok.length) return null;
+    const ms=t=>(t instanceof Date?t.getTime():+t);
+    const sMaps=ok.map(o=>{const m=new Map();o.r.equity_curve.forEach(p=>m.set(ms(p[0]),p[1]));return m;});
+    const bMaps=ok.map(o=>{const m=new Map();o.r.benchmark_curve.forEach(p=>m.set(ms(p[0]),p[1]));return m;});
+    let base=ok[0].r.equity_curve; for(const o of ok){ if(o.r.equity_curve.length<base.length) base=o.r.equity_curve; }
+    const eq=[],beq=[];
+    for(const p of base){ const ts=ms(p[0]); let se=0,be=0,good=true;
+      for(let i=0;i<ok.length;i++){ const s=sMaps[i].get(ts),b=bMaps[i].get(ts); if(s==null||b==null){good=false;break;} se+=s; be+=b; }
+      if(good){ eq.push([new Date(ts),se/ok.length]); beq.push([new Date(ts),be/ok.length]); } }
+    if(eq.length<2) return null;
+    let trades=[]; ok.forEach(o=>{ trades=trades.concat(buildTrades(o.r)); });
+    trades.sort((a,b)=>ms(a.entryT)-ms(b.entryT));
+    const m=portfolioMetrics(eq,trades), benchRet=beq[beq.length-1][1]/beq[0][1]-1;
+    const res={ equity_curve:eq, benchmark_curve:beq, final_equity:eq[eq.length-1][1], starting_equity:10000,
+      metrics:m, benchmark:{buy_and_hold_return:benchRet}, alpha:m.total_return-benchRet, fee_drag:0, fee_bps:0, trades:[] };
+    return {res, trades};
+  }
   async function loadStrategyBacktest(id, asym, days){
     days=days||730; const c=q('#sdChart'); chartMsg(c,'Running live backtest…');
     document.querySelectorAll('#sdRange .rbtn-range').forEach(b=>b.setAttribute('data-on',(+b.dataset.days===days)?'1':'0'));
     const rl=q('#sdRangeLabel'); if(rl) rl.textContent=rangeLabel(days);
     try{
-      const key=id+'-'+days; let res=qCache[key]; if(!res){ res=await backtestFor(asym, stratDef(id).spec, days, stratDef(id).fee); qCache[key]=res; }
-      const m=res.metrics, beats=res.alpha>=0;
+      const key=id+'-'+days; let entry=qCache[key];
+      if(!entry){ if(id==='flag'){ entry=await runCatalog(days); } else { const r=await backtestFor(asym, stratDef(id).spec, days, stratDef(id).fee); entry={res:r, trades:buildTrades(r)}; } if(!entry) throw new Error('no data'); qCache[key]=entry; }
+      const res=entry.res, trades=entry.trades; const m=res.metrics, beats=res.alpha>=0;
       drawChart(c, [{pts:res.benchmark_curve,color:'#9BA2C4',width:1.5},{pts:res.equity_curve,color:'#9B8CFF',width:2}], {log:true});
       const bc=res.benchmark_curve, mktEnd=bc[bc.length-1][1], stratEnd=res.final_equity;
       const gs=q('#sdGrowthStrat'); if(gs){ gs.textContent='$'+Math.round(stratEnd).toLocaleString(); gs.style.color=stratEnd>=10000?'var(--green)':'var(--coral)'; }
@@ -2465,7 +2505,7 @@ renderAll();
       const roiEl=q('#sdRoi'); if(roiEl){ roiEl.textContent=(m.cagr>=0?'+':'')+(m.cagr*100).toFixed(1)+'%'; roiEl.style.color=m.cagr>=0?'var(--green)':'var(--coral)'; }
       const cards=[['Net return',fmtPct(m.total_return)],['Alpha vs B&H',fmtPct(res.alpha)+(beats?' ▲':' ▼')],['Buy & hold',fmtPct(res.benchmark.buy_and_hold_return)],['Sharpe',m.sharpe.toFixed(2)],['Max drawdown',fmtPct(m.max_drawdown)],['Win rate',(m.win_rate*100).toFixed(0)+'%'],['Trades',String(m.num_trades)],['CAGR',fmtPct(m.cagr)],['Fee drag',fmtPct(-res.fee_drag)]];
       const st=q('#sdStats'); if(st) st.innerHTML=cards.map(r=>'<div class="bd-stat"><div class="k">'+r[0]+'</div><div class="v">'+r[1]+'</div></div>').join('');
-      renderTradeLog('sdTrades','sdTradeCount','sdDownload', buildTrades(res), (stratDef(id).spec.name||'strategy').replace(/\s+/g,'_')+'_'+asym+'_trades.csv');
+      renderTradeLog('sdTrades','sdTradeCount','sdDownload', trades, (id==='flag'?'ITC_Flagship_catalog':((stratDef(id).spec.name||'strategy').replace(/\s+/g,'_')+'_'+asym))+'_'+rangeLabel(days)+'_trades.csv');
       const pd=q('#sdPerfDl'); if(pd) pd.onclick=()=>downloadCSV(perfCSV(res.equity_curve,res.benchmark_curve), (stratDef(id).spec.name||'strategy').replace(/\s+/g,'_')+'_'+asym+'_'+rangeLabel(days)+'_performance.csv');
     }catch(e){ chartMsg(c,'Live backtest unavailable (network/Coinbase)'); const st=q('#sdStats'); if(st) st.innerHTML='<div class="bd-stat"><div class="k">Backtest unavailable</div><div class="v">—</div></div>'; }
   }
@@ -2559,8 +2599,9 @@ renderAll();
     for(const s of STRATS){
       try{
         const _t=(s.tag||'').match(/^([A-Z]+)/), asym=(_t&&CB_SYM[_t[1]])?_t[1]:'BTC';
-        let res=qCache[s.id+'-730']; if(!res){ res=await backtestFor(asym, stratDef(s.id).spec, 730, stratDef(s.id).fee); qCache[s.id+'-730']=res; }
-        const m=res.metrics;
+        let entry=qCache[s.id+'-730'];
+        if(!entry){ if(s.id==='flag'){ entry=await runCatalog(730); } else { const r=await backtestFor(asym, stratDef(s.id).spec, 730, stratDef(s.id).fee); entry={res:r, trades:buildTrades(r)}; } if(!entry) continue; qCache[s.id+'-730']=entry; }
+        const res=entry.res; const m=res.metrics;
         const mc=document.getElementById('qmeth-'+s.id); if(mc) mc.textContent=stratDef(s.id).method;
         setSigned('qroi-'+s.id, m.cagr); setSigned('qperf-'+s.id, m.total_return);
         setSigned('qmkt-'+s.id, res.benchmark.buy_and_hold_return);
@@ -2619,9 +2660,12 @@ renderAll();
     const s=STRATS.find(x=>x.id===id); if(!s) return;
     const _t=(s.tag||'').match(/^([A-Z]+)/); const asym=(_t&&CB_SYM[_t[1]])?_t[1]:'BTC';
     const nm=NAMES[asym]||asym;
+    const subt = id==='flag'
+      ? 'A live multi-asset catalog — each asset (BTC/ETH/SOL/XRP/LTC/LINK/AVAX) runs its own best strategy, equal-weighted into one portfolio, net of per-asset fees.'
+      : 'A live '+stratDef(id).method+' strategy backtested on '+nm+', net of '+(stratDef(id).fee||40)+'&nbsp;bps/trade. Allocate part of your balance and it trades for you'+(s.stop?', with stop-losses enabled.':'.');
     q('#sdBody').innerHTML=
       '<div class="flow-head"><span class="eyebrow v">Professional Quant Strategy</span><h1>'+s.name+'</h1>'
-      +'<p>A live '+stratDef(id).method+' strategy backtested on '+nm+', net of '+(stratDef(id).fee||40)+'&nbsp;bps/trade. Allocate part of your balance and it trades for you'+(s.stop?', with stop-losses enabled.':'.')+'</p></div>'
+      +'<p>'+subt+'</p></div>'
       +'<div class="bd-hero">'
       +' <div class="dcard"><div class="card-title" style="margin-bottom:6px;display:flex;align-items:center;flex-wrap:wrap">Growth of $10,000 — Strategy vs. Buy &amp; Hold <span class="small" style="margin-left:6px">live Coinbase, net of fees</span><button class="btn ghost" id="sdPerfDl" style="margin-left:auto;padding:6px 12px">⬇ Performance CSV</button></div>'
       +'   '+rangeBtns('sdRange',730)
@@ -2644,7 +2688,7 @@ renderAll();
       +'<div class="dcard" style="margin-bottom:18px"><div class="card-title" style="margin-bottom:8px;display:flex;align-items:center">Trade log <span class="small" id="sdTradeCount" style="margin-left:8px"></span>'
       +'  <button class="btn ghost" id="sdDownload" style="margin-left:auto;padding:8px 14px">⬇ Download CSV</button></div>'
       +'  <div class="scroll" style="max-height:280px;overflow:auto"><table class="hold-table" id="sdTrades"><tbody><tr><td class="muted" style="padding:14px">Running live backtest…</td></tr></tbody></table></div>'
-      +'  <div class="bt-note">Entry/exit prices are the daily close on each signal bar. Transaction fees = '+(stratDef(id).fee||40)+'&nbsp;bps per side (entry &amp; exit); returns are net of fees.</div></div>'
+      +'  <div class="bt-note">Entry/exit prices are the daily close on each signal bar. '+(id==='flag'?'Per-asset fees (BTC 40, alts 70 bps per side)':'Transaction fees = '+(stratDef(id).fee||40)+'&nbsp;bps per side (entry &amp; exit)')+'; returns are net of fees.</div></div>'
       +'<div style="display:flex;gap:10px"><button class="btn violet" id="sdAlloc" style="flex:1">Allocate to this strategy</button><button class="btn ghost" data-asset="'+asym+'" style="flex:1">View '+asym+' asset →</button></div>';
     q('#sdAlloc').addEventListener('click', ()=>openBuy('strategy', id));
     sdCtx={id:id, asym:asym}; loadStrategyBacktest(id, asym, 730);
