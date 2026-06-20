@@ -1837,6 +1837,7 @@ renderAll();
         </div>
         <div class="bbar">${barOf(b.comp)}</div>
         <div class="bpills">${b.comp.map(c=>`<span class="bpill"><span class="dot" style="background:${c[2]}"></span>${c[0]} <span class="w">${c[1]}%</span></span>`).join('')}</div>
+        <div id="balpha-${b.id}" style="font-size:12px;font-weight:600;color:var(--muted)">α … vs BTC</div>
         <div class="bblurb">${b.blurb}</div>
         <div class="bfee">Quarterly rebalancing</div>
         <div class="bctas">
@@ -2333,10 +2334,10 @@ renderAll();
       +'   <div class="bt-legend"><span><i style="background:#8FB14E"></i>Basket</span><span><i style="background:#9BA2C4"></i>BTC buy &amp; hold</span></div>'
       +'   <canvas id="bdChart" style="width:100%;height:170px;display:block"></canvas></div>'
       +' <div class="bd-stats">'
-      +'  <div class="bd-stat"><div class="k">90d Change</div><div class="v" id="bd90" style="color:var(--muted)">…</div></div>'
+      +'  <div class="bd-stat"><div class="k" id="bdRetLabel">Return</div><div class="v" id="bdRet" style="color:var(--muted)">…</div></div>'
+      +'  <div class="bd-stat"><div class="k">Alpha vs BTC</div><div class="v" id="bdAlpha" style="color:var(--muted)">…</div></div>'
       +'  <div class="bd-stat"><div class="k">Assets</div><div class="v">'+b.comp.length+'</div></div>'
       +'  <div class="bd-stat"><div class="k">Rebalance</div><div class="v">Quarterly</div></div>'
-      +'  <div class="bd-stat"><div class="k">Mandate</div><div class="v" style="font-size:15px">Market-cap</div></div>'
       +' </div></div>'
       +'<div class="dcard"><div class="card-title" style="margin-bottom:8px">Composition</div><div class="alloc-bar">'+bar+'</div>'
       +'<table class="hold-table"><thead><tr><th>Asset</th><th class="r">Target Weight</th></tr></thead><tbody>'
@@ -2469,23 +2470,34 @@ renderAll();
       const b0=btc[0][1], beq=btc.map(p=>[p[0],10000*p[1]/b0]);
       drawChart(c, [{pts:beq,color:'#9BA2C4',width:1.5},{pts:eq,color:'#8FB14E',width:2}], {});
       if(dlId){ const dl=q('#'+dlId); if(dl) dl.onclick=()=>{ const head=['Date','Basket ($)','BTC Buy & Hold ($)']; const rows=eq.map((p,i)=>[fdate(p[0]),p[1].toFixed(2), beq[i]?beq[i][1].toFixed(2):'']); downloadCSV([head].concat(rows).map(r=>r.join(',')).join('\n'), (name||'basket').replace(/\s+/g,'_')+'_'+rangeLabel(days)+'_performance.csv'); }; }
-      return pts;
+      return {pts:pts, eq:eq, beq:beq};
     }catch(e){ chartMsg(c,'Live price data unavailable (network/Coinbase)'); return null; }
   }
   async function loadBasketDetail(b, days){
     days=days||365;
     document.querySelectorAll('#bdRange .rbtn-range').forEach(x=>x.setAttribute('data-on',(+x.dataset.days===days)?'1':'0'));
-    const pts=await loadBlendChart('bdChart', b.comp, days, 'bdPerfDl', b.name);
-    if(pts){ const lastTs=pts[pts.length-1][0], ninety=lastTs-90*86400000; let ref=pts[0];
-      for(const p of pts){ if(p[0]<=ninety) ref=p; }
-      const chg=pts[pts.length-1][1]/ref[1]-1, el=q('#bd90');
-      if(el){ el.className='v '+(chg>=0?'up':'down'); el.innerHTML=(chg>=0?'▲ +':'▼ ')+(chg*100).toFixed(1)+'%'; } }
+    const rl=q('#bdRetLabel'); if(rl) rl.textContent=rangeLabel(days)+' Return';
+    const r=await loadBlendChart('bdChart', b.comp, days, 'bdPerfDl', b.name);
+    if(r && r.eq.length>1){
+      const bRet=r.eq[r.eq.length-1][1]/r.eq[0][1]-1, mRet=r.beq[r.beq.length-1][1]/r.beq[0][1]-1;
+      setSigned('bdRet', bRet); setSigned('bdAlpha', bRet-mRet);
+    }
+  }
+  async function loadRebalancePerf(b, days){
+    days=days||365;
+    document.querySelectorAll('#rbRange .rbtn-range').forEach(x=>x.setAttribute('data-on',(+x.dataset.days===days)?'1':'0'));
+    const rl=q('#rbRetLabel'); if(rl) rl.textContent=rangeLabel(days)+' Return';
+    const r=await loadBlendChart('rbChart', b.comp, days, 'rbPerfDl', b.name);
+    if(r && r.eq.length>1){
+      const bRet=r.eq[r.eq.length-1][1]/r.eq[0][1]-1, mRet=r.beq[r.beq.length-1][1]/r.beq[0][1]-1;
+      setSigned('rbRet', bRet); setSigned('rbBtc', mRet); setSigned('rbAlpha', bRet-mRet);
+    }
   }
 
   // ----- real numbers for the quant + basket LIST cards (lazy, cached) -----
   const qCache={}, bCache={};
   const RANGES=[['6M',180],['1Y',365],['2Y',730],['5Y',1825]];
-  let sdCtx=null, bdCtx=null;
+  let sdCtx=null, bdCtx=null, rbCtx=null;
   async function backtestFor(asym, spec, days){
     days=days||730; const end=new Date(), start=new Date(end.getTime()-days*86400000);
     const bars=await CB.getHistory(CB_SYM[asym], start, end, '1d');
@@ -2549,11 +2561,14 @@ renderAll();
     }
   }
   async function fillBasketReal(){
+    let btc90=bCache['__btc90'];
+    if(btc90===undefined){ try{ const bp=await realCloses('BTC-USD',90); btc90=bp.length>1?(bp[bp.length-1][1]/bp[0][1]-1):0; }catch(e){ btc90=0; } bCache['__btc90']=btc90; }
     for(const b of BASKETS){
       try{
         let chg=bCache[b.id];
         if(chg===undefined){ const pts=await basketSeries(b.comp,90); if(!pts||pts.length<2) continue; chg=pts[pts.length-1][1]/pts[0][1]-1; bCache[b.id]=chg; }
         const el=document.getElementById('bchg-'+b.id); if(el){ const p=chg*100; el.innerHTML=(p>=0?'▲ +':'▼ ')+Math.abs(p).toFixed(1)+'% <span style="color:var(--faint);font-weight:500;font-size:11px">90d</span>'; el.style.color=p>=0?'var(--green)':'var(--coral)'; }
+        const a=document.getElementById('balpha-'+b.id); if(a){ const al=(chg-btc90)*100; a.innerHTML='α '+(al>=0?'+':'')+al.toFixed(1)+'% vs BTC (90d)'; a.style.color=al>=0?'var(--green)':'var(--coral)'; }
       }catch(e){}
     }
   }
@@ -2643,7 +2658,10 @@ renderAll();
       +' <div class="pf-card"><div class="k">Next Rebalance</div><div class="v">Sep 30, 2026</div></div>'
       +' <div class="pf-card"><div class="k">Current Drift</div><div class="v" style="color:'+(totalDrift>5?'var(--coral)':'var(--green)')+'">'+totalDrift.toFixed(1)+'%</div></div>'
       +'</div>'
-      +'<div class="dcard" style="margin-bottom:18px"><div class="card-title" style="margin-bottom:6px">Growth of $10,000 — Basket vs. BTC <span class="small">live Coinbase blend</span></div><div class="bt-legend"><span><i style="background:#8FB14E"></i>Basket</span><span><i style="background:#9BA2C4"></i>BTC buy &amp; hold</span></div><canvas id="rbChart" style="width:100%;height:160px;display:block"></canvas></div>'
+      +'<div class="dcard" style="margin-bottom:18px"><div class="card-title" style="margin-bottom:6px;display:flex;align-items:center;flex-wrap:wrap">Growth of $10,000 — Basket vs. BTC <span class="small" style="margin-left:6px">live Coinbase blend</span><button class="btn ghost" id="rbPerfDl" style="margin-left:auto;padding:6px 12px">⬇ Performance CSV</button></div>'
+      + rangeBtns('rbRange',365)
+      +'<div class="bt-legend"><span><i style="background:#8FB14E"></i>Basket</span><span><i style="background:#9BA2C4"></i>BTC buy &amp; hold</span></div><canvas id="rbChart" style="width:100%;height:160px;display:block"></canvas>'
+      +'<div class="bd-stats" style="grid-template-columns:repeat(3,1fr);margin-top:14px"><div class="bd-stat"><div class="k" id="rbRetLabel">Return</div><div class="v" id="rbRet" style="color:var(--muted)">…</div></div><div class="bd-stat"><div class="k">BTC (buy &amp; hold)</div><div class="v" id="rbBtc" style="color:var(--muted)">…</div></div><div class="bd-stat"><div class="k">Alpha vs BTC</div><div class="v" id="rbAlpha" style="color:var(--muted)">…</div></div></div></div>'
       +'<div class="dcard"><div class="card-title" style="margin-bottom:10px">Target vs. Current Weights</div>'
       +'<div style="font-size:12px;color:var(--muted);margin-bottom:4px">Target</div><div class="alloc-bar">'+tBar+'</div>'
       +'<div style="font-size:12px;color:var(--muted);margin-bottom:4px">Current (drifted)</div><div class="alloc-bar">'+cBar+'</div>'
@@ -2657,7 +2675,7 @@ renderAll();
       +'</div>';
     q('#rbNow').addEventListener('click', ()=>toast('Rebalanced <b>'+b.name+'</b> back to target weights'));
     q('#rbDownload').addEventListener('click', ()=>{ const head=['Asset','Target %','Current %','Drift %']; const rows=cur.map(c=>[c.sym, c.tgt, c.now.toFixed(2), (c.now-c.tgt).toFixed(2)]); downloadCSV([head].concat(rows).map(r=>r.join(',')).join('\n'), b.name.replace(/\s+/g,'_')+'_rebalancing.csv'); });
-    loadBlendChart('rbChart', b.comp, 180, null, b.name);
+    rbCtx=b; loadRebalancePerf(b, 365);
   }
 
   function openBuy(kind,id){
@@ -2776,6 +2794,7 @@ renderAll();
     const ad=e.target.closest('[data-asset]'); if(ad){ openAssetDetail(ad.dataset.asset, curScreen()); return; }
     const rg=e.target.closest('#sdRange .rbtn-range'); if(rg && sdCtx){ loadStrategyBacktest(sdCtx.id, sdCtx.asym, +rg.dataset.days); return; }
     const rgb=e.target.closest('#bdRange .rbtn-range'); if(rgb && bdCtx){ loadBasketDetail(bdCtx, +rgb.dataset.days); return; }
+    const rgr=e.target.closest('#rbRange .rbtn-range'); if(rgr && rbCtx){ loadRebalancePerf(rbCtx, +rgr.dataset.days); return; }
   });
   document.getElementById('adBack').addEventListener('click', ()=>show(adFrom));
   document.getElementById('adHome').addEventListener('click', ()=>show('home'));
