@@ -1783,7 +1783,7 @@ renderAll();
         <div class="qrow"><span class="k">Personal PnL</span><span class="v up">▲ ${usd(s.ppnl)}</span></div>
         <div class="qrow"><span class="k">Avg PnL per Trade</span><span class="v up">▲ ${s.avg.toFixed(2)}%</span></div>
         <div class="qrow"><span class="k">Avg Trades Each Week</span><span class="v">${s.tpw.toFixed(2)}</span></div>
-        <button class="btn violet qfollow" data-follow="${s.id}">Follow this Trader</button>
+        <button class="btn violet qfollow" data-stratdetail="${s.id}">View Strategy →</button>
       </div>`).join('');
   }
 
@@ -1839,7 +1839,7 @@ renderAll();
         <div class="bfee">Quarterly rebalancing · 50% of standard fees</div>
         <div class="bctas">
           <button class="btn ghost" data-basketdetail="${b.id}">Details</button>
-          <button class="btn blue" data-basket="${b.id}">Place Order</button>
+          <button class="btn blue" data-buybasket="${b.id}">Allocate</button>
         </div>
       </div>`).join('');
   }
@@ -2003,6 +2003,84 @@ renderAll();
   </div>
 </div>
 
+<!-- ============================================================
+     ADDED: styles for strategy detail + buy/order + review pages
+============================================================ -->
+<style>
+  .order-wrap{max-width:580px;margin:0 auto;padding:26px 22px 60px}
+  .order-card{background:var(--panel);border:1px solid var(--border-soft);border-radius:16px;padding:24px 26px}
+  .order-acct{font-size:14px;color:var(--text);font-weight:700}
+  .order-title{font-size:27px;font-weight:700;letter-spacing:-.01em;margin:2px 0 20px}
+  .order-subject{display:flex;align-items:center;gap:13px;background:var(--field);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:18px}
+  .order-subject .ic{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;flex-shrink:0}
+  .order-subject .nm{min-width:0} .order-subject .nm b{display:block;font-size:15px} .order-subject .nm span{font-size:12px;color:var(--muted)}
+  .order-subject .px{margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .side-toggle{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}
+  .side-toggle button{padding:14px;border-radius:11px;border:1px solid var(--border);background:var(--field);color:var(--text);font:700 15px 'DM Sans';cursor:pointer;transition:.15s}
+  .side-toggle button.buy.on{background:var(--green);color:#16240a;border-color:var(--green)}
+  .side-toggle button.sell.on{background:var(--coral);color:#fff;border-color:var(--coral)}
+  .bal-row{display:flex;justify-content:space-between;align-items:center;background:var(--field);border:1px solid var(--border);border-radius:11px;padding:15px 16px;margin-bottom:18px;font-weight:600}
+  .amt-row{display:flex;gap:10px;align-items:stretch;margin-bottom:8px}
+  .amt-row .amt{flex:1;margin-bottom:0}
+  .conv{font-size:13.5px;color:var(--blue);font-weight:600;margin-bottom:20px}
+  .rev-row{display:flex;justify-content:space-between;align-items:center;padding:17px 0;border-bottom:1px solid var(--border-soft);font-size:15px}
+  .rev-row .k{color:var(--text)} .rev-row .v{font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
+  .rev-sub{display:flex;justify-content:space-between;padding:8px 0;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .rev-note{text-align:center;color:var(--muted);font-size:13px;margin:20px 0 8px;line-height:1.7}
+</style>
+
+<!-- ============================ SCREEN: STRATEGY DETAILS ============================ -->
+<div id="screen-strategy-detail" style="display:none">
+  <div class="topbar">
+    <button class="back" id="sdBack"><svg width="20" height="20" fill="none" stroke-width="2.2" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>Back to strategies</button>
+    <button class="cancel" id="sdHome">Home</button>
+  </div>
+  <div class="flow-wrap" id="sdBody"></div>
+</div>
+
+<!-- ============================ SCREEN: REBALANCING DETAILS ============================ -->
+<div id="screen-rebalance" style="display:none">
+  <div class="topbar">
+    <button class="back" id="rbBack"><svg width="20" height="20" fill="none" stroke-width="2.2" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>Back to basket</button>
+    <button class="cancel" id="rbHome">Home</button>
+  </div>
+  <div class="flow-wrap" id="rbBody"></div>
+</div>
+
+<!-- ============================ SCREEN: BUY / ORDER ============================ -->
+<div id="screen-buy" style="display:none">
+  <div class="topbar">
+    <button class="back" id="buyBack"><svg width="20" height="20" fill="none" stroke-width="2.2" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>Back</button>
+    <button class="cancel" id="buyCancel">Cancel</button>
+  </div>
+  <div class="order-wrap"><div class="order-card">
+    <div class="order-acct" id="buyAcct">Account</div>
+    <div class="order-title" id="buyTitle">Market Order</div>
+    <div class="order-subject" id="buySubject"></div>
+    <div class="side-toggle" id="buySide"><button class="buy on" data-side="Buy">Buy</button><button class="sell" data-side="Sell">Sell</button></div>
+    <div class="bal-row"><span>Available Balance</span><span id="buyBal">$0.00</span></div>
+    <span class="flbl" style="color:var(--coral)">Amount&nbsp;*</span>
+    <div class="amt-row"><div class="amt"><input id="buyAmt" type="text" inputmode="decimal" placeholder="0.00"><span class="cur">USD</span></div><button class="btn green" id="buyMax" style="padding:0 22px">Max</button></div>
+    <div class="conv" id="buyConv">⇄ 0</div>
+    <button class="btn green" id="buyReview" style="width:100%">Review</button>
+  </div></div>
+</div>
+
+<!-- ============================ SCREEN: REVIEW ============================ -->
+<div id="screen-review" style="display:none">
+  <div class="topbar">
+    <button class="back" id="revBack"><svg width="20" height="20" fill="none" stroke-width="2.2" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>Back</button>
+    <button class="cancel" id="revCancel">Cancel</button>
+  </div>
+  <div class="order-wrap"><div class="order-card">
+    <div class="order-acct" id="revAcct">Account</div>
+    <div class="order-title" id="revTitle">Review</div>
+    <div id="revRows"></div>
+    <div class="rev-note" id="revNote"></div>
+    <button class="btn green" id="revSubmit" style="width:100%">Submit</button>
+  </div></div>
+</div>
+
 <!-- ============================ MODAL: BACKTEST RESULTS ============================ -->
 <div class="overlay" id="btOverlay">
   <div class="sheet" style="max-width:740px">
@@ -2042,6 +2120,10 @@ renderAll();
   screens.portfolio   = document.getElementById('screen-portfolio');
   screens.bdetail     = document.getElementById('screen-basket-detail');
   screens.bbuild      = document.getElementById('screen-basket-build');
+  screens.sdetail     = document.getElementById('screen-strategy-detail');
+  screens.rebalance   = document.getElementById('screen-rebalance');
+  screens.buy         = document.getElementById('screen-buy');
+  screens.review      = document.getElementById('screen-review');
 
   // ================= TRANSLATOR: builder signals -> engine BotSpec =================
   function buildSpec(){
@@ -2242,9 +2324,10 @@ renderAll();
       +'<table class="hold-table"><thead><tr><th>Asset</th><th class="r">Target Weight</th></tr></thead><tbody>'
       + b.comp.map(c=>'<tr><td><div class="coin"><span class="ic" style="background:'+c[2]+'">'+c[0][0]+'</span><span class="nm"><b>'+c[0]+'</b></span></div></td><td class="r">'+c[1]+'%</td></tr>').join('')
       +'</tbody></table>'
-      +'<div style="display:flex;gap:10px;margin-top:18px"><button class="btn green" id="bdOrder" style="flex:1">Place Order</button></div></div>';
+      +'<div style="display:flex;gap:10px;margin-top:18px"><button class="btn green" id="bdOrder" style="flex:1">Allocate</button><button class="btn ghost" id="bdRebal" style="flex:1">Rebalancing details</button></div></div>';
     drawChart(q('#bdChart'), [{pts:walk(90, b.chg/100*1.2, 0.05, b.name.length+3), color:'#8FB14E', width:2}], {});
-    q('#bdOrder').addEventListener('click', ()=>{ show('baskets'); openBasket(id); });
+    q('#bdOrder').addEventListener('click', ()=>openBuy('basket', id));
+    q('#bdRebal').addEventListener('click', ()=>{ renderRebalance(id); show('rebalance'); });
   }
 
   // ================= BASKET BUILDER =================
@@ -2282,6 +2365,157 @@ renderAll();
     show('baskets');
     toast('Created basket <b>'+name+'</b> — '+comp.length+' assets, rebalancing '+bldCad);
     bldRows=[]; bldRender();
+  });
+
+  // ================= ALLOCATE FLOW: strategy detail, rebalancing, buy, review =================
+  const ACCOUNT = {label:'Roth IRA *4132', balance:25000.00};
+  const PX = {BTC:63383.50,ETH:3450,SOL:172,XRP:0.62,LINK:18.4,AVAX:38,ADA:0.62,DOGE:0.16,LTC:92};
+  let order = null;
+
+  function renderStrategyDetail(id){
+    const s=STRATS.find(x=>x.id===id); if(!s) return;
+    q('#sdBody').innerHTML=
+      '<div class="flow-head"><span class="eyebrow v">Professional Quant Strategy</span><h1>'+s.name+'</h1>'
+      +'<p>Copy an algorithmic strategy run by a professional quant trader. Allocate part of your balance and it trades for you'+(s.stop?', with stop-losses enabled.':'.')+'</p></div>'
+      +'<div class="bd-hero">'
+      +' <div class="dcard"><div class="card-title" style="margin-bottom:8px">Performance <span class="small">(90d, simulated)</span></div><canvas id="sdChart" style="width:100%;height:170px;display:block"></canvas></div>'
+      +' <div class="dcard" style="display:flex;flex-direction:column;gap:9px;align-items:center;justify-content:center">'
+      +'   <div class="qavatar" style="background:'+s.av+';margin:0">'+s.sym+'</div>'
+      +'   <div style="font-size:26px;font-weight:700;color:var(--green)">▲ '+s.roi.toFixed(2)+'%</div>'
+      +'   <div style="color:var(--muted);font-size:12px">Annualized ROI · '+s.subs+' subscribers</div>'
+      +'   <span class="qchip '+(s.stop?'dot':'')+'">'+(s.stop?'Stop Loss':'No Stop')+'</span>'
+      +' </div></div>'
+      +'<div class="bd-stats" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px">'
+      + [['Strategy Performance','▲ '+s.perf.toFixed(2)+'%'],['Market Performance','▲ '+s.mkt.toFixed(2)+'%'],['Mandate',s.tag],
+         ['Followers PnL',usd(s.fpnl)],['Avg PnL / Trade','▲ '+s.avg.toFixed(2)+'%'],['Trades / Week',s.tpw.toFixed(2)]]
+        .map(r=>'<div class="bd-stat"><div class="k">'+r[0]+'</div><div class="v">'+r[1]+'</div></div>').join('')
+      +'</div>'
+      +'<button class="btn violet" id="sdAlloc" style="width:100%">Allocate to this strategy</button>';
+    drawChart(q('#sdChart'), [{pts:walk(90, s.roi/100, 0.045, s.name.length+5), color:'#9B8CFF', width:2}], {});
+    q('#sdAlloc').addEventListener('click', ()=>openBuy('strategy', id));
+  }
+
+  function renderRebalance(id){
+    const b=BASKETS.find(x=>x.id===id); if(!b) return;
+    let seed=b.name.length*13+7;
+    const jit=()=>{ seed=(seed*9301+49297)%233280; return (seed/233280-0.5)*8; };
+    const cur=b.comp.map(c=>({sym:c[0],col:c[2],tgt:c[1],raw:Math.max(1,c[1]+jit())}));
+    const sum=cur.reduce((a,c)=>a+c.raw,0); cur.forEach(c=>c.now=c.raw/sum*100);
+    const totalDrift=cur.reduce((a,c)=>a+Math.abs(c.now-c.tgt),0)/2;
+    const tBar=b.comp.map(c=>'<i style="width:'+c[1]+'%;background:'+c[2]+'"></i>').join('');
+    const cBar=cur.map(c=>'<i style="width:'+c.now+'%;background:'+c.col+'"></i>').join('');
+    q('#rbBody').innerHTML=
+      '<div class="flow-head"><span class="eyebrow b">Auto-Rebalancing</span><h1>Rebalancing — '+b.name+'</h1>'
+      +'<p>This basket drifts as prices move, then automatically rebalances back to its target weights on your cadence — trading at 50% of standard fees.</p></div>'
+      +'<div class="pf-cards">'
+      +' <div class="pf-card"><div class="k">Cadence</div><div class="v">Quarterly</div></div>'
+      +' <div class="pf-card"><div class="k">Next Rebalance</div><div class="v">Sep 30, 2026</div></div>'
+      +' <div class="pf-card"><div class="k">Current Drift</div><div class="v" style="color:'+(totalDrift>5?'var(--coral)':'var(--green)')+'">'+totalDrift.toFixed(1)+'%</div></div>'
+      +' <div class="pf-card"><div class="k">Rebalance Fee</div><div class="v">50%</div></div>'
+      +'</div>'
+      +'<div class="dcard"><div class="card-title" style="margin-bottom:10px">Target vs. Current Weights</div>'
+      +'<div style="font-size:12px;color:var(--muted);margin-bottom:4px">Target</div><div class="alloc-bar">'+tBar+'</div>'
+      +'<div style="font-size:12px;color:var(--muted);margin-bottom:4px">Current (drifted)</div><div class="alloc-bar">'+cBar+'</div>'
+      +'<table class="hold-table"><thead><tr><th>Asset</th><th class="r">Target</th><th class="r">Current</th><th class="r">Drift</th></tr></thead><tbody>'
+      + cur.map(c=>{ const d=c.now-c.tgt; return '<tr><td><div class="coin"><span class="ic" style="background:'+c.col+'">'+c.sym[0]+'</span><span class="nm"><b>'+c.sym+'</b></span></div></td><td class="r">'+c.tgt+'%</td><td class="r">'+c.now.toFixed(1)+'%</td><td class="r '+(d>=0?'up':'down')+'">'+(d>=0?'+':'')+d.toFixed(1)+'%</td></tr>'; }).join('')
+      +'</tbody></table>'
+      +'<div style="display:flex;gap:10px;margin-top:18px"><button class="btn blue" id="rbNow" style="flex:1">Rebalance now</button></div></div>'
+      +'<div class="dcard" style="margin-top:18px"><div class="card-title" style="margin-bottom:4px">Rebalance History</div>'
+      + [['Jun 30, 2026','Quarterly rebalance','0.0% drift corrected'],['Mar 31, 2026','Quarterly rebalance','3.2% drift corrected'],['Dec 31, 2025','Quarterly rebalance','4.1% drift corrected']]
+        .map(h=>'<div class="txn"><div class="l"><span class="tag buy">⇄</span><div><div style="font-weight:600">'+h[1]+'</div><div style="font-size:12px;color:var(--muted)">'+h[0]+'</div></div></div><div style="font-weight:600;color:var(--muted)">'+h[2]+'</div></div>').join('')
+      +'</div>';
+    q('#rbNow').addEventListener('click', ()=>toast('Rebalanced <b>'+b.name+'</b> back to target weights'));
+  }
+
+  function openBuy(kind,id){
+    if(kind==='basket'){ const b=BASKETS.find(x=>x.id===id); if(!b)return; order={kind,id,name:b.name,comp:b.comp}; }
+    else if(kind==='strategy'){ const s=STRATS.find(x=>x.id===id); if(!s)return; order={kind,id,name:s.name,strat:s}; }
+    else { order={kind:'asset',id,name:id,sym:id,price:PX[id]||0}; }
+    order.side='Buy'; order.amount=0;
+    renderBuy(); show('buy');
+  }
+
+  function renderBuy(){
+    q('#buyAcct').textContent=ACCOUNT.label;
+    q('#buyTitle').textContent = order.kind==='asset'?'Market Order':'Allocate';
+    let subj='';
+    if(order.kind==='basket'){
+      const bar=order.comp.map(c=>'<i style="width:'+c[1]+'%;background:'+c[2]+'"></i>').join('');
+      subj='<div class="ic" style="background:var(--blue)">⊞</div><div class="nm"><b>'+order.name+'</b><span>Premade Basket · '+order.comp.length+' assets</span></div>'
+        +'<div style="flex-basis:130px;margin-left:auto"><div class="alloc-bar" style="margin:0;height:10px">'+bar+'</div></div>';
+    } else if(order.kind==='strategy'){
+      const s=order.strat;
+      subj='<div class="ic" style="background:'+s.av+'">'+s.sym+'</div><div class="nm"><b>'+order.name+'</b><span>Quant Strategy · '+s.tag+'</span></div><div class="px">▲ '+s.roi.toFixed(1)+'%</div>';
+    } else {
+      subj='<div class="ic" style="background:'+(COLORS[order.sym]||'#888')+'">'+order.sym[0]+'</div><div class="nm"><b>'+order.sym+'</b><span>Market Order</span></div><div class="px">$'+order.price.toLocaleString(undefined,{minimumFractionDigits:2})+'</div>';
+    }
+    q('#buySubject').innerHTML=subj;
+    q('#buyBal').textContent=usd(ACCOUNT.balance);
+    q('#buyAmt').value='';
+    document.querySelectorAll('#buySide button').forEach(b=>b.classList.toggle('on', b.dataset.side==='Buy'));
+    order.side='Buy';
+    updateConv();
+  }
+  function curAmt(){ return parseFloat((q('#buyAmt').value||'').replace(/,/g,''))||0; }
+  function updateConv(){
+    const amt=curAmt(); let t='';
+    if(order.kind==='asset'){ const qn=order.price?amt/order.price:0; t='⇄ '+qn.toFixed(8)+' '+order.sym; }
+    else if(order.kind==='basket'){ t='⇄ allocated across '+order.comp.length+' assets'; }
+    else { t='⇄ copies '+order.name; }
+    q('#buyConv').textContent=t;
+  }
+
+  function renderReview(){
+    q('#revAcct').textContent=ACCOUNT.label;
+    const amt=order.amount; let title, rows=[], subs='';
+    if(order.kind==='asset'){
+      title='Review Market '+order.side;
+      rows=[['Estimated Execution Price','$'+order.price.toLocaleString(undefined,{minimumFractionDigits:2})],
+            ['Estimated '+order.sym+' Quantity',(amt/order.price).toFixed(8)],
+            ['Amount','$'+amt.toFixed(2)],
+            ['iTrustCapital Transaction Fee','$0.00'],
+            ['Estimated Total','$'+amt.toFixed(2)]];
+    } else if(order.kind==='basket'){
+      title='Review Allocation';
+      subs=order.comp.map(c=>'<div class="rev-sub"><span>'+c[0]+' · '+c[1]+'%</span><span>$'+(amt*c[1]/100).toFixed(2)+'</span></div>').join('');
+      rows=[['Basket',order.name],['__SUBS__',''],['Amount','$'+amt.toFixed(2)],
+            ['Rebalancing','Quarterly'],['Transaction Fee (50% standard)','$0.00'],['Estimated Total','$'+amt.toFixed(2)]];
+    } else {
+      const s=order.strat; title='Review Allocation';
+      rows=[['Strategy',order.name],['Annualized ROI','▲ '+s.roi.toFixed(2)+'%'],['Allocation','$'+amt.toFixed(2)],
+            ['Copy of auto-tradable balance',(amt/ACCOUNT.balance*100).toFixed(0)+'%'],
+            ['iTrustCapital Transaction Fee','$0.00'],['Estimated Total','$'+amt.toFixed(2)]];
+    }
+    q('#revTitle').textContent=title;
+    q('#revRows').innerHTML=rows.map(r=> r[0]==='__SUBS__' ? subs : '<div class="rev-row"><span class="k">'+r[0]+'</span><span class="v">'+r[1]+'</span></div>').join('');
+    q('#revNote').innerHTML='*Final execution price may vary with market volatility<br>*Estimated price includes all iTrustCapital fees';
+  }
+
+  function submitOrder(){
+    const a='$'+order.amount.toFixed(2);
+    if(order.kind==='asset') toast('Order submitted — '+order.side+' '+a+' of '+order.sym);
+    else if(order.kind==='basket') toast('Allocated '+a+' into <b>'+order.name+'</b>, rebalancing Quarterly');
+    else toast('Now copying <b>'+order.name+'</b> with '+a+' of auto-tradable balance');
+    show('home');
+  }
+
+  // buy / review wiring
+  q('#buySide').addEventListener('click', e=>{ const b=e.target.closest('[data-side]'); if(!b)return; order.side=b.dataset.side; document.querySelectorAll('#buySide button').forEach(x=>x.classList.toggle('on',x===b)); });
+  q('#buyAmt').addEventListener('input', updateConv);
+  q('#buyMax').addEventListener('click', ()=>{ q('#buyAmt').value=ACCOUNT.balance.toFixed(2); updateConv(); });
+  q('#buyReview').addEventListener('click', ()=>{ const amt=curAmt(); if(!(amt>0)){ toast('Enter an amount to continue'); return;} if(amt>ACCOUNT.balance){ toast('Amount exceeds available balance'); return;} order.amount=amt; renderReview(); show('review'); });
+  q('#revSubmit').addEventListener('click', submitOrder);
+  document.getElementById('buyBack').addEventListener('click', ()=>show(order&&order.kind==='strategy'?'sdetail':(order&&order.kind==='asset'?'home':'baskets')));
+  document.getElementById('buyCancel').addEventListener('click', ()=>show('home'));
+  document.getElementById('revBack').addEventListener('click', ()=>show('buy'));
+  document.getElementById('revCancel').addEventListener('click', ()=>show('home'));
+  document.getElementById('sdBack').addEventListener('click', ()=>show('quant'));
+  document.getElementById('sdHome').addEventListener('click', ()=>show('home'));
+  document.getElementById('rbBack').addEventListener('click', ()=>show('bdetail'));
+  document.getElementById('rbHome').addEventListener('click', ()=>show('home'));
+  document.addEventListener('click', e=>{
+    const sd=e.target.closest('[data-stratdetail]'); if(sd){ renderStrategyDetail(sd.dataset.stratdetail); show('sdetail'); return; }
+    const bb=e.target.closest('[data-buybasket]'); if(bb){ openBuy('basket', bb.dataset.buybasket); return; }
   });
 
   // ================= navigation wiring =================
