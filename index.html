@@ -1773,18 +1773,19 @@ renderAll();
         <div class="qavatar" style="background:${s.av}">${s.sym}</div>
         <div class="qname">${s.name}</div>
         <div class="qhero">
-          <div><div class="roi">▲ ${s.roi.toFixed(2)}%</div><div class="cap">Annualized ROI</div></div>
+          <div><div class="roi" id="qroi-${s.id}" style="color:var(--muted)">…</div><div class="cap">Annualized return</div></div>
           <div class="right"><div class="subs">${s.subs}</div><div class="cap">Subscribers</div></div>
         </div>
-        <div class="qrow"><span class="k">Strategy Performance</span><span class="v up">▲ ${s.perf.toFixed(2)}%</span></div>
-        <div class="qrow"><span class="k">Actual Market Performance</span><span class="v up">▲ ${s.mkt.toFixed(2)}%</span></div>
+        <div class="qrow"><span class="k">Strategy Performance (2y)</span><span class="v" id="qperf-${s.id}" style="color:var(--muted)">…</span></div>
+        <div class="qrow"><span class="k">Market Performance (2y)</span><span class="v" id="qmkt-${s.id}" style="color:var(--muted)">…</span></div>
         <div class="qrow"><span class="k">Tradable Assets</span><span class="v up">▲ ${usd(s.assets)}</span></div>
         <div class="qrow"><span class="k">Followers PnL</span><span class="v up">▲ ${usd(s.fpnl)}</span></div>
         <div class="qrow"><span class="k">Personal PnL</span><span class="v up">▲ ${usd(s.ppnl)}</span></div>
-        <div class="qrow"><span class="k">Avg PnL per Trade</span><span class="v up">▲ ${s.avg.toFixed(2)}%</span></div>
-        <div class="qrow"><span class="k">Avg Trades Each Week</span><span class="v">${s.tpw.toFixed(2)}</span></div>
+        <div class="qrow"><span class="k">Avg PnL per Trade</span><span class="v" id="qavg-${s.id}" style="color:var(--muted)">…</span></div>
+        <div class="qrow"><span class="k">Avg Trades Each Week</span><span class="v" id="qtpw-${s.id}" style="color:var(--muted)">…</span></div>
         <button class="btn violet qfollow" data-stratdetail="${s.id}">View Strategy →</button>
       </div>`).join('');
+    if(window.__fillQuantReal) window.__fillQuantReal();
   }
 
   // ============ CopyCat confirmation modal ============
@@ -1831,7 +1832,7 @@ renderAll();
       <div class="bcard">
         <div class="top">
           <h3>${b.name}</h3>
-          <span class="bchg ${b.chg>=0?'up':'down'}">${b.chg>=0?'▲':'▼'} ${sg(b.chg)} <span style="color:var(--faint);font-weight:500;font-size:11px">90d</span></span>
+          <span class="bchg" id="bchg-${b.id}" style="color:var(--muted)">… <span style="color:var(--faint);font-weight:500;font-size:11px">90d</span></span>
         </div>
         <div class="bbar">${barOf(b.comp)}</div>
         <div class="bpills">${b.comp.map(c=>`<span class="bpill"><span class="dot" style="background:${c[2]}"></span>${c[0]} <span class="w">${c[1]}%</span></span>`).join('')}</div>
@@ -1842,6 +1843,7 @@ renderAll();
           <button class="btn blue" data-buybasket="${b.id}">Allocate</button>
         </div>
       </div>`).join('');
+    if(window.__fillBasketReal) window.__fillBasketReal();
   }
 
   // basket order modal
@@ -2447,6 +2449,40 @@ renderAll();
       if(el){ el.className='v '+(chg>=0?'up':'down'); el.innerHTML=(chg>=0?'▲ +':'▼ ')+(chg*100).toFixed(1)+'%'; }
     }catch(e){ chartMsg(c,'Live price data unavailable (network/Coinbase)'); }
   }
+
+  // ----- real numbers for the quant + basket LIST cards (lazy, cached) -----
+  const qCache={}, bCache={};
+  async function backtestFor(asym){
+    const end=new Date(), start=new Date(end.getTime()-730*86400000);
+    const bars=await CB.getHistory(CB_SYM[asym], start, end, '1d');
+    return E.runSpec({bot:STRAT_SPEC, symbol:CB_SYM[asym], granularity:'1d', fee_bps:40, starting_equity:10000}, bars);
+  }
+  function setSigned(id,x){ const el=document.getElementById(id); if(!el)return; const p=x*100; el.innerHTML=(p>=0?'▲ +':'▼ ')+Math.abs(p).toFixed(1)+'%'; el.style.color=p>=0?'var(--green)':'var(--coral)'; }
+  async function fillQuantReal(){
+    for(const s of STRATS){
+      try{
+        const _t=(s.tag||'').match(/^([A-Z]+)/), asym=(_t&&CB_SYM[_t[1]])?_t[1]:'BTC';
+        let res=qCache[s.id]; if(!res){ res=await backtestFor(asym); qCache[s.id]=res; }
+        const m=res.metrics;
+        setSigned('qroi-'+s.id, m.cagr); setSigned('qperf-'+s.id, m.total_return);
+        setSigned('qmkt-'+s.id, res.benchmark.buy_and_hold_return);
+        setSigned('qavg-'+s.id, m.num_trades? m.total_return/m.num_trades : 0);
+        const tpw=document.getElementById('qtpw-'+s.id); if(tpw){ tpw.textContent=(m.num_trades/(730/7)).toFixed(2); tpw.style.color='var(--text)'; }
+      }catch(e){}
+    }
+  }
+  async function fillBasketReal(){
+    for(const b of BASKETS){
+      try{
+        let chg=bCache[b.id];
+        if(chg===undefined){ const pts=await basketSeries(b.comp,90); if(!pts||pts.length<2) continue; chg=pts[pts.length-1][1]/pts[0][1]-1; bCache[b.id]=chg; }
+        const el=document.getElementById('bchg-'+b.id); if(el){ const p=chg*100; el.innerHTML=(p>=0?'▲ +':'▼ ')+Math.abs(p).toFixed(1)+'% <span style="color:var(--faint);font-weight:500;font-size:11px">90d</span>'; el.style.color=p>=0?'var(--green)':'var(--coral)'; }
+      }catch(e){}
+    }
+  }
+  window.__fillQuantReal=fillQuantReal; window.__fillBasketReal=fillBasketReal;
+  { const oq=document.getElementById('optQuant'); if(oq) oq.addEventListener('click', fillQuantReal);
+    const ob=document.getElementById('optBasket'); if(ob) ob.addEventListener('click', fillBasketReal); }
 
   function renderAssetDetail(sym, from){
     adFrom = from||'baskets';
