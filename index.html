@@ -1837,7 +1837,7 @@ renderAll();
         </div>
         <div class="bbar">${barOf(b.comp)}</div>
         <div class="bpills">${b.comp.map(c=>`<span class="bpill"><span class="dot" style="background:${c[2]}"></span>${c[0]} <span class="w">${c[1]}%</span></span>`).join('')}</div>
-        <div id="balpha-${b.id}" style="font-size:12px;font-weight:600;color:var(--muted)">α … vs BTC</div>
+        <div id="balpha-${b.id}" style="font-size:12px;font-weight:600;color:var(--muted)">α … vs equal-wt</div>
         <div class="bblurb">${b.blurb}</div>
         <div class="bfee">Quarterly rebalancing</div>
         <div class="bctas">
@@ -2329,13 +2329,13 @@ renderAll();
     q('#bdBody').innerHTML=
       '<div class="flow-head"><span class="eyebrow b">Premade Basket</span><h1>'+b.name+'</h1><p>'+b.blurb+'</p></div>'
       +'<div class="bd-hero">'
-      +' <div class="dcard"><div class="card-title" style="margin-bottom:6px;display:flex;align-items:center;flex-wrap:wrap">Growth of $10,000 — Basket vs. BTC <span class="small" style="margin-left:6px">live Coinbase blend</span><button class="btn ghost" id="bdPerfDl" style="margin-left:auto;padding:6px 12px">⬇ Performance CSV</button></div>'
+      +' <div class="dcard"><div class="card-title" style="margin-bottom:6px;display:flex;align-items:center;flex-wrap:wrap">Growth of $10,000 — Basket vs. Equal-weight <span class="small" style="margin-left:6px">live Coinbase blend</span><button class="btn ghost" id="bdPerfDl" style="margin-left:auto;padding:6px 12px">⬇ Performance CSV</button></div>'
       +'   '+rangeBtns('bdRange',365)
-      +'   <div class="bt-legend"><span><i style="background:#8FB14E"></i>Basket</span><span><i style="background:#9BA2C4"></i>BTC buy &amp; hold</span></div>'
+      +'   <div class="bt-legend"><span><i style="background:#8FB14E"></i>Basket</span><span><i style="background:#9BA2C4"></i>Equal-weight</span></div>'
       +'   <canvas id="bdChart" style="width:100%;height:170px;display:block"></canvas></div>'
       +' <div class="bd-stats">'
       +'  <div class="bd-stat"><div class="k" id="bdRetLabel">Return</div><div class="v" id="bdRet" style="color:var(--muted)">…</div></div>'
-      +'  <div class="bd-stat"><div class="k">Alpha vs BTC</div><div class="v" id="bdAlpha" style="color:var(--muted)">…</div></div>'
+      +'  <div class="bd-stat"><div class="k">Alpha vs equal-wt</div><div class="v" id="bdAlpha" style="color:var(--muted)">…</div></div>'
       +'  <div class="bd-stat"><div class="k">Assets</div><div class="v">'+b.comp.length+'</div></div>'
       +'  <div class="bd-stat"><div class="k">Rebalance</div><div class="v">Quarterly</div></div>'
       +' </div></div>'
@@ -2402,16 +2402,16 @@ renderAll();
     return bars.map(b=>[b.timestamp.getTime(), b.close]);
   }
   // weighted blend of the tradable constituents -> a real index, normalized to 1.0 at start
-  async function basketSeries(comp, days){
+  async function basketSeries(comp, days, equal){
     const items=comp.filter(c=>CB_SYM[c[0]]);
     if(!items.length) return await realCloses('BTC-USD', days);
-    const wsum=items.reduce((a,c)=>a+c[1],0);
+    const wsum=equal? items.length : items.reduce((a,c)=>a+c[1],0);
     const series=await Promise.all(items.map(c=>realCloses(CB_SYM[c[0]], days)));
     const maps=series.map(s=>{ const m=new Map(); s.forEach(p=>m.set(p[0],p[1])); return m; });
     const out=[];
     for(const p of series[0]){
       const ts=p[0]; let val=0, ok=true;
-      for(let i=0;i<items.length;i++){ const c=maps[i].get(ts), c0=series[i][0][1]; if(c==null){ ok=false; break; } val += (items[i][1]/wsum)*(c/c0); }
+      for(let i=0;i<items.length;i++){ const c=maps[i].get(ts), c0=series[i][0][1]; if(c==null){ ok=false; break; } val += ((equal?1:items[i][1])/wsum)*(c/c0); }
       if(ok) out.push([ts, val]);
     }
     return out.length>1 ? out : await realCloses('BTC-USD', days);
@@ -2464,12 +2464,12 @@ renderAll();
   async function loadBlendChart(canvasId, comp, days, dlId, name){
     const c=q('#'+canvasId); if(!c) return null; chartMsg(c,'Loading live Coinbase prices…');
     try{
-      const [pts, btc]=await Promise.all([basketSeries(comp,days), realCloses('BTC-USD',days)]);
-      if(!pts||pts.length<2){ chartMsg(c,'Live price data unavailable'); return null; }
+      const [pts, ben]=await Promise.all([basketSeries(comp,days,false), basketSeries(comp,days,true)]);
+      if(!pts||pts.length<2||!ben||ben.length<2){ chartMsg(c,'Live price data unavailable'); return null; }
       const c0=pts[0][1], eq=pts.map(p=>[p[0],10000*p[1]/c0]);
-      const b0=btc[0][1], beq=btc.map(p=>[p[0],10000*p[1]/b0]);
+      const b0=ben[0][1], beq=ben.map(p=>[p[0],10000*p[1]/b0]);
       drawChart(c, [{pts:beq,color:'#9BA2C4',width:1.5},{pts:eq,color:'#8FB14E',width:2}], {});
-      if(dlId){ const dl=q('#'+dlId); if(dl) dl.onclick=()=>{ const head=['Date','Basket ($)','BTC Buy & Hold ($)']; const rows=eq.map((p,i)=>[fdate(p[0]),p[1].toFixed(2), beq[i]?beq[i][1].toFixed(2):'']); downloadCSV([head].concat(rows).map(r=>r.join(',')).join('\n'), (name||'basket').replace(/\s+/g,'_')+'_'+rangeLabel(days)+'_performance.csv'); }; }
+      if(dlId){ const dl=q('#'+dlId); if(dl) dl.onclick=()=>{ const head=['Date','Basket ($)','Equal-Weight ($)']; const rows=eq.map((p,i)=>[fdate(p[0]),p[1].toFixed(2), beq[i]?beq[i][1].toFixed(2):'']); downloadCSV([head].concat(rows).map(r=>r.join(',')).join('\n'), (name||'basket').replace(/\s+/g,'_')+'_'+rangeLabel(days)+'_performance.csv'); }; }
       return {pts:pts, eq:eq, beq:beq};
     }catch(e){ chartMsg(c,'Live price data unavailable (network/Coinbase)'); return null; }
   }
@@ -2561,14 +2561,13 @@ renderAll();
     }
   }
   async function fillBasketReal(){
-    let btc90=bCache['__btc90'];
-    if(btc90===undefined){ try{ const bp=await realCloses('BTC-USD',90); btc90=bp.length>1?(bp[bp.length-1][1]/bp[0][1]-1):0; }catch(e){ btc90=0; } bCache['__btc90']=btc90; }
     for(const b of BASKETS){
       try{
-        let chg=bCache[b.id];
-        if(chg===undefined){ const pts=await basketSeries(b.comp,90); if(!pts||pts.length<2) continue; chg=pts[pts.length-1][1]/pts[0][1]-1; bCache[b.id]=chg; }
+        let chg=bCache[b.id+'-tw'], eqw=bCache[b.id+'-ew'];
+        if(chg===undefined){ const pts=await basketSeries(b.comp,90,false); if(!pts||pts.length<2) continue; chg=pts[pts.length-1][1]/pts[0][1]-1; bCache[b.id+'-tw']=chg; }
+        if(eqw===undefined){ const pe=await basketSeries(b.comp,90,true); eqw=(pe&&pe.length>1)?(pe[pe.length-1][1]/pe[0][1]-1):chg; bCache[b.id+'-ew']=eqw; }
         const el=document.getElementById('bchg-'+b.id); if(el){ const p=chg*100; el.innerHTML=(p>=0?'▲ +':'▼ ')+Math.abs(p).toFixed(1)+'% <span style="color:var(--faint);font-weight:500;font-size:11px">90d</span>'; el.style.color=p>=0?'var(--green)':'var(--coral)'; }
-        const a=document.getElementById('balpha-'+b.id); if(a){ const al=(chg-btc90)*100; a.innerHTML='α '+(al>=0?'+':'')+al.toFixed(1)+'% vs BTC (90d)'; a.style.color=al>=0?'var(--green)':'var(--coral)'; }
+        const a=document.getElementById('balpha-'+b.id); if(a){ const al=(chg-eqw)*100; a.innerHTML='α '+(al>=0?'+':'')+al.toFixed(1)+'% vs equal-wt (90d)'; a.style.color=al>=0?'var(--green)':'var(--coral)'; }
       }catch(e){}
     }
   }
@@ -2658,10 +2657,10 @@ renderAll();
       +' <div class="pf-card"><div class="k">Next Rebalance</div><div class="v">Sep 30, 2026</div></div>'
       +' <div class="pf-card"><div class="k">Current Drift</div><div class="v" style="color:'+(totalDrift>5?'var(--coral)':'var(--green)')+'">'+totalDrift.toFixed(1)+'%</div></div>'
       +'</div>'
-      +'<div class="dcard" style="margin-bottom:18px"><div class="card-title" style="margin-bottom:6px;display:flex;align-items:center;flex-wrap:wrap">Growth of $10,000 — Basket vs. BTC <span class="small" style="margin-left:6px">live Coinbase blend</span><button class="btn ghost" id="rbPerfDl" style="margin-left:auto;padding:6px 12px">⬇ Performance CSV</button></div>'
+      +'<div class="dcard" style="margin-bottom:18px"><div class="card-title" style="margin-bottom:6px;display:flex;align-items:center;flex-wrap:wrap">Growth of $10,000 — Basket vs. Equal-weight <span class="small" style="margin-left:6px">live Coinbase blend</span><button class="btn ghost" id="rbPerfDl" style="margin-left:auto;padding:6px 12px">⬇ Performance CSV</button></div>'
       + rangeBtns('rbRange',365)
-      +'<div class="bt-legend"><span><i style="background:#8FB14E"></i>Basket</span><span><i style="background:#9BA2C4"></i>BTC buy &amp; hold</span></div><canvas id="rbChart" style="width:100%;height:160px;display:block"></canvas>'
-      +'<div class="bd-stats" style="grid-template-columns:repeat(3,1fr);margin-top:14px"><div class="bd-stat"><div class="k" id="rbRetLabel">Return</div><div class="v" id="rbRet" style="color:var(--muted)">…</div></div><div class="bd-stat"><div class="k">BTC (buy &amp; hold)</div><div class="v" id="rbBtc" style="color:var(--muted)">…</div></div><div class="bd-stat"><div class="k">Alpha vs BTC</div><div class="v" id="rbAlpha" style="color:var(--muted)">…</div></div></div></div>'
+      +'<div class="bt-legend"><span><i style="background:#8FB14E"></i>Basket</span><span><i style="background:#9BA2C4"></i>Equal-weight</span></div><canvas id="rbChart" style="width:100%;height:160px;display:block"></canvas>'
+      +'<div class="bd-stats" style="grid-template-columns:repeat(3,1fr);margin-top:14px"><div class="bd-stat"><div class="k" id="rbRetLabel">Return</div><div class="v" id="rbRet" style="color:var(--muted)">…</div></div><div class="bd-stat"><div class="k">Equal-weight</div><div class="v" id="rbBtc" style="color:var(--muted)">…</div></div><div class="bd-stat"><div class="k">Alpha vs equal-wt</div><div class="v" id="rbAlpha" style="color:var(--muted)">…</div></div></div></div>'
       +'<div class="dcard"><div class="card-title" style="margin-bottom:10px">Target vs. Current Weights</div>'
       +'<div style="font-size:12px;color:var(--muted);margin-bottom:4px">Target</div><div class="alloc-bar">'+tBar+'</div>'
       +'<div style="font-size:12px;color:var(--muted);margin-bottom:4px">Current (drifted)</div><div class="alloc-bar">'+cBar+'</div>'
