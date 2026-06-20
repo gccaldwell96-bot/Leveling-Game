@@ -615,12 +615,12 @@
         <span class="eyebrow">Place Conditional Transaction</span>
         <span class="title">Strategy Builder</span>
       </div>
-      <div class="field"><label>Bot name</label><input class="botname" id="botName" value="Momentum Reversal v1" maxlength="40"></div>
+      <div class="field"><label>Bot name</label><input class="botname" id="botName" value="EMA Crossover v1" maxlength="40"></div>
       <div class="field"><label>Asset</label>
         <select class="sel" id="asset"><option>BTC</option><option>ETH</option><option>SOL</option><option>XRP</option><option>AVAX</option><option>LINK</option></select>
       </div>
       <div class="field"><label>Timeframe</label>
-        <select class="sel" id="tf"><option>5m</option><option>15m</option><option selected>1h</option><option>6h</option><option>1d</option></select>
+        <select class="sel" id="tf"><option>5m</option><option>15m</option><option>1h</option><option>6h</option><option selected>1d</option></select>
       </div>
       <div class="field"><label>Selected</label>
         <div class="counter" id="counter"><span class="n num" id="count">0</span><span class="lbl">/ 10</span><div class="dots" id="dots"></div></div>
@@ -926,10 +926,11 @@ $('#btnTest').addEventListener('click', ()=>{
   if (window.__runBuilderBacktest) window.__runBuilderBacktest();
 });
 
-// ---- seed a small starter strategy so the mockup reads at a glance ----
-addSignal('rsi','entry');
-addSignal('emax','entry');
-addSignal('rsi','exit');
+// ---- seed a starter strategy that ACTUALLY trades (classic EMA trend cross) ----
+// EMA golden cross -> go long; EMA death cross -> go flat. Trades regularly so
+// the backtest reads meaningfully out of the box.
+addSignal('emax','entry');   // golden cross
+addSignal('emax','exit');    // death cross
 renderAll();
 </script>
 <script>
@@ -1219,6 +1220,7 @@ renderAll();
     <div class="sheet-body">
       <div class="bt-status" id="btStatus"><div class="bt-spin"></div><span id="btStatusTxt">Loading…</span></div>
       <div id="btContent" style="display:none">
+        <div id="btHint"></div>
         <div class="bt-cards" id="btCards"></div>
         <div class="bt-sig" id="btSig"></div>
         <div class="bt-legend"><span><i style="background:var(--blue)"></i>Strategy (net of fees)</span><span><i style="background:var(--muted)"></i>Buy &amp; hold</span></div>
@@ -1333,6 +1335,9 @@ renderAll();
     const m=res.metrics, beats=res.alpha>=0;
     q('#btStatus').style.display='none'; q('#btContent').style.display='block';
     q('#btTitle').textContent = res.bot+' · '+res.symbol+' · '+tf;
+    q('#btHint').innerHTML = m.num_trades===0
+      ? '<div class="bt-err" style="background:rgba(229,177,77,.1);border-color:rgba(229,177,77,.4);color:#E5B14D;margin-bottom:12px">This strategy never triggered over the window — <b>0 trades</b>, so it stayed in cash and its return is 0%. Try switching <b>Entry</b> from ALL to <b>ANY</b>, loosening a threshold, or using a single crossover condition.</div>'
+      : '';
     const cards=[
       ['Net return',fmtPct(m.total_return),m.total_return>=0?'up':'down'],
       ['Alpha vs B&H',fmtPct(res.alpha)+(beats?' ▲':' ▼'),beats?'up':'down'],
