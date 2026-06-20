@@ -2431,22 +2431,31 @@ renderAll();
     indicators:{m:{type:'MACD',fast:12,slow:26}, sig:{type:'MACD_SIGNAL',fast:12,slow:26,signal:9}},
     entry:{all:[{left:'m',op:'crosses_above',right:'sig'}]},
     exit:{any:[{left:'m',op:'crosses_below',right:'sig'}]}};
-  // each premade strategy is a DISTINCT real strategy, each compared vs buy & hold
+  // ===== ingested from itc-algo-signals per-asset bake-off catalog =====
+  // BTC + default -> Regime-Switch MACD; ETH/LINK -> Keltner breakout;
+  // SOL/XRP/AVAX -> Bollinger breakout; LTC -> dual-MA cross. Per-asset fees:
+  // BTC 40 bps, alts 70 bps. (Regime-MACD is a regime-gated approximation of
+  // the stateful RegimeSwitch: long the MACD-momentum leg only while price is
+  // above its 100-day regime SMA.)
+  const REGIME={name:'Regime-Switch MACD',size:1,indicators:{m:{type:'MACD',fast:45,slow:90},sig:{type:'MACD_SIGNAL',fast:45,slow:90,signal:9},reg:{type:'SMA',period:100}},entry:{all:[{left:'m',op:'>',right:'sig'},{left:'close',op:'>',right:'reg'}]},exit:{any:[{left:'m',op:'<',right:'sig'},{left:'close',op:'<',right:'reg'}]}};
+  const BOLL={name:'Bollinger breakout',size:1,indicators:{bbu:{type:'BB_UPPER',period:20,k:2},mid:{type:'SMA',period:20}},entry:{all:[{left:'close',op:'>',right:'bbu'}]},exit:{any:[{left:'close',op:'<',right:'mid'}]}};
+  const KELT={name:'Keltner breakout',size:1,indicators:{kcu:{type:'KC_UPPER',period:20,mult:2},ema:{type:'EMA',period:20}},entry:{all:[{left:'close',op:'>',right:'kcu'}]},exit:{any:[{left:'close',op:'<',right:'ema'}]}};
+  const DUALMA={name:'Dual-MA cross',size:1,indicators:{f:{type:'SMA',period:20},s:{type:'SMA',period:100}},entry:{all:[{left:'f',op:'>',right:'s'}]},exit:{any:[{left:'f',op:'<',right:'s'}]}};
   const SPEC_BY_ID = {
-    flag:{method:'MACD momentum', spec:{name:'MACD momentum',size:1,indicators:{m:{type:'MACD',fast:12,slow:26},sig:{type:'MACD_SIGNAL',fast:12,slow:26,signal:9}},entry:{all:[{left:'m',op:'crosses_above',right:'sig'}]},exit:{any:[{left:'m',op:'crosses_below',right:'sig'}]}}},
-    btc:{method:'EMA 21/55 trend', spec:{name:'EMA trend',size:1,indicators:{f:{type:'EMA',period:21},s:{type:'EMA',period:55}},entry:{all:[{left:'f',op:'crosses_above',right:'s'}]},exit:{any:[{left:'f',op:'crosses_below',right:'s'}]}}},
-    xrp:{method:'Donchian breakout', spec:{name:'Donchian breakout',size:1,indicators:{hi:{type:'DONCHIAN_HIGH',lookback:20},lo:{type:'DONCHIAN_LOW',lookback:10}},entry:{all:[{left:'close',op:'crosses_above',right:'hi'}]},exit:{any:[{left:'close',op:'crosses_below',right:'lo'}]}}},
-    eth:{method:'EMA 50/200 trend', spec:{name:'EMA slow trend',size:1,indicators:{f:{type:'EMA',period:50},s:{type:'EMA',period:200}},entry:{all:[{left:'f',op:'crosses_above',right:'s'}]},exit:{any:[{left:'f',op:'crosses_below',right:'s'}]}}},
-    sol:{method:'RSI mean-reversion', spec:{name:'RSI mean-reversion',size:1,indicators:{r:{type:'RSI',period:14}},entry:{all:[{left:'r',op:'<',right:30}]},exit:{any:[{left:'r',op:'>',right:55}]}}},
-    ada:{method:'SMA 20/50 trend', spec:{name:'SMA trend',size:1,indicators:{f:{type:'SMA',period:20},s:{type:'SMA',period:50}},entry:{all:[{left:'f',op:'crosses_above',right:'s'}]},exit:{any:[{left:'f',op:'crosses_below',right:'s'}]}}},
+    flag:{method:'Regime-Switch MACD', spec:REGIME, fee:40},
+    btc: {method:'Regime-Switch MACD', spec:REGIME, fee:40},
+    xrp: {method:'Bollinger breakout', spec:BOLL,   fee:70},
+    eth: {method:'Keltner breakout',   spec:KELT,   fee:70},
+    sol: {method:'Bollinger breakout', spec:BOLL,   fee:70},
+    ada: {method:'Regime-Switch MACD', spec:REGIME, fee:70},
   };
-  function stratDef(id){ return SPEC_BY_ID[id] || {method:'Momentum', spec:STRAT_SPEC}; }
+  function stratDef(id){ return SPEC_BY_ID[id] || {method:'Regime-Switch MACD', spec:REGIME, fee:70}; }
   async function loadStrategyBacktest(id, asym, days){
     days=days||730; const c=q('#sdChart'); chartMsg(c,'Running live backtest…');
     document.querySelectorAll('#sdRange .rbtn-range').forEach(b=>b.setAttribute('data-on',(+b.dataset.days===days)?'1':'0'));
     const rl=q('#sdRangeLabel'); if(rl) rl.textContent=rangeLabel(days);
     try{
-      const key=id+'-'+days; let res=qCache[key]; if(!res){ res=await backtestFor(asym, stratDef(id).spec, days); qCache[key]=res; }
+      const key=id+'-'+days; let res=qCache[key]; if(!res){ res=await backtestFor(asym, stratDef(id).spec, days, stratDef(id).fee); qCache[key]=res; }
       const m=res.metrics, beats=res.alpha>=0;
       drawChart(c, [{pts:res.benchmark_curve,color:'#9BA2C4',width:1.5},{pts:res.equity_curve,color:'#9B8CFF',width:2}], {log:true});
       const bc=res.benchmark_curve, mktEnd=bc[bc.length-1][1], stratEnd=res.final_equity;
@@ -2498,10 +2507,10 @@ renderAll();
   const qCache={}, bCache={};
   const RANGES=[['6M',180],['1Y',365],['2Y',730],['5Y',1825]];
   let sdCtx=null, bdCtx=null, rbCtx=null;
-  async function backtestFor(asym, spec, days){
+  async function backtestFor(asym, spec, days, fee){
     days=days||730; const end=new Date(), start=new Date(end.getTime()-days*86400000);
     const bars=await CB.getHistory(CB_SYM[asym], start, end, '1d');
-    return E.runSpec({bot:spec||STRAT_SPEC, symbol:CB_SYM[asym], granularity:'1d', fee_bps:40, starting_equity:10000}, bars);
+    return E.runSpec({bot:spec||STRAT_SPEC, symbol:CB_SYM[asym], granularity:'1d', fee_bps:fee||40, starting_equity:10000}, bars);
   }
   function perfCSV(strat, bench){ const head=['Date','Strategy ($)','Buy & Hold ($)']; const rows=strat.map((p,i)=>[fdate(p[0]), p[1].toFixed(2), bench[i]?bench[i][1].toFixed(2):'']); return [head].concat(rows).map(r=>r.join(',')).join('\n'); }
   function seriesCSV(pts, label){ const head=['Date',label]; const rows=pts.map(p=>[fdate(p[0]), p[1].toFixed(2)]); return [head].concat(rows).map(r=>r.join(',')).join('\n'); }
@@ -2549,7 +2558,7 @@ renderAll();
     for(const s of STRATS){
       try{
         const _t=(s.tag||'').match(/^([A-Z]+)/), asym=(_t&&CB_SYM[_t[1]])?_t[1]:'BTC';
-        let res=qCache[s.id+'-730']; if(!res){ res=await backtestFor(asym, stratDef(s.id).spec, 730); qCache[s.id+'-730']=res; }
+        let res=qCache[s.id+'-730']; if(!res){ res=await backtestFor(asym, stratDef(s.id).spec, 730, stratDef(s.id).fee); qCache[s.id+'-730']=res; }
         const m=res.metrics;
         const mc=document.getElementById('qmeth-'+s.id); if(mc) mc.textContent=stratDef(s.id).method;
         setSigned('qroi-'+s.id, m.cagr); setSigned('qperf-'+s.id, m.total_return);
@@ -2611,7 +2620,7 @@ renderAll();
     const nm=NAMES[asym]||asym;
     q('#sdBody').innerHTML=
       '<div class="flow-head"><span class="eyebrow v">Professional Quant Strategy</span><h1>'+s.name+'</h1>'
-      +'<p>A live '+stratDef(id).method+' strategy backtested on '+nm+', net of 40&nbsp;bps/trade. Allocate part of your balance and it trades for you'+(s.stop?', with stop-losses enabled.':'.')+'</p></div>'
+      +'<p>A live '+stratDef(id).method+' strategy backtested on '+nm+', net of '+(stratDef(id).fee||40)+'&nbsp;bps/trade. Allocate part of your balance and it trades for you'+(s.stop?', with stop-losses enabled.':'.')+'</p></div>'
       +'<div class="bd-hero">'
       +' <div class="dcard"><div class="card-title" style="margin-bottom:6px;display:flex;align-items:center;flex-wrap:wrap">Growth of $10,000 — Strategy vs. Buy &amp; Hold <span class="small" style="margin-left:6px">live Coinbase, net of fees</span><button class="btn ghost" id="sdPerfDl" style="margin-left:auto;padding:6px 12px">⬇ Performance CSV</button></div>'
       +'   '+rangeBtns('sdRange',730)
@@ -2634,7 +2643,7 @@ renderAll();
       +'<div class="dcard" style="margin-bottom:18px"><div class="card-title" style="margin-bottom:8px;display:flex;align-items:center">Trade log <span class="small" id="sdTradeCount" style="margin-left:8px"></span>'
       +'  <button class="btn ghost" id="sdDownload" style="margin-left:auto;padding:8px 14px">⬇ Download CSV</button></div>'
       +'  <div class="scroll" style="max-height:280px;overflow:auto"><table class="hold-table" id="sdTrades"><tbody><tr><td class="muted" style="padding:14px">Running live backtest…</td></tr></tbody></table></div>'
-      +'  <div class="bt-note">Entry/exit prices are the daily close on each signal bar. Transaction fees = 40&nbsp;bps per side (entry &amp; exit); returns are net of fees.</div></div>'
+      +'  <div class="bt-note">Entry/exit prices are the daily close on each signal bar. Transaction fees = '+(stratDef(id).fee||40)+'&nbsp;bps per side (entry &amp; exit); returns are net of fees.</div></div>'
       +'<div style="display:flex;gap:10px"><button class="btn violet" id="sdAlloc" style="flex:1">Allocate to this strategy</button><button class="btn ghost" data-asset="'+asym+'" style="flex:1">View '+asym+' asset →</button></div>';
     q('#sdAlloc').addEventListener('click', ()=>openBuy('strategy', id));
     sdCtx={id:id, asym:asym}; loadStrategyBacktest(id, asym, 730);
