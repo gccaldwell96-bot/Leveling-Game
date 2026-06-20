@@ -2483,12 +2483,11 @@ renderAll();
     const cBar=cur.map(c=>'<i style="width:'+c.now+'%;background:'+c.col+'"></i>').join('');
     q('#rbBody').innerHTML=
       '<div class="flow-head"><span class="eyebrow b">Auto-Rebalancing</span><h1>Rebalancing — '+b.name+'</h1>'
-      +'<p>This basket drifts as prices move, then automatically rebalances back to its target weights on your cadence — trading at 50% of standard fees.</p></div>'
-      +'<div class="pf-cards">'
+      +'<p>This basket drifts as prices move, then automatically rebalances back to its target weights on your cadence.</p></div>'
+      +'<div class="pf-cards" style="grid-template-columns:repeat(3,1fr)">'
       +' <div class="pf-card"><div class="k">Cadence</div><div class="v">Quarterly</div></div>'
       +' <div class="pf-card"><div class="k">Next Rebalance</div><div class="v">Sep 30, 2026</div></div>'
       +' <div class="pf-card"><div class="k">Current Drift</div><div class="v" style="color:'+(totalDrift>5?'var(--coral)':'var(--green)')+'">'+totalDrift.toFixed(1)+'%</div></div>'
-      +' <div class="pf-card"><div class="k">Rebalance Fee</div><div class="v">50%</div></div>'
       +'</div>'
       +'<div class="dcard" style="margin-bottom:18px"><div class="card-title" style="margin-bottom:8px">Basket Performance <span class="small">(180d, live Coinbase blend)</span></div><canvas id="rbChart" style="width:100%;height:160px;display:block"></canvas></div>'
       +'<div class="dcard"><div class="card-title" style="margin-bottom:10px">Target vs. Current Weights</div>'
