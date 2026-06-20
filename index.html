@@ -2521,23 +2521,24 @@ renderAll();
     const sigs=res.trades||[], eq=res.equity_curve||[], fee=res.fee_bps||40;
     const ms=t=>(t instanceof Date?t.getTime():+t), eqMap=new Map();
     eq.forEach(p=>eqMap.set(ms(p[0]), p[1]));
+    const sym=s=>(s||'').replace('-USD','');
     const out=[]; let open=null;
     for(const s of sigs){
-      if(s.side==='BUY'){ open={entryT:s.timestamp, entryP:s.close, w:s.target_weight}; }
+      if(s.side==='BUY'){ open={entryT:s.timestamp, entryP:s.close, w:s.target_weight, sym:sym(s.symbol)}; }
       else if(s.side==='FLAT' && open){
         const eqEntry=eqMap.get(ms(open.entryT))||10000, eqExit=eqMap.get(ms(s.timestamp))||eqEntry;
         const gross=(s.close/open.entryP-1)*open.w, feePct=2*open.w*fee/10000;
         const feeUsd=(eqEntry+eqExit)*open.w*fee/10000;
-        out.push({entryT:open.entryT, entryP:open.entryP, exitT:s.timestamp, exitP:s.close, w:open.w, gross, feePct, feeUsd, net:gross-feePct});
+        out.push({sym:open.sym, entryT:open.entryT, entryP:open.entryP, exitT:s.timestamp, exitP:s.close, w:open.w, gross, feePct, feeUsd, net:gross-feePct});
         open=null;
       }
     }
-    if(open){ out.push({entryT:open.entryT, entryP:open.entryP, exitT:null, exitP:null, w:open.w, gross:null, feePct:open.w*fee/10000, feeUsd:null, net:null}); }
+    if(open){ out.push({sym:open.sym, entryT:open.entryT, entryP:open.entryP, exitT:null, exitP:null, w:open.w, gross:null, feePct:open.w*fee/10000, feeUsd:null, net:null}); }
     return out;
   }
   function tradesCSV(trades){
-    const head=['#','Entry Date','Entry Price','Exit Date','Exit Price','Weight','Gross %','Fee %','Fee $','Net %'];
-    const rows=trades.map((t,i)=>[i+1, fdate(t.entryT), t.entryP.toFixed(2), t.exitT?fdate(t.exitT):'OPEN', t.exitP!=null?t.exitP.toFixed(2):'', (t.w*100).toFixed(0)+'%', t.gross!=null?(t.gross*100).toFixed(2):'', (t.feePct*100).toFixed(2), t.feeUsd!=null?t.feeUsd.toFixed(2):'', t.net!=null?(t.net*100).toFixed(2):'']);
+    const head=['#','Asset','Entry Date','Entry Price','Exit Date','Exit Price','Weight','Gross %','Fee %','Fee $','Net %'];
+    const rows=trades.map((t,i)=>[i+1, t.sym||'', fdate(t.entryT), t.entryP.toFixed(2), t.exitT?fdate(t.exitT):'OPEN', t.exitP!=null?t.exitP.toFixed(2):'', (t.w*100).toFixed(0)+'%', t.gross!=null?(t.gross*100).toFixed(2):'', (t.feePct*100).toFixed(2), t.feeUsd!=null?t.feeUsd.toFixed(2):'', t.net!=null?(t.net*100).toFixed(2):'']);
     return [head].concat(rows).map(r=>r.join(',')).join('\n');
   }
   function downloadCSV(text, filename){
@@ -2547,8 +2548,8 @@ renderAll();
   }
   function renderTradeLog(tableId, countId, dlId, trades, fname){
     const tb=document.getElementById(tableId);
-    if(tb) tb.innerHTML='<thead><tr><th>#</th><th>Entry</th><th class="r">Entry $</th><th>Exit</th><th class="r">Exit $</th><th class="r">Net</th><th class="r">Fee $</th></tr></thead><tbody>'
-      + trades.map((t,i)=>'<tr><td>'+(i+1)+'</td><td>'+fdate(t.entryT)+'</td><td class="r">$'+t.entryP.toLocaleString(undefined,{maximumFractionDigits:2})+'</td><td>'+(t.exitT?fdate(t.exitT):'<span style="color:var(--blue)">open</span>')+'</td><td class="r">'+(t.exitP!=null?'$'+t.exitP.toLocaleString(undefined,{maximumFractionDigits:2}):'—')+'</td><td class="r '+(t.net>=0?'up':'down')+'">'+(t.net!=null?((t.net>=0?'+':'')+(t.net*100).toFixed(1)+'%'):'—')+'</td><td class="r">'+(t.feeUsd!=null?'$'+t.feeUsd.toFixed(2):'—')+'</td></tr>').join('')
+    if(tb) tb.innerHTML='<thead><tr><th>#</th><th>Asset</th><th>Entry</th><th class="r">Entry $</th><th>Exit</th><th class="r">Exit $</th><th class="r">Net</th><th class="r">Fee $</th></tr></thead><tbody>'
+      + trades.map((t,i)=>'<tr><td>'+(i+1)+'</td><td><b>'+(t.sym||'')+'</b></td><td>'+fdate(t.entryT)+'</td><td class="r">$'+t.entryP.toLocaleString(undefined,{maximumFractionDigits:2})+'</td><td>'+(t.exitT?fdate(t.exitT):'<span style="color:var(--blue)">open</span>')+'</td><td class="r">'+(t.exitP!=null?'$'+t.exitP.toLocaleString(undefined,{maximumFractionDigits:2}):'—')+'</td><td class="r '+(t.net>=0?'up':'down')+'">'+(t.net!=null?((t.net>=0?'+':'')+(t.net*100).toFixed(1)+'%'):'—')+'</td><td class="r">'+(t.feeUsd!=null?'$'+t.feeUsd.toFixed(2):'—')+'</td></tr>').join('')
       + '</tbody>';
     const tc=document.getElementById(countId); if(tc) tc.textContent=trades.length+' round-trip trade'+(trades.length===1?'':'s');
     const dl=document.getElementById(dlId); if(dl) dl.onclick=()=>downloadCSV(tradesCSV(trades), fname||'trades.csv');
