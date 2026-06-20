@@ -1,30 +1,35 @@
 # iTrustCapital — Algorithmic Trading POC
 
-A **leadership-facing proof of concept** for the iTrustCapital algorithmic-trading
-product. A user composes a strategy from indicators + rules, backtests it on
-**live Coinbase price history**, and sees the **signal** the strategy would fire
-into ITC — all in the browser, no install, no server.
+A **leadership-facing proof of concept** for iTrustCapital's algorithmic-trading
+product. It's the branded multi-screen iTrustCapital prototype with a **real
+backtest engine wired in** behind the Strategy Builder — clients compose a bot
+from indicators + rules, and "Run backtest" actually fetches **live Coinbase
+price history** and runs a real, fee-aware backtest in the browser.
 
-> **How to run:** double-click `index.html`. That's it. (Needs internet for the
-> Coinbase price feed.)
+> **How to run:** double-click `index.html`. No install, no server.
+> (Needs internet for the Coinbase price feed.)
 
-## What it demonstrates
+## Screens
 
-- **The bot builder** — pick indicators (SMA, EMA, RSI, MACD, ROC, Donchian, …),
-  wire entry/exit rules (`fast crosses_above slow`, `rsi < 30`, …), run it.
-- **Real backtests, net of fees** — equity curve vs. buy & hold, alpha, CAGR,
-  Sharpe, max drawdown, win rate, and **fee drag** (fees are the whole game at
-  ITC's ~40 bps/trade).
-- **The signal contract** — the stream of target-weight signals the strategy
-  would emit. *This repo stops at the signal; ITC owns execution.*
-- **Honest scope** — long-only, no leverage, enforced structurally.
+- **Home dashboard** — Roth IRA overview (click *My Assets* → Portfolio Details).
+- **Portfolio Details** — holdings, cost basis, allocation, value chart, activity.
+- **Build a Trading Strategy** chooser — the two product directions:
+  - **Premade Basket** → baskets grid, **Basket Details** page, and a working
+    **Build-a-Basket** tool (pick assets, set weights, normalize to 100%).
+  - **Professional Quant Strategies** → copy-trading concept screen.
+  - **Make Your Own** → the **Strategy Builder** (the functional core).
+- **Strategy Builder** — drag up to 10 indicators into Entry/Exit lanes, set
+  params, read the plain-language summary, and **Run a real backtest**.
 
-## Try it
+## What's real vs. concept
 
-1. Open `index.html`.
-2. Pick a preset (e.g. *MACD momentum*) or build your own.
-3. Choose a symbol / window / fee, click **Run backtest**.
-4. Read the cards, the equity curve, and the emitted signal stream.
+| Part | Status |
+|---|---|
+| Strategy Builder → Run backtest | **Real** — live Coinbase data, real engine, real metrics + equity curve |
+| All 15 indicators in the library | **Real** — each ports to the engine and backtests |
+| Build-a-Basket tool | **Real** — composes/normalizes a basket, adds it to the grid |
+| Baskets / Quant copy-trading numbers | Concept (illustrative data) for the leadership story |
+| Portfolio holdings | Illustrative sample |
 
 ## Architecture
 
@@ -32,30 +37,33 @@ Pure client-side JavaScript, **no dependencies, no build step**:
 
 | File | Role |
 |---|---|
-| `index.html` | UI shell + styling |
-| `app.js` | builder UI, presets, run flow, canvas chart |
-| `engine.js` | indicators + backtest engine + metrics — a faithful JS port of the Python `itc-algo-signals` engine |
-| `data.js` | Coinbase public-API adapter (paged candle fetch) |
+| `index.html` | the full branded UI + integration script (translator, backtest wiring, new screens) |
+| `engine.js` | indicators (26 types) + backtest engine + metrics — a faithful JS port of the Python `itc-algo-signals` engine |
+| `data.js` | Coinbase public-API adapter (paged candle fetch, in-browser) |
+
+### How the builder becomes a backtest
+
+The Strategy Builder's signal cards (e.g. *RSI(14) crosses below 30*, *EMA golden
+cross*, *MACD bullish crossover*, *price tags lower Bollinger band*) are
+**translated** into the engine's `BotSpec` contract — indicators + an entry/exit
+rule tree — then run through the same `runSpec()` pipeline as the Python engine.
+Same contract: **spec in → backtest out**, long-only, net of 40 bps/trade.
 
 ### Relationship to `itc-algo-signals`
 
 `engine.js` mirrors the tested Python engine in the sibling `itc-algo-signals`
-repo (`builder/indicators.py`, `builder/composite.py`, `backtest/engine.py`,
-`backtest/metrics.py`) — same contract: **spec in → backtest out**. Python
-remains the source of truth for production / Phase 2 live signals; this JS port
-exists so the POC runs anywhere with zero setup.
-
-Verify the port locally (portable Node):
+repo. Python stays the source of truth for production / Phase 2 live signals;
+this JS port exists so the POC runs anywhere with zero setup. Verify the port
+with the portable Node:
 
 ```bash
 export PATH="$PATH:/c/Users/GregoryCaldwell/node-v22.11.0-win-arm64"
-node -e "require('./engine.js'); console.log(Object.keys(globalThis.ITCEngine))"
+node -e "require('./engine.js'); console.log(Object.keys(globalThis.ITCEngine.INDICATORS).length+' indicators')"
 ```
 
 ## Notes / next steps
 
-- Data is fetched live each run — nothing is stored, results reproduce exactly.
-- Multi-timeframe indicators are scaffolded in the spec but not yet evaluated
-  (same limitation as the Python engine).
-- This is a POC: it's meant to be extended (more indicators, strategy catalog,
-  client opt-in flow) — the files are kept small and dependency-free for that.
+- Data is fetched live each run — nothing is stored; results reproduce exactly.
+- Timeframes map to Coinbase granularities (5m/15m/1h/6h/1d).
+- Built to be extended: more screens, a saved strategy catalog, ETH/SOL
+  cross-asset validation, an exec-summary view.

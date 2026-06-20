@@ -165,7 +165,257 @@
     return { reset() {}, update(bar) { return src(bar, source); } };
   }
 
-  // registry: spec `type` -> factory. Mirrors INDICATORS in indicators.py.
+  // =========================================================================
+  // Extended TA library — the 12 indicators the Strategy Builder UI exposes
+  // beyond the core set. Each keeps the same streaming contract
+  // (update(bar) -> value | null, reset()). Standard textbook formulas;
+  // where a UI "state" needs two operands (e.g. price vs a band) we expose
+  // the comparable numeric series and let the rule layer do the comparison.
+  // =========================================================================
+
+  const _max = (a) => Math.max.apply(null, a);
+  const _min = (a) => Math.min.apply(null, a);
+  const _avg = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+
+  // True range, shared by ATR / ADX / Keltner.
+  function _trueRange(bar, prevClose) {
+    if (prevClose === null) return bar.high - bar.low;
+    return Math.max(bar.high - bar.low, Math.abs(bar.high - prevClose), Math.abs(bar.low - prevClose));
+  }
+
+  // Wilder's smoothing (RMA) — used by ATR and ADX.
+  function _wilder(period) {
+    let val = null, seed = [], n = 0;
+    return {
+      reset() { val = null; seed = []; n = 0; },
+      push(x) {
+        n += 1;
+        if (val === null) { seed.push(x); if (seed.length === period) { val = _avg(seed); } return val; }
+        val = (val * (period - 1) + x) / period;
+        return val;
+      },
+      get() { return val; },
+    };
+  }
+
+  function Stochastic(period = 14) {
+    let hs = [], ls = [];
+    return {
+      reset() { hs = []; ls = []; },
+      update(bar) {
+        hs.push(bar.high); ls.push(bar.low);
+        if (hs.length > period) { hs.shift(); ls.shift(); }
+        if (hs.length < period) return null;
+        const hh = _max(hs), ll = _min(ls);
+        return hh === ll ? 50 : 100 * (bar.close - ll) / (hh - ll);
+      },
+    };
+  }
+
+  function WilliamsR(period = 14) {
+    let hs = [], ls = [];
+    return {
+      reset() { hs = []; ls = []; },
+      update(bar) {
+        hs.push(bar.high); ls.push(bar.low);
+        if (hs.length > period) { hs.shift(); ls.shift(); }
+        if (hs.length < period) return null;
+        const hh = _max(hs), ll = _min(ls);
+        return hh === ll ? -50 : -100 * (hh - bar.close) / (hh - ll);
+      },
+    };
+  }
+
+  function CCI(period = 20) {
+    let tps = [];
+    return {
+      reset() { tps = []; },
+      update(bar) {
+        const tp = (bar.high + bar.low + bar.close) / 3;
+        tps.push(tp);
+        if (tps.length > period) tps.shift();
+        if (tps.length < period) return null;
+        const sma = _avg(tps);
+        const md = _avg(tps.map((x) => Math.abs(x - sma)));
+        return md === 0 ? 0 : (tp - sma) / (0.015 * md);
+      },
+    };
+  }
+
+  function MFI(period = 14) {
+    let prevTp = null, pos = [], neg = [];
+    return {
+      reset() { prevTp = null; pos = []; neg = []; },
+      update(bar) {
+        const tp = (bar.high + bar.low + bar.close) / 3;
+        const rmf = tp * bar.volume;
+        if (prevTp !== null) {
+          pos.push(tp > prevTp ? rmf : 0);
+          neg.push(tp < prevTp ? rmf : 0);
+          if (pos.length > period) { pos.shift(); neg.shift(); }
+        }
+        prevTp = tp;
+        if (pos.length < period) return null;
+        const sp = pos.reduce((a, b) => a + b, 0), sn = neg.reduce((a, b) => a + b, 0);
+        if (sn === 0) return 100;
+        return 100 - 100 / (1 + sp / sn);
+      },
+    };
+  }
+
+  function ATR(period = 14) {
+    const w = _wilder(period); let prevClose = null;
+    return {
+      reset() { w.reset(); prevClose = null; },
+      update(bar) { const tr = _trueRange(bar, prevClose); prevClose = bar.close; return w.push(tr); },
+    };
+  }
+
+  function ADX(period = 14) {
+    const trS = _wilder(period), pS = _wilder(period), mS = _wilder(period), adxS = _wilder(period);
+    let prevHigh = null, prevLow = null, prevClose = null;
+    return {
+      reset() { trS.reset(); pS.reset(); mS.reset(); adxS.reset(); prevHigh = prevLow = prevClose = null; },
+      update(bar) {
+        if (prevClose === null) { prevHigh = bar.high; prevLow = bar.low; prevClose = bar.close; return null; }
+        const up = bar.high - prevHigh, down = prevLow - bar.low;
+        const pDM = up > down && up > 0 ? up : 0;
+        const mDM = down > up && down > 0 ? down : 0;
+        const tr = _trueRange(bar, prevClose);
+        prevHigh = bar.high; prevLow = bar.low; prevClose = bar.close;
+        const trv = trS.push(tr), pv = pS.push(pDM), mv = mS.push(mDM);
+        if (trv === null || trv === 0) return null;
+        const pDI = 100 * pv / trv, mDI = 100 * mv / trv;
+        const denom = pDI + mDI;
+        const dx = denom === 0 ? 0 : 100 * Math.abs(pDI - mDI) / denom;
+        return adxS.push(dx);
+      },
+    };
+  }
+
+  function PSAR(step = 0.02, maxStep = 0.2) {
+    let sar = null, ep = null, af = step, long = true, prev = null, started = false;
+    return {
+      reset() { sar = ep = prev = null; af = step; long = true; started = false; },
+      update(bar) {
+        if (prev === null) { prev = bar; return null; }
+        if (!started) {
+          long = bar.close >= prev.close;
+          sar = long ? Math.min(prev.low, bar.low) : Math.max(prev.high, bar.high);
+          ep = long ? bar.high : bar.low; af = step; started = true; prev = bar; return sar;
+        }
+        sar = sar + af * (ep - sar);
+        if (long) {
+          sar = Math.min(sar, prev.low, bar.low);
+          if (bar.high > ep) { ep = bar.high; af = Math.min(af + step, maxStep); }
+          if (bar.low < sar) { long = false; sar = ep; ep = bar.low; af = step; }
+        } else {
+          sar = Math.max(sar, prev.high, bar.high);
+          if (bar.low < ep) { ep = bar.low; af = Math.min(af + step, maxStep); }
+          if (bar.high > sar) { long = true; sar = ep; ep = bar.high; af = step; }
+        }
+        prev = bar;
+        return sar;
+      },
+    };
+  }
+
+  // midpoint of (highest high + lowest low) / 2 over `period` — Ichimoku lines.
+  function _midpoint(period) {
+    let hs = [], ls = [];
+    return {
+      reset() { hs = []; ls = []; },
+      update(bar) {
+        hs.push(bar.high); ls.push(bar.low);
+        if (hs.length > period) { hs.shift(); ls.shift(); }
+        if (hs.length < period) return null;
+        return (_max(hs) + _min(ls)) / 2;
+      },
+    };
+  }
+  function IchiTenkan(period = 9) { return _midpoint(period); }
+  function IchiKijun(period = 26) { return _midpoint(period); }
+
+  // Cloud top/bottom: max/min of the two leading spans, displaced forward 26.
+  function _ichiCloud(which, conv = 9, base = 26, spanB = 52, shift = 26) {
+    const t = _midpoint(conv), k = _midpoint(base), b = _midpoint(spanB);
+    let buf = [];
+    return {
+      reset() { t.reset(); k.reset(); b.reset(); buf = []; },
+      update(bar) {
+        const tv = t.update(bar), kv = k.update(bar), bv = b.update(bar);
+        let val = null;
+        if (tv !== null && kv !== null && bv !== null) {
+          const senkouA = (tv + kv) / 2, senkouB = bv;
+          val = which === "top" ? Math.max(senkouA, senkouB) : Math.min(senkouA, senkouB);
+        }
+        buf.push(val);
+        if (buf.length <= shift) return null;
+        return buf[buf.length - 1 - shift];
+      },
+    };
+  }
+
+  function _bollinger(which, period = 20, k = 2) {
+    let win = [];
+    return {
+      reset() { win = []; },
+      update(bar) {
+        win.push(bar.close);
+        if (win.length > period) win.shift();
+        if (win.length < period) return null;
+        const m = _avg(win);
+        const sd = Math.sqrt(_avg(win.map((x) => (x - m) * (x - m))));
+        return which === "upper" ? m + k * sd : which === "lower" ? m - k * sd : m;
+      },
+    };
+  }
+
+  function _keltner(which, period = 20, mult = 2) {
+    const ema = EMA(period, "close"), atr = ATR(period);
+    return {
+      reset() { ema.reset(); atr.reset(); },
+      update(bar) {
+        const e = ema.update(bar), a = atr.update(bar);
+        if (e === null || a === null) return null;
+        return which === "upper" ? e + mult * a : e - mult * a;
+      },
+    };
+  }
+
+  // On-balance-volume slope (OBV minus its previous value): >0 rising, <0 falling.
+  function OBVSlope() {
+    let obv = 0, prevClose = null, prevObv = null;
+    return {
+      reset() { obv = 0; prevClose = prevObv = null; },
+      update(bar) {
+        if (prevClose !== null) {
+          if (bar.close > prevClose) obv += bar.volume;
+          else if (bar.close < prevClose) obv -= bar.volume;
+        }
+        prevClose = bar.close;
+        const slope = prevObv === null ? null : obv - prevObv;
+        prevObv = obv;
+        return slope;
+      },
+    };
+  }
+
+  // Anchored VWAP (cumulative from the first bar of the window).
+  function VWAP() {
+    let pv = 0, vol = 0;
+    return {
+      reset() { pv = 0; vol = 0; },
+      update(bar) {
+        const tp = (bar.high + bar.low + bar.close) / 3;
+        pv += tp * bar.volume; vol += bar.volume;
+        return vol === 0 ? null : pv / vol;
+      },
+    };
+  }
+
+  // registry: spec `type` -> factory. Mirrors INDICATORS in indicators.py
+  // plus the extended UI library.
   const INDICATORS = {
     SMA: (p) => SMA(p.period, p.source),
     EMA: (p) => EMA(p.period, p.source),
@@ -176,6 +426,23 @@
     DONCHIAN_HIGH: (p) => DonchianHigh(p.lookback),
     DONCHIAN_LOW: (p) => DonchianLow(p.lookback),
     PRICE: (p) => Price(p.source),
+    STOCH: (p) => Stochastic(p.period),
+    WILLR: (p) => WilliamsR(p.period),
+    CCI: (p) => CCI(p.period),
+    MFI: (p) => MFI(p.period),
+    ATR: (p) => ATR(p.period),
+    ADX: (p) => ADX(p.period),
+    PSAR: (p) => PSAR(p.step, p.max),
+    ICHI_TENKAN: (p) => IchiTenkan(p.period),
+    ICHI_KIJUN: (p) => IchiKijun(p.period),
+    ICHI_CLOUD_TOP: (p) => _ichiCloud("top", p.conv, p.base, p.spanB),
+    ICHI_CLOUD_BOT: (p) => _ichiCloud("bot", p.conv, p.base, p.spanB),
+    BB_UPPER: (p) => _bollinger("upper", p.period, p.k),
+    BB_LOWER: (p) => _bollinger("lower", p.period, p.k),
+    KC_UPPER: (p) => _keltner("upper", p.period, p.mult),
+    KC_LOWER: (p) => _keltner("lower", p.period, p.mult),
+    OBV_SLOPE: () => OBVSlope(),
+    VWAP: () => VWAP(),
   };
 
   function buildIndicator(spec) {
