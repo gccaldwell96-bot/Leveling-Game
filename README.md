@@ -8,6 +8,11 @@ price history** and runs a real, fee-aware backtest in the browser.
 
 > **How to run:** double-click `index.html`. No install, no server.
 > (Needs internet for the Coinbase price feed.)
+>
+> `index.html` is **fully self-contained** — the engine and data adapter are
+> inlined, so the single file works anywhere you put it (no sibling files
+> required). `engine.js` / `data.js` are kept as readable source + for the Node
+> verification below; edits there must be re-inlined into `index.html`.
 
 ## Screens
 
