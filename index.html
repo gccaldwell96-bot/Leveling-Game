@@ -2325,7 +2325,7 @@ renderAll();
       +' <div class="dcard"><div class="card-title" style="margin-bottom:8px">Performance <span class="small">(180d, live Coinbase blend)</span></div>'
       +'   <canvas id="bdChart" style="width:100%;height:170px;display:block"></canvas></div>'
       +' <div class="bd-stats">'
-      +'  <div class="bd-stat"><div class="k">90d Change</div><div class="v '+(b.chg>=0?'up':'down')+'">'+(b.chg>=0?'▲ +':'▼ ')+b.chg.toFixed(1)+'%</div></div>'
+      +'  <div class="bd-stat"><div class="k">90d Change</div><div class="v" id="bd90" style="color:var(--muted)">…</div></div>'
       +'  <div class="bd-stat"><div class="k">Assets</div><div class="v">'+b.comp.length+'</div></div>'
       +'  <div class="bd-stat"><div class="k">Rebalance</div><div class="v">Quarterly</div></div>'
       +'  <div class="bd-stat"><div class="k">Mandate</div><div class="v" style="font-size:15px">Market-cap</div></div>'
@@ -2335,7 +2335,7 @@ renderAll();
       + b.comp.map(c=>'<tr'+(CB_SYM[c[0]]?' data-asset="'+c[0]+'" style="cursor:pointer"':'')+'><td><div class="coin"><span class="ic" style="background:'+c[2]+'">'+c[0][0]+'</span><span class="nm"><b>'+c[0]+'</b>'+(CB_SYM[c[0]]?'<span style="font-size:11px;color:var(--blue)">View asset →</span>':'')+'</span></div></td><td class="r">'+c[1]+'%</td></tr>').join('')
       +'</tbody></table>'
       +'<div style="display:flex;gap:10px;margin-top:18px"><button class="btn green" id="bdOrder" style="flex:1">Allocate</button><button class="btn ghost" id="bdRebal" style="flex:1">Rebalancing details</button></div></div>';
-    loadChart('bdChart', basketSeries(b.comp, 180), '#8FB14E', {equity:true});
+    loadBasketDetail(b);
     q('#bdOrder').addEventListener('click', ()=>openBuy('basket', id));
     q('#bdRebal').addEventListener('click', ()=>{ renderRebalance(id); show('rebalance'); });
   }
@@ -2417,6 +2417,37 @@ renderAll();
   }
   function curScreen(){ for(const k in screens){ const s=screens[k]; if(s && s.style && s.style.display!=='none') return k; } return 'home'; }
 
+  // ----- real backtest used to power the premade-strategy detail page -----
+  const STRAT_SPEC = {name:'Momentum', size:1.0,
+    indicators:{m:{type:'MACD',fast:12,slow:26}, sig:{type:'MACD_SIGNAL',fast:12,slow:26,signal:9}},
+    entry:{all:[{left:'m',op:'crosses_above',right:'sig'}]},
+    exit:{any:[{left:'m',op:'crosses_below',right:'sig'}]}};
+  async function loadStrategyBacktest(asym){
+    const c=q('#sdChart'); chartMsg(c,'Running live backtest…');
+    try{
+      const end=new Date(), start=new Date(end.getTime()-730*86400000);
+      const bars=await CB.getHistory(CB_SYM[asym], start, end, '1d');
+      const res=E.runSpec({bot:STRAT_SPEC, symbol:CB_SYM[asym], granularity:'1d', fee_bps:40, starting_equity:10000}, bars);
+      const m=res.metrics, beats=res.alpha>=0;
+      drawChart(c, [{pts:res.benchmark_curve,color:'#9BA2C4',width:1.5},{pts:res.equity_curve,color:'#9B8CFF',width:2}], {log:true});
+      const roiEl=q('#sdRoi'); if(roiEl){ roiEl.textContent=(m.cagr>=0?'+':'')+(m.cagr*100).toFixed(1)+'%'; roiEl.style.color=m.cagr>=0?'var(--green)':'var(--coral)'; }
+      const cards=[['Net return',fmtPct(m.total_return)],['Alpha vs B&H',fmtPct(res.alpha)+(beats?' ▲':' ▼')],['Buy & hold',fmtPct(res.benchmark.buy_and_hold_return)],['Sharpe',m.sharpe.toFixed(2)],['Max drawdown',fmtPct(m.max_drawdown)],['Win rate',(m.win_rate*100).toFixed(0)+'%'],['Trades',String(m.num_trades)],['CAGR',fmtPct(m.cagr)],['Fee drag',fmtPct(-res.fee_drag)]];
+      const st=q('#sdStats'); if(st) st.innerHTML=cards.map(r=>'<div class="bd-stat"><div class="k">'+r[0]+'</div><div class="v">'+r[1]+'</div></div>').join('');
+    }catch(e){ chartMsg(c,'Live backtest unavailable (network/Coinbase)'); const st=q('#sdStats'); if(st) st.innerHTML='<div class="bd-stat"><div class="k">Backtest unavailable</div><div class="v">—</div></div>'; }
+  }
+  async function loadBasketDetail(b){
+    const c=q('#bdChart'); chartMsg(c,'Loading live Coinbase prices…');
+    try{
+      const pts=await basketSeries(b.comp,180);
+      if(pts.length<2){ chartMsg(c,'Live price data unavailable'); return; }
+      const c0=pts[0][1]; drawChart(c, [{pts:pts.map(p=>[p[0],10000*p[1]/c0]),color:'#8FB14E',width:2}], {});
+      const lastTs=pts[pts.length-1][0], ninety=lastTs-90*86400000; let ref=pts[0];
+      for(const p of pts){ if(p[0]<=ninety) ref=p; }
+      const chg=pts[pts.length-1][1]/ref[1]-1, el=q('#bd90');
+      if(el){ el.className='v '+(chg>=0?'up':'down'); el.innerHTML=(chg>=0?'▲ +':'▼ ')+(chg*100).toFixed(1)+'%'; }
+    }catch(e){ chartMsg(c,'Live price data unavailable (network/Coinbase)'); }
+  }
+
   function renderAssetDetail(sym, from){
     adFrom = from||'baskets';
     const name=NAMES[sym]||sym, prod=CB_SYM[sym]||(sym+'-USD');
@@ -2452,24 +2483,21 @@ renderAll();
     const _t=(s.tag||'').match(/^([A-Z]+)/); const asym=(_t&&CB_SYM[_t[1]])?_t[1]:'BTC';
     q('#sdBody').innerHTML=
       '<div class="flow-head"><span class="eyebrow v">Professional Quant Strategy</span><h1>'+s.name+'</h1>'
-      +'<p>Copy an algorithmic strategy run by a professional quant trader. Allocate part of your balance and it trades for you'+(s.stop?', with stop-losses enabled.':'.')+'</p></div>'
+      +'<p>A live MACD-momentum strategy backtested on '+(NAMES[asym]||asym)+', net of 40&nbsp;bps/trade. Allocate part of your balance and it trades for you'+(s.stop?', with stop-losses enabled.':'.')+'</p></div>'
       +'<div class="bd-hero">'
-      +' <div class="dcard"><div class="card-title" style="margin-bottom:8px">Performance <span class="small">(180d, live Coinbase underlying)</span></div><canvas id="sdChart" style="width:100%;height:170px;display:block"></canvas></div>'
+      +' <div class="dcard"><div class="card-title" style="margin-bottom:6px">Strategy vs. Buy &amp; Hold <span class="small">(2y, live Coinbase, net of fees)</span></div>'
+      +'   <div class="bt-legend"><span><i style="background:#9B8CFF"></i>Strategy</span><span><i style="background:#9BA2C4"></i>Buy &amp; hold</span></div>'
+      +'   <canvas id="sdChart" style="width:100%;height:180px;display:block"></canvas></div>'
       +' <div class="dcard" style="display:flex;flex-direction:column;gap:9px;align-items:center;justify-content:center">'
       +'   <div class="qavatar" style="background:'+s.av+';margin:0">'+s.sym+'</div>'
-      +'   <div style="font-size:26px;font-weight:700;color:var(--green)">▲ '+s.roi.toFixed(2)+'%</div>'
-      +'   <div style="color:var(--muted);font-size:12px">Annualized ROI · '+s.subs+' subscribers</div>'
+      +'   <div id="sdRoi" style="font-size:26px;font-weight:700;color:var(--muted)">…</div>'
+      +'   <div style="color:var(--muted);font-size:12px">Annualized return · '+s.subs+' subscribers</div>'
       +'   <span class="qchip '+(s.stop?'dot':'')+'">'+(s.stop?'Stop Loss':'No Stop')+'</span>'
       +' </div></div>'
-      +'<div class="bd-stats" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px">'
-      + [['Strategy Performance','▲ '+s.perf.toFixed(2)+'%'],['Market Performance','▲ '+s.mkt.toFixed(2)+'%'],['Mandate',s.tag],
-         ['Followers PnL',usd(s.fpnl)],['Avg PnL / Trade','▲ '+s.avg.toFixed(2)+'%'],['Trades / Week',s.tpw.toFixed(2)]]
-        .map(r=>'<div class="bd-stat"><div class="k">'+r[0]+'</div><div class="v">'+r[1]+'</div></div>').join('')
-      +'</div>'
+      +'<div class="bd-stats" id="sdStats" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px"><div class="bd-stat"><div class="k">Running live backtest…</div><div class="v">—</div></div></div>'
       +'<div style="display:flex;gap:10px"><button class="btn violet" id="sdAlloc" style="flex:1">Allocate to this strategy</button><button class="btn ghost" data-asset="'+asym+'" style="flex:1">View '+asym+' asset →</button></div>';
-    const _m=(s.tag||'').match(/^([A-Z]+)/); const _sym=(_m&&CB_SYM[_m[1]])?_m[1]:'BTC';
-    loadChart('sdChart', realCloses(CB_SYM[_sym], 180), '#9B8CFF', {equity:true});
     q('#sdAlloc').addEventListener('click', ()=>openBuy('strategy', id));
+    loadStrategyBacktest(asym);
   }
 
   function renderRebalance(id){
