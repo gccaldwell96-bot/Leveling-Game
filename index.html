@@ -1710,8 +1710,8 @@ function toast(html){ const t=$('#toast'); $('#toastTxt').innerHTML=html;
   t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),3200); }
 
 $('#btnDeploy').addEventListener('click', ()=>{
-  const name=$('#botName').value||'Untitled bot';
-  toast(`<b>${name}</b> deployed on ${$('#asset').value} · ${$('#tf').value} — ${total()} signals live`);
+  // deploy flows through the allocate -> confirm pages (integration script below)
+  if (window.__deployBot) window.__deployBot();
 });
 $('#btnTest').addEventListener('click', ()=>{
   // real backtest wired in the integration script below
@@ -2435,9 +2435,21 @@ renderAll();
     renderBuy(); show('buy');
   }
 
+  function rulesText(lane){
+    const list=signals.filter(s=>s.lane===lane);
+    if(!list.length) return '—';
+    const op=logic[lane]==='ALL'?' AND ':' OR ';
+    return list.map(s=>phrase(s)).join(op);
+  }
+  function openBuyBot(){
+    order={kind:'bot', name:$('#botName').value||'Custom bot', asset:$('#asset').value, tf:$('#tf').value, signals:total()};
+    order.side='Buy'; order.amount=0; renderBuy(); show('buy');
+  }
+  window.__deployBot = openBuyBot;
+
   function renderBuy(){
     q('#buyAcct').textContent=ACCOUNT.label;
-    q('#buyTitle').textContent = order.kind==='asset'?'Market Order':'Allocate';
+    q('#buyTitle').textContent = order.kind==='asset'?'Market Order':(order.kind==='bot'?'Deploy & Allocate':'Allocate');
     let subj='';
     if(order.kind==='basket'){
       const bar=order.comp.map(c=>'<i style="width:'+c[1]+'%;background:'+c[2]+'"></i>').join('');
@@ -2446,6 +2458,8 @@ renderAll();
     } else if(order.kind==='strategy'){
       const s=order.strat;
       subj='<div class="ic" style="background:'+s.av+'">'+s.sym+'</div><div class="nm"><b>'+order.name+'</b><span>Quant Strategy · '+s.tag+'</span></div><div class="px">▲ '+s.roi.toFixed(1)+'%</div>';
+    } else if(order.kind==='bot'){
+      subj='<div class="ic" style="background:var(--violet)">⚡</div><div class="nm"><b>'+order.name+'</b><span>Custom Bot · '+order.asset+' · '+order.tf+'</span></div><div class="px">'+order.signals+' signals</div>';
     } else {
       subj='<div class="ic" style="background:'+(COLORS[order.sym]||'#888')+'">'+order.sym[0]+'</div><div class="nm"><b>'+order.sym+'</b><span>Market Order</span></div><div class="px">$'+order.price.toLocaleString(undefined,{minimumFractionDigits:2})+'</div>';
     }
@@ -2461,6 +2475,7 @@ renderAll();
     const amt=curAmt(); let t='';
     if(order.kind==='asset'){ const qn=order.price?amt/order.price:0; t='⇄ '+qn.toFixed(8)+' '+order.sym; }
     else if(order.kind==='basket'){ t='⇄ allocated across '+order.comp.length+' assets'; }
+    else if(order.kind==='bot'){ t='⇄ deploys on '+order.asset+' · '+order.tf; }
     else { t='⇄ copies '+order.name; }
     q('#buyConv').textContent=t;
   }
@@ -2480,6 +2495,13 @@ renderAll();
       subs=order.comp.map(c=>'<div class="rev-sub"><span>'+c[0]+' · '+c[1]+'%</span><span>$'+(amt*c[1]/100).toFixed(2)+'</span></div>').join('');
       rows=[['Basket',order.name],['__SUBS__',''],['Amount','$'+amt.toFixed(2)],
             ['Rebalancing','Quarterly'],['Transaction Fee (50% standard)','$0.00'],['Estimated Total','$'+amt.toFixed(2)]];
+    } else if(order.kind==='bot'){
+      title='Review Deployment';
+      rows=[['Bot',order.name],['Asset',order.asset],['Timeframe',order.tf],
+            ['Entry', rulesText('entry')],['Exit', rulesText('exit')],
+            ['Signals used', order.signals+' / 10'],
+            ['Allocation','$'+amt.toFixed(2)],['Copy of auto-tradable balance',(amt/ACCOUNT.balance*100).toFixed(0)+'%'],
+            ['iTrustCapital Transaction Fee','$0.00'],['Estimated Total','$'+amt.toFixed(2)]];
     } else {
       const s=order.strat; title='Review Allocation';
       rows=[['Strategy',order.name],['Annualized ROI','▲ '+s.roi.toFixed(2)+'%'],['Allocation','$'+amt.toFixed(2)],
@@ -2489,12 +2511,14 @@ renderAll();
     q('#revTitle').textContent=title;
     q('#revRows').innerHTML=rows.map(r=> r[0]==='__SUBS__' ? subs : '<div class="rev-row"><span class="k">'+r[0]+'</span><span class="v">'+r[1]+'</span></div>').join('');
     q('#revNote').innerHTML='*Final execution price may vary with market volatility<br>*Estimated price includes all iTrustCapital fees';
+    q('#revSubmit').textContent = order.kind==='bot'?'Deploy bot':(order.kind==='asset'?('Submit Market '+order.side):'Submit Allocation');
   }
 
   function submitOrder(){
     const a='$'+order.amount.toFixed(2);
     if(order.kind==='asset') toast('Order submitted — '+order.side+' '+a+' of '+order.sym);
     else if(order.kind==='basket') toast('Allocated '+a+' into <b>'+order.name+'</b>, rebalancing Quarterly');
+    else if(order.kind==='bot') toast('Deployed <b>'+order.name+'</b> on '+order.asset+' · '+order.tf+' with '+a+' — '+order.signals+' signals live');
     else toast('Now copying <b>'+order.name+'</b> with '+a+' of auto-tradable balance');
     show('home');
   }
@@ -2505,7 +2529,7 @@ renderAll();
   q('#buyMax').addEventListener('click', ()=>{ q('#buyAmt').value=ACCOUNT.balance.toFixed(2); updateConv(); });
   q('#buyReview').addEventListener('click', ()=>{ const amt=curAmt(); if(!(amt>0)){ toast('Enter an amount to continue'); return;} if(amt>ACCOUNT.balance){ toast('Amount exceeds available balance'); return;} order.amount=amt; renderReview(); show('review'); });
   q('#revSubmit').addEventListener('click', submitOrder);
-  document.getElementById('buyBack').addEventListener('click', ()=>show(order&&order.kind==='strategy'?'sdetail':(order&&order.kind==='asset'?'home':'baskets')));
+  document.getElementById('buyBack').addEventListener('click', ()=>{ const k=order&&order.kind; show(k==='strategy'?'sdetail':k==='bot'?'builder':k==='asset'?'home':'baskets'); });
   document.getElementById('buyCancel').addEventListener('click', ()=>show('home'));
   document.getElementById('revBack').addEventListener('click', ()=>show('buy'));
   document.getElementById('revCancel').addEventListener('click', ()=>show('home'));
