@@ -1762,6 +1762,9 @@ renderAll();
     {id:'eth',  name:'Ethereum Core', sym:'Ξ', av:'#627EEA', roi:34.9, subs:204, perf:34.9, mkt:21.3, assets:178400, fpnl:47210, ppnl:1530, avg:1.03, tpw:6.1, tag:'ETH 100%', stop:true},
     {id:'sol',  name:'Solana Edge', sym:'◎', av:'#14B07A', roi:48.2, subs:97, perf:48.2, mkt:33.7, assets:64820, fpnl:22950, ppnl:910, avg:1.41, tpw:11.3, tag:'SOL 100%', stop:false},
     {id:'ada',  name:'Cardano Steady', sym:'₳', av:'#2A5ADA', roi:18.6, subs:73, perf:18.6, mkt:14.2, assets:38640, fpnl:9120, ppnl:284, avg:0.62, tpw:4.8, tag:'ADA 100%', stop:true},
+    {id:'mom1', name:'Momentum Dual-Sleeve', sym:'⟳', av:'#8FB14E', roi:0, subs:128, perf:0, mkt:0, assets:342000, fpnl:96500, ppnl:2140, avg:0, tpw:0, tag:'Multi-asset', stop:true},
+    {id:'meme1',name:'Meme Lightning',       sym:'⚡', av:'#FF6B9D', roi:0, subs:76,  perf:0, mkt:0, assets:128000, fpnl:44200, ppnl:1310, avg:0, tpw:0, tag:'Meme',        stop:true},
+    {id:'defi1',name:'DeFi Basket',          sym:'◈', av:'#4FD1C5', roi:0, subs:54,  perf:0, mkt:0, assets:71000,  fpnl:18300, ppnl:470,  avg:0, tpw:0, tag:'DeFi',        stop:true},
   ];
   function renderQuant(){
     document.getElementById('quantGrid').innerHTML = STRATS.map(s=>`
@@ -2120,6 +2123,7 @@ renderAll();
 <!-- ============================================================
      ADDED: integration — translator, live backtest, new screens
 ============================================================ -->
+<script src="precomputed.js"></script>
 <script>
 (function(){
   const E = window.ITCEngine, CB = window.CoinbaseData;
@@ -2448,6 +2452,9 @@ renderAll();
     eth: {method:'Keltner breakout',   spec:KELT,   fee:70},
     sol: {method:'Bollinger breakout', spec:BOLL,   fee:70},
     ada: {method:'Regime-Switch MACD', spec:REGIME, fee:70},
+    mom1: {method:'Dual-Sleeve Momentum Rotation', spec:REGIME, fee:70},
+    meme1:{method:'Volume Breakout + Time-Box',     spec:BOLL,   fee:95},
+    defi1:{method:'Graded Ensemble + Deadband',     spec:REGIME, fee:70},
   };
   function stratDef(id){ return SPEC_BY_ID[id] || {method:'Regime-Switch MACD', spec:REGIME, fee:70}; }
 
@@ -2545,6 +2552,35 @@ renderAll();
 
   // ----- real numbers for the quant + basket LIST cards (lazy, cached) -----
   const qCache={}, bCache={};
+  // Seed the NEW shipped products (validated Python equity curves from precomputed.js) into
+  // qCache so the quant cards + detail pages render them like a live backtest — the JS slices
+  // each timeframe from the full curve and computes stats via portfolioMetrics (no strategy port).
+  (function seedPrecomputed(){
+    if(!window.ITC_PRECOMPUTED) return;
+    const RG=[180,365,730,1825];
+    for(const id in window.ITC_PRECOMPUTED){
+      const P=window.ITC_PRECOMPUTED[id];
+      const full =P.equity.map(p=>[new Date(p[0]),p[1]]);
+      const fullB=P.benchmark.map(p=>[new Date(p[0]),p[1]]);
+      if(full.length<2) continue;
+      const endT=full[full.length-1][0].getTime();
+      for(const days of RG){
+        const cut=endT-days*86400000;
+        let eq=full.filter(p=>p[0].getTime()>=cut), beq=fullB.filter(p=>p[0].getTime()>=cut);
+        if(eq.length<2){ eq=full.slice(); beq=fullB.slice(); }
+        const e0=eq[0][1], b0=beq[0][1];
+        eq =eq.map(p=>[p[0],10000*p[1]/e0]);
+        beq=beq.map(p=>[p[0],10000*p[1]/b0]);
+        const nT=Math.max(1,Math.round((P.trades_per_year||30)*days/365));
+        const m=portfolioMetrics(eq, Array.from({length:nT},()=>({net:0})));
+        if(P.win_rate!=null) m.win_rate=P.win_rate;
+        const benchRet=beq[beq.length-1][1]/beq[0][1]-1;
+        qCache[id+'-'+days]={res:{equity_curve:eq, benchmark_curve:beq, final_equity:eq[eq.length-1][1],
+          starting_equity:10000, metrics:m, benchmark:{buy_and_hold_return:benchRet},
+          alpha:m.total_return-benchRet, fee_drag:0, fee_bps:0, trades:[]}, trades:[]};
+      }
+    }
+  })();
   const RANGES=[['6M',180],['1Y',365],['2Y',730],['5Y',1825]];
   let sdCtx=null, bdCtx=null, rbCtx=null;
   async function backtestFor(asym, spec, days, fee){
