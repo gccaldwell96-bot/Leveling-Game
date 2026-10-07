@@ -6,7 +6,9 @@ A free top-down idle RPG for your phone. Your hero fights on their own: you coll
 
 ## How to play
 
-- **Top-down arena.** Your hero holds the left side while waves of enemies charge in from the right, and your hero fights on their own. Every 10 enemies clears a stage. Every 10th stage is a **boss** with minions, and you have 30 seconds to beat it.
+- **Top-down arena.** Your hero holds the left side and charges into the waves coming from the right. Every 10 enemies clears a stage.
+- **5 zones, each with its own monsters:** Meadow (slimes, wolves, goblins, bats), Desert (scorpions, mummies, skeleton archers, sandstone golems), Frozen Peaks (ice wolves, yetis, ice wraiths, skeletons), Molten Core (hellhounds, fire imps, lava golems, fire bats), The Void (eyeballs, shadow knights, void wraiths, bone guards). Archers, wraiths, imps and eyes shoot at you from range.
+- **Unique bosses every 10th stage** (30s to win): Slime King (summons), Scorpion Queen (poison volleys), Frost Giant (telegraphed ground slams), Inferno Dragon (fire breath), Void Lord (slams + summons).
 - **Tap anywhere in the arena** to blast enemies in that area.
 - **Upgrades (gold):** Attack, HP, Attack Speed, Crit, Regen, Tap Damage, Greed. You can buy x1, x10, or Max.
 - **13 Powers (skill points from hero levels + bosses).** Each levels up to 10 and then **EVOLVES**:
@@ -16,9 +18,12 @@ A free top-down idle RPG for your phone. Your hero fights on their own: you coll
 - **Gear:** enemies drop weapons and armor in 5 rarities (Common → Mythic). Bosses always drop gear.
   - Weapons fight differently: Sword (arc slash), Battle Axe (360° spin), Spear (long thrust), Twin Daggers (fast + crit), Longbow (piercing arrows), Staff (exploding orbs).
   - Armor types: Plate (tanky), Leather (fast), Mage Robe (powers), Shadow Garb (crits).
-- **Builds:** matching weapon + armor activates a build bonus. The builds are Juggernaut, Archmage, Ranger, Assassin, Reaper, Berserker and Spellblade. Save up to 3 loadouts and swap between them.
-- **Look:** change skin, headgear, cape, armor dye and aura. Rarer styles unlock as you progress. Legendary+ gear glows.
-- **Ascend** (stage 25+): reset your run for **Souls**, which permanently give +10% damage & gold each. You keep your gear and looks.
+- **Builds:** matching weapon + armor activates a build bonus. The builds are Juggernaut, Archmage, Ranger, Assassin, Reaper, Berserker and Spellblade. Save up to 3 loadouts (gear + class + companion) and swap between them.
+- **Hero tab: classes, companions and looks.**
+  - **Classes** (switch any time), each with a signature move: Knight (Shield Bash), Mage (Arcane Missiles), Ranger (Arrow Rain), Rogue (Shadow Strike), Paladin (Holy Smite, stage 50), Necromancer (Raise Dead, after 1 ascension).
+  - **Companions** fight beside you and level up with gold: Wolf Pup, Storm Owl, Baby Dragon, Fairy (heals), Rock Buddy, Phoenix.
+  - **Looks:** skin, headgear, cape, armor dye and aura. Rarer styles unlock as you progress. Legendary+ gear glows.
+- **Ascend** (stage 25+): reset your run for **Souls**, which permanently give +10% damage & gold each. You keep your gear, classes, companions and looks.
 - **Offline progress:** you keep earning gold, XP and loot for up to 12 hours while away.
 - **🎁 Free gift** every 2 hours (gold + a guaranteed rare-or-better item).
 
