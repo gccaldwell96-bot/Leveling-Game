@@ -17,6 +17,7 @@ A free top-down idle RPG for your phone. Your hero fights on their own: you coll
   Vampiric Edge → Blood Lord, Black Hole → Singularity, Iron Skin → Adamantine, Earthquake → Cataclysm, Midas Touch → Golden God.
 - **⚗️ Fusions:** two linked powers that both reach Lv 5 fuse into a new power, and **equal levels (parity) give ×1.5**: Plasma Storm, Steam Eruption, Storm Blades, Plague Vortex, Radiance, Tectonic Rift, Blood Frenzy, Sanguine Pact, Spirit Storm, Firenado.
 - **Spend x1 / Max:** a toggle in the Powers tab and class skills to pour all available points into a skill in one tap.
+- **🌌 Mega Fusions (fusions of fusions):** two linked fusions both at Lv 7+ fuse again (equal levels = ×1.5): Elemental Cataclysm, Singularity Storm, Thunder Legion, Crimson Apocalypse, Solar Inferno. Any 3 Mega Fusions unleash the **Ω Omega Fusion: Apocalypse** (a meteor storm + lightning + shockwave).
 - **♾️ No wasted points:** once every power is maxed, extra skill points go into **Power Overdrive** (+3% power damage each); once a class is maxed, extra Mastery points go into **Paragon** (+2% damage & HP each).
 - **Gear:** enemies drop weapons and armor in 5 rarities (Common → Mythic). Bosses always drop gear.
   - Weapons fight differently: Sword (arc slash), Battle Axe (360° spin), Spear (long thrust), Twin Daggers (fast + crit), Longbow (piercing arrows), Staff (exploding orbs).

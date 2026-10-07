@@ -519,6 +519,21 @@ const FZM = Object.fromEntries(FUSIONS.map(f => [f.id, f]));
 function fz(id){ const f = FZM[id], m = Math.min(pw(f.a), pw(f.b)); return m >= FUSE_MIN ? m : 0; }
 const fzMul = id => { const f = FZM[id]; return pw(f.a) === pw(f.b) ? 1.5 : 1; };
 const activeFusions = () => FUSIONS.filter(f => fz(f.id)).map(f => f.id + (fzMul(f.id) > 1 ? '*' : ''));
+// Mega Fusions: two active fusions both at Lv 7+ fuse again. Omega: any 3 Mega Fusions unleash Apocalypse.
+const MEGA_MIN = 7;
+const MEGAS = [
+  {id:'cataclysm',     n:'Elemental Cataclysm', icon:'🌈', a:'plasma',       b:'steam',       cd:14, info:L=>`Every 14s, 12 elemental strikes (fire, ice, lightning) rain down for ${x1(4+0.8*L)}× ATK each`},
+  {id:'singularity',   n:'Singularity Storm',   icon:'🌀', a:'plaguevortex', b:'rift',        cd:18, info:L=>`Every 18s a colossal vortex drags in the arena (${x1(2+0.5*L)}× ATK/sec), then detonates for ${x1(10+2*L)}× ATK`},
+  {id:'thunderlegion', n:'Thunder Legion',      icon:'⛈️', a:'spiritstorm',  b:'stormblades', cd:12, info:L=>`Every 12s summon 2 Storm Titans (${x1(3+0.5*L)}× ATK) whose every blow calls chain lightning`},
+  {id:'crimson',       n:'Crimson Apocalypse',  icon:'🌹', a:'bloodfrenzy',  b:'sanguine',           info:L=>`Blood Surge cooldown halved; while surging, hits have a 25% chance to burst in blood (${x1(1+0.2*L)}× ATK area)`},
+  {id:'solar',         n:'Solar Inferno',       icon:'☀️', a:'radiance',     b:'firenado',    cd:15, info:L=>`Every 15s a blazing sun-vortex roams the arena firing 8 sunbeams a second (${x1(1.5+0.3*L)}× ATK)`},
+];
+const MZM = Object.fromEntries(MEGAS.map(g => [g.id, g]));
+const OMEGA = {id:'apocalypse', n:'Apocalypse', icon:'☄️', need:3, cd:25, info:L=>`Every 25s the sky falls: 24 meteors (${x1(3+0.5*L)}× ATK each), lightning storms and a blinding shockwave`};
+function mz(id){ const g = MZM[id], m = Math.min(fz(g.a), fz(g.b)); return m >= MEGA_MIN ? m : 0; }
+const mzMul = id => { const g = MZM[id]; return fz(g.a) === fz(g.b) ? 1.5 : 1; };
+const activeMegas = () => MEGAS.filter(g => mz(g.id));
+function omegaLv(){ const a = activeMegas(); return a.length >= OMEGA.need ? Math.min(...a.map(g => mz(g.id))) : 0; }
 const pw = id => S.pw[id] || 0;
 const evo = id => pw(id) >= PW_MAX;
 
@@ -723,6 +738,11 @@ function hurt(e, amt, o = {}){
   }
   const ls = lifesteal();
   if(ls) R.hp = Math.min(maxHp(), R.hp + Math.min(amt * ls, maxHp() * 0.04));
+  if(!o.blood && R.blood > 0 && mz('crimson') && Math.random() < 0.25){
+    const bx = e.x, by = e.y, L = mz('crimson'), bd = pDmg((1 + 0.2*L) * mzMul('crimson'));
+    FX.later.push({t:0.05, fn:() => { aoe(bx, by, 28 * aoeMul(), bd, {blood:true, color:'#ff5d73'}); ring(bx, by, 3, 28, 0.3, '#ff2a4a', 6);
+      for(let k = 0; k < 10; k++){ const a = rand(0, 6.3), sp = rand(50, 140); FX.parts.push({x:bx, y:by, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp, life:0.45, max:0.45, size:rand(2,5), color:pick(['#ff2a4a','#b0001a']), drag:3}); } }});
+  }
   if(!o.quiet || crit) addText(fmt(amt), e.x + rand(-6, 6), e.y - e.r - 4, o.color || (crit ? '#ffe14d' : '#fff'), crit ? 15 : 11, crit);
   if(e.hp <= 0) killE(e);
 }
@@ -984,6 +1004,53 @@ function castClassSkill(id){
     return true;
   }
   return false;
+}
+function castMega(id){
+  const L = mz(id), m = mzMul(id), live = alive(), hx = R.hx, hy = R.hy;
+  if(!live.length) return false;
+  if(id === 'cataclysm'){
+    const dmg = pDmg((4 + 0.8*L) * m);
+    for(let i = 0; i < 12; i++) FX.later.push({t:i * 0.12, fn:() => {
+      const pool = alive(); if(!pool.length) return; const t = pick(pool), el = i % 3;
+      if(el === 0){ explode(t.x, t.y, 42 * aoeMul(), dmg, '#ff7a2a', 0.2); }
+      else if(el === 1){ aoe(t.x, t.y, 42 * aoeMul(), dmg, {color:'#9be7ff'}); for(const e of E) if(!e.dead && Math.hypot(e.x - t.x, e.y - t.y) < 42 + e.r){ e.stun = Math.max(e.stun, 1.5); e.frozen = 1.5; }
+        ring(t.x, t.y, 4, 42, 0.4, '#bfefff', 10); for(let k = 0; k < 18; k++){ const a = rand(0, 6.3), sp = rand(60, 160); FX.parts.push({x:t.x, y:t.y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp, life:0.5, max:0.5, size:rand(3,5), color:'#bfefff', drag:3, shard:true, a}); } }
+      else { FX.bolts.push({pts:jag(t.x + rand(-30, 30), -HHT, t.x, t.y), life:0.35, max:0.35, w:6}); hurt(t, dmg, {color:'#9be7ff'}); chainLightning((4 + 0.8*L) * m * 0.5, 3, false, t.x, t.y, true); }
+    }});
+    flash('#ffffff', 0.25); R.shake = Math.max(R.shake, 0.3);
+    return true;
+  }
+  if(id === 'singularity'){
+    const t = cluster();
+    FX.holes.push({x:t.x, y:t.y, r:170 * aoeMul(), life:4, max:4, dps:pDmg((2 + 0.5*L) * m), tick:0, boom:pDmg((10 + 2*L) * m), mega:true});
+    addText('SINGULARITY!', t.x, t.y - 30, '#d8b0ff', 15, true);
+    return true;
+  }
+  if(id === 'thunderlegion'){
+    for(let i = 0; i < 2; i++) summonAlly({kind:'spirit', giant:true, storm:true, mult:(3 + 0.5*L) * m, life:10, r:20});
+    for(let i = 0; i < 4; i++) FX.bolts.push({pts:jag(hx + rand(-60, 60), -HHT, hx + rand(-30, 40), hy + rand(-30, 30)), life:0.4, max:0.4, w:5});
+    flash('#cfefff', 0.3);
+    return true;
+  }
+  if(id === 'solar'){
+    const t = cluster();
+    FX.tornados.push({x:hx + 30, y:hy, tx:t.x, ty:t.y, r:70 * aoeMul(), life:5, max:5, dmg:pDmg((1 + 0.3*L) * m), tick:0, spd:70, fire:true, sun:true, beamT:0, beamDmg:pDmg((1.5 + 0.3*L) * m), seed:rand(0, 9)});
+    flash('#fff3c0', 0.3);
+    return true;
+  }
+  return false;
+}
+function castOmega(){
+  const L = omegaLv(), live = alive();
+  if(!live.length) return false;
+  const dmg = pDmg(3 + 0.5*L);
+  for(let i = 0; i < 24; i++) FX.meteors.push({x:rand(VX0 + 30, VX1 - 10), y:rand(-HH * 0.9, HH * 0.9), t:-i * 0.08, dur:0.5, r:60 * aoeMul(), dmg});
+  for(let i = 0; i < 10; i++) FX.later.push({t:0.2 + i * 0.15, fn:() => { const pool = alive(); if(!pool.length) return; const t = pick(pool);
+    FX.bolts.push({pts:jag(t.x + rand(-40, 40), -HHT, t.x, t.y), life:0.4, max:0.4, w:7}); hurt(t, dmg, {color:'#ffe14d'}); }});
+  FX.later.push({t:2.2, fn:() => { ring(R.hx, R.hy, 10, Math.hypot(VX1 - VX0, HH * 2), 0.8, '#ffffff', 24); flash('#ffffff', 0.6); R.shake = 0.6;
+    for(const e of E) if(!e.dead) hurt(e, dmg * 2, {color:'#ffffff', kb:200, quiet:true}); }});
+  R.banner = 1.8; R.bannerTxt = '☄️ APOCALYPSE ☄️'; flash('#ff6a3a', 0.4);
+  return true;
 }
 function castFusion(id){
   const L = fz(id), m = fzMul(id), live = alive(), hx = R.hx, hy = R.hy;
@@ -1300,7 +1367,7 @@ function updateAllies(dt){
           for(let i = 0; i < 12; i++) FX.parts.push({x:sx + rand(-25,25), y:sy + rand(-25,25), vx:rand(-20,20), vy:rand(-60,-20), life:0.6, max:0.6, size:rand(3,6), color:'#a0b890', dust:true});
           R.shake = Math.max(R.shake, 0.15);
         } else hurt(t, dmg, {color:s.kind === 'spirit' ? '#bfe9ff' : '#b8ffb0', kb:50, kx:s.x, ky:s.y, quiet:true});
-        if(s.kind === 'spirit' && fz('spiritstorm') && Math.random() < 0.5) chainLightning((0.8 + 0.2 * fz('spiritstorm')) * fzMul('spiritstorm'), 2, false, s.x, s.y, true);
+        if(s.kind === 'spirit' && (s.storm || (fz('spiritstorm') && Math.random() < 0.5))) chainLightning((0.8 + 0.2 * fz('spiritstorm')) * fzMul('spiritstorm'), 2, false, s.x, s.y, true);
       }
     } else { const d = moveTo(s, R.hx - 30, R.hy + (s.giant ? 0 : (s.born * 37 % 60) - 30), 70, dt); if(d > 2) s.ph += dt * 8; }
     s.lunge = Math.max(0, (s.lunge || 0) - dt);
@@ -1520,7 +1587,10 @@ function tick(dt){
       if(d < h.r && d > 2){ const f = (e.boss ? 15 : 110) * (1 - d/h.r) + 20; e.x += dx/d*f*dt; e.y += dy/d*f*dt; } }
     if(h.tick <= 0){ h.tick = 0.25; aoe(h.x, h.y, h.r * 0.6, h.dps * 0.25, {crit:false, color:'#d7a8ff'}); }
     if(Math.random() < dt * 60){ const a = rand(0, 6.3); FX.parts.push({x:h.x + Math.cos(a)*h.r, y:h.y + Math.sin(a)*h.r, vx:-Math.cos(a)*h.r*1.6 - Math.sin(a)*90, vy:-Math.sin(a)*h.r*1.6 + Math.cos(a)*90, life:0.55, max:0.55, size:rand(2,4), color:'#c58bff'}); }
-    if(h.life <= 0 && h.boom){ explode(h.x, h.y, h.r * 0.9, h.boom, '#c58bff', 0.45); flash('#e4c8ff', 0.3); }
+    if(h.life <= 0 && h.boom){ explode(h.x, h.y, h.r * 0.9, h.boom, '#c58bff', 0.45); flash('#e4c8ff', 0.3);
+      if(h.mega){ R.shake = 0.6; flash('#ffffff', 0.4); for(let i = 0; i < 8; i++){ const a = rand(0, 6.3), pts = [[h.x, h.y]]; let x = h.x, y = h.y;
+        for(let k = 0; k < 9; k++){ const aa = a + rand(-0.4, 0.4); x += Math.cos(aa)*rand(18, 30); y += Math.sin(aa)*rand(18, 30); pts.push([x, y]); }
+        FX.decals.push({kind:'crack', pts, life:4, max:4, w:6}); } } }
     if(h.life <= 0 && fz('plaguevortex')){ const L = fz('plaguevortex'); FX.clouds.push({x:h.x, y:h.y, r:h.r * 0.9, life:5, max:5, dps:pDmg((1 + 0.4*L) * fzMul('plaguevortex')), tick:0, seed:Math.random()*9}); }
   }
   FX.holes = FX.holes.filter(h => h.life > 0);
@@ -1532,6 +1602,10 @@ function tick(dt){
     if(tg) moveTo(w, tg.x + Math.sin(R.time*3 + w.seed)*18, tg.y + Math.cos(R.time*2.3 + w.seed)*14, w.spd, dt);
     for(const e of E){ if(e.dead) continue; const dx = w.x - e.x, dy = w.y - e.y, d = Math.hypot(dx, dy);
       if(d < w.r + e.r && d > 2){ const f = e.boss ? 10 : 70; e.x += (dx/d - dy/d*0.8) * f * dt; e.y += (dy/d + dx/d*0.8) * f * dt; } }
+    if(w.sun){ w.beamT -= dt; if(w.beamT <= 0){ w.beamT = 1; const off = rand(0, 0.8);
+      for(let i = 0; i < 8; i++){ const a = off + i * Math.PI / 4, cx = Math.cos(a), cy = Math.sin(a);
+        FX.beams.push({x:w.x, y:w.y, a, w:8, life:0.4, max:0.4});
+        for(const e of E){ if(e.dead) continue; const ex = e.x - w.x, ey = e.y - w.y; if(ex*cx + ey*cy < 0) continue; if(Math.abs(-ex*cy + ey*cx) < 5 + e.r) hurt(e, w.beamDmg, {color:'#fff3a0', quiet:true}); } } } }
     if(w.tick <= 0){ w.tick = 0.3; aoe(w.x, w.y, w.r, w.dmg, {crit:false, color:w.fire ? '#ffb070' : '#e8f0ff'});
       if(w.fire) FX.decals.push({kind:'scorch', x:w.x + rand(-8, 8), y:w.y + rand(-8, 8), r:w.r * 0.45, life:2.5, max:2.5}); }
     if(Math.random() < dt * 25){ const a = rand(0, 6.3); FX.parts.push({x:w.x + Math.cos(a)*w.r*0.7, y:w.y + Math.sin(a)*w.r*0.5, vx:-Math.sin(a)*90, vy:Math.cos(a)*60 - 40, life:0.6, max:0.6, size:rand(2,4), color:w.fire ? pick(['#ff7a2a','#ffcf4a']) : '#b8a890', dust:!w.fire}); }
@@ -1596,7 +1670,7 @@ function tick(dt){
     if(R.cd.sig <= 0) R.cd.sig = castSignature() ? full : 0; }
   for(const p of PW){
     if(!p.cd || !pw(p.id)) continue;
-    const full = p.cd(pw(p.id)) * cdMul();
+    const full = p.cd(pw(p.id)) * cdMul() * (p.id === 'blood' && mz('crimson') ? 0.5 : 1);
     R.cd[p.id] = Math.min(R.cd[p.id] ?? full, full) - dt;
     if(R.cd[p.id] <= 0) R.cd[p.id] = castPower(p.id) ? full : 0;
     if(R.dead > 0) return;
@@ -1612,6 +1686,17 @@ function tick(dt){
     const key = 'fz_' + f.id, full = f.cd * cdMul();
     R.cd[key] = Math.min(R.cd[key] ?? Math.min(full, 2), full) - dt;
     if(R.cd[key] <= 0) R.cd[key] = castFusion(f.id) ? full : 0;
+  }
+  for(const g of MEGAS){
+    if(!g.cd || !mz(g.id)) continue;
+    const key = 'mz_' + g.id, full = g.cd * cdMul();
+    R.cd[key] = Math.min(R.cd[key] ?? Math.min(full, 3), full) - dt;
+    if(R.cd[key] <= 0) R.cd[key] = castMega(g.id) ? full : 0;
+  }
+  if(omegaLv()){
+    const full = OMEGA.cd * cdMul();
+    R.cd.omega = Math.min(R.cd.omega ?? Math.min(full, 5), full) - dt;
+    if(R.cd.omega <= 0) R.cd.omega = castOmega() ? full : 0;
   }
 
   // ---- boss timer ----
@@ -2295,6 +2380,7 @@ function drawPet(g, id, P, t, world){
 function drawTornado(w, t){
   const a = Math.min(1, w.life, (w.max - w.life) * 3);
   ctx.save(); ctx.translate(w.x, w.y); ctx.scale(1, UPR);
+  if(w.sun){ ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = a * 0.8; ctx.drawImage(glow('#ffd36b'), -w.r*1.8, -w.r*3.6, w.r*3.6, w.r*3.4); ctx.drawImage(glow('#ffffff'), -w.r*0.6, -w.r*2.4, w.r*1.2, w.r*1.2); ctx.globalCompositeOperation = 'source-over'; }
   if(w.fire){ ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = a * 0.5; ctx.drawImage(glow('#ff6a1a'), -w.r*1.3, -w.r*2.6, w.r*2.6, w.r*2.8); ctx.globalCompositeOperation = 'source-over'; }
   ctx.lineCap = 'round';
   for(let k = 0; k < 9; k++){
@@ -2328,7 +2414,8 @@ function drawAlly(s, t){
   ctx.lineWidth = 1.2; ctx.strokeStyle = OL;
   if(e.lunge > 0) ctx.translate(Math.cos(e.face)*4, Math.sin(e.face)*4);
   if(spirit){ ctx.globalAlpha *= 0.82; DRAW.knight(ctx, Object.assign(e, {pal:{m:'#7fc8ff', d:'#2a5a9a', a:'#ffffff'}}), t);
-    if(Math.random() < 0.3) FX.parts.push({x:s.x + rand(-6,6), y:s.y, vx:rand(-6,6), vy:rand(-30,-10), life:0.5, max:0.5, size:rand(1.5,3), color:'#9fdcff'}); }
+    if(Math.random() < 0.3) FX.parts.push({x:s.x + rand(-6,6), y:s.y, vx:rand(-6,6), vy:rand(-30,-10), life:0.5, max:0.5, size:rand(1.5,3), color:'#9fdcff'});
+    if(s.storm && Math.random() < 0.08) FX.bolts.push({pts:jag(s.x + rand(-14, 14), s.y - 40, s.x + rand(-10, 10), s.y), life:0.15, max:0.15, w:2}); }
   else skel(ctx, e, t, false);
   if(s.giant){ // bone crown + horns
     const fx = Math.cos(e.face), fy = Math.sin(e.face), px = -fy, py = fx;
@@ -2660,11 +2747,13 @@ function render(now){
   for(const k of CSK[S.cls]) if(k.cd && sk(k.id)) icons.push({icon:k.icon, full:k.cd * cdMul(), cd:R.cd['sk_' + k.id], sig:true});
   for(const p of PW) if(p.cd && pw(p.id)) icons.push({icon:evo(p.id) ? p.eicon : p.icon, full:p.cd(pw(p.id)) * cdMul(), cd:R.cd[p.id], ev:evo(p.id), rage:(p.id === 'rage' && R.rage > 0) || (p.id === 'blood' && R.blood > 0)});
   for(const f of FUSIONS) if(f.cd && fz(f.id)) icons.push({icon:f.icon, full:f.cd * cdMul(), cd:R.cd['fz_' + f.id], fusion:true});
+  for(const g of MEGAS) if(g.cd && mz(g.id)) icons.push({icon:g.icon, full:g.cd * cdMul(), cd:R.cd['mz_' + g.id], mega:true});
+  if(omegaLv()) icons.push({icon:OMEGA.icon, full:OMEGA.cd * cdMul(), cd:R.cd.omega, mega:true});
   const Z = icons.length > 9 ? 22 : 30; iy = H - Z - 8;
   for(const ic of icons){
     const frac = Math.max(0, Math.min(1, (ic.cd ?? ic.full) / ic.full));
     ctx.fillStyle = '#000b'; rr(ix, iy, Z, Z, 7); ctx.fill();
-    if(ic.ev || ic.sig || ic.fusion){ ctx.strokeStyle = ic.fusion ? '#5be3d8' : ic.sig ? '#a77bff' : '#ffcf4a'; ctx.lineWidth = 2; rr(ix, iy, Z, Z, 7); ctx.stroke(); }
+    if(ic.ev || ic.sig || ic.fusion || ic.mega){ ctx.strokeStyle = ic.mega ? '#ff6ad5' : ic.fusion ? '#5be3d8' : ic.sig ? '#a77bff' : '#ffcf4a'; ctx.lineWidth = 2; rr(ix, iy, Z, Z, 7); ctx.stroke(); }
     ctx.font = `${Math.round(Z*0.53)}px system-ui`; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff'; ctx.fillText(ic.icon, ix + Z/2, iy + Z/2 + 1);
     if(frac > 0){ ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(ix, iy + Z*(1 - frac), Z, Z*frac); }
     if(ic.rage){ ctx.strokeStyle = '#ff7a45'; ctx.lineWidth = 2; rr(ix, iy, Z, Z, 7); ctx.stroke(); }
@@ -2736,7 +2825,7 @@ function renderPanel(){
       <button class="buy" data-buy="${u.id}"></button></div>`).join('');
   } else if(tab === 'pow'){
     P.innerHTML = `<div class="spendrow">Spend points: <button data-spend="1" class="${S.spendAmt === 'max' ? '' : 'active'}">x1</button><button data-spend="max" class="${S.spendAmt === 'max' ? 'active' : ''}">Max</button></div><div class="card" style="padding:10px 14px;font-size:13px">Spend <b>Skill Points</b> (from hero levels &amp; bosses) to learn and upgrade powers. At <b style="color:var(--gold)">Lv ${PW_MAX}</b> a power <b style="color:var(--gold)">EVOLVES</b> into something far stronger.</div>` +
-      `<div class="sec"><span>⚗️ Fusions</span></div><div class="card" style="padding:10px 14px;font-size:12px;color:var(--dim)">When two linked powers both reach <b style="color:var(--text)">Lv ${FUSE_MIN}</b> they <b style="color:#5be3d8">FUSE</b> into a new power. Keep them at the <b style="color:var(--gold)">same level</b> for a ⚖️ <b style="color:var(--gold)">Parity ×1.5</b> bonus!</div><div id="fusionList"></div><div class="sec"><span>✨ Powers</span></div>` +
+      `<div class="sec"><span>⚗️ Fusions</span></div><div class="card" style="padding:10px 14px;font-size:12px;color:var(--dim)">When two linked powers both reach <b style="color:var(--text)">Lv ${FUSE_MIN}</b> they <b style="color:#5be3d8">FUSE</b> into a new power. Keep them at the <b style="color:var(--gold)">same level</b> for a ⚖️ <b style="color:var(--gold)">Parity ×1.5</b> bonus!</div><div id="fusionList"></div><div class="sec"><span>🌌 Mega Fusions</span></div><div class="card" style="padding:10px 14px;font-size:12px;color:var(--dim)">Fusions on top of fusions! When two linked <b style="color:#5be3d8">fusions</b> both reach <b style="color:var(--text)">Lv ${MEGA_MIN}</b> they fuse into a <b style="color:#ff6ad5">Mega Fusion</b> (equal levels = ⚖️ ×1.5). Any <b style="color:var(--text)">${OMEGA.need}</b> Mega Fusions unleash the <b style="color:#ffcf4a">Ω Omega</b>.</div><div id="megaList"></div><div class="sec"><span>✨ Powers</span></div>` +
       PW.map(p => `<div class="item" data-pwrow="${p.id}"><div class="ic">${p.icon}</div>
       <div class="info"><div class="nm"><span data-pwname></span><small data-pwlv></small></div>
       <div class="ds" data-pwdesc></div><div class="pips" data-pips></div></div>
@@ -2841,6 +2930,12 @@ function updatePanel(){
       setHTML(row, `<div class="ic ${ok ? 'evo' : ''}">♾️</div><div class="info"><div class="nm">Power Overdrive<small>Lv ${od}</small></div>
         <div class="ds">${ok ? 'Every extra skill point: <b style="color:var(--text)">+3% power damage</b>, no limit.' : 'Unlocks once every power is maxed: extra skill points are never wasted.'}<br>Now: +${3 * od}% power damage</div></div>
         ${ok ? `<button class="buy ${S.sp > 0 ? 'can' : ''}" data-overdrive="1">+${Math.max(1, spendN(S.sp))}<small>${Math.max(1, spendN(S.sp))} skill pt${spendN(S.sp) > 1 ? 's' : ''}</small></button>` : '<span class="buy">🔒</span>'}`); }
+    setHTML($('megaList'), MEGAS.map(g => { const L = mz(g.id), A2 = FZM[g.a], B2 = FZM[g.b], par = L && mzMul(g.id) > 1;
+      return `<div class="item ${L ? 'sel' : 'locked'}"><div class="ic ${par ? 'evo' : ''}">${g.icon}</div><div class="info"><div class="nm">${g.n}<small>${L ? 'Lv ' + L : 'Locked'}</small>${par ? ' <small style="color:var(--gold)">⚖️ ×1.5</small>' : ''}</div>
+        <div class="ds">${A2.icon} ${A2.n} (${fz(g.a) || '–'}) + ${B2.icon} ${B2.n} (${fz(g.b) || '–'})${L ? '' : ` · both fusions need Lv ${MEGA_MIN}`}<br>${g.info(L || MEGA_MIN)}</div></div></div>`; }).join('') +
+      (() => { const L = omegaLv(), n = activeMegas().length;
+        return `<div class="item ${L ? 'sel' : 'locked'}" style="${L ? 'border-color:#ffcf4a;box-shadow:0 0 14px #ffcf4a55' : ''}"><div class="ic ${L ? 'evo' : ''}">${OMEGA.icon}</div><div class="info"><div class="nm" style="color:var(--gold)">Ω ${OMEGA.n}<small>${L ? 'Lv ' + L : `${n}/${OMEGA.need} Mega Fusions`}</small></div>
+          <div class="ds">${OMEGA.info(L || MEGA_MIN)}</div></div></div>`; })());
     setHTML($('fusionList'), FUSIONS.map(f => { const L = fz(f.id), A2 = PWM[f.a], B2 = PWM[f.b], par = L && fzMul(f.id) > 1;
       return `<div class="item ${L ? 'sel' : 'locked'}"><div class="ic ${par ? 'evo' : ''}">${f.icon}</div><div class="info"><div class="nm">${f.n}<small>${L ? 'Lv ' + L : 'Locked'}</small>${par ? ' <small style="color:var(--gold)">⚖️ PARITY ×1.5</small>' : ''}</div>
         <div class="ds">${A2.icon} ${A2.name} (${pw(f.a)}) + ${B2.icon} ${B2.name} (${pw(f.b)})${L ? '' : ` · both need Lv ${FUSE_MIN}`}<br>${f.info(L || FUSE_MIN)}</div></div></div>`; }).join(''));
@@ -2955,7 +3050,7 @@ document.addEventListener('click', ev => {
   if(t.dataset.learn){
     const p = PWM[t.dataset.learn];
     if(S.sp < 1 || S.heroLvl < p.req || pw(p.id) >= PW_MAX) return;
-    const fBefore = activeFusions(), wasEvo = evo(p.id), nn = spendN(Math.min(S.sp, PW_MAX - pw(p.id)));
+    const mBefore = activeMegas().map(g => g.id), oBefore = omegaLv(), fBefore = activeFusions(), wasEvo = evo(p.id), nn = spendN(Math.min(S.sp, PW_MAX - pw(p.id)));
     S.sp -= nn; S.pw[p.id] = pw(p.id) + nn;
     if(R.cd[p.id] == null) R.cd[p.id] = 1;
     const fNew = activeFusions().filter(x => !fBefore.includes(x));
@@ -2965,6 +3060,10 @@ document.addEventListener('click', ev => {
         setTimeout(() => { showModal(`<h2>⚗️ FUSION!</h2><p>${PWM[f.a].icon} ${PWM[f.a].name} + ${PWM[f.b].icon} ${PWM[f.b].name}</p><div class="reward" style="color:#5be3d8">${f.icon} ${f.n}</div><p>${f.info(fz(f.id))}</p><button class="btn" data-close>Awesome!</button>`); flash('#a0fff0', 0.5); ring(R.hx, R.hy, 0, 150, 0.8, '#5be3d8', 14); }, 50);
       } else if(id.endsWith('*')) toast(`⚖️ Parity! ${f.n} ×1.5`);
     }
+    for(const g of activeMegas()) if(!mBefore.includes(g.id))
+      setTimeout(() => { showModal(`<h2>🌌 MEGA FUSION!</h2><p>${FZM[g.a].icon} ${FZM[g.a].n} + ${FZM[g.b].icon} ${FZM[g.b].n}</p><div class="reward" style="color:#ff6ad5">${g.icon} ${g.n}</div><p>${g.info(mz(g.id))}</p><button class="btn" data-close>INSANE!</button>`); flash('#ffb0f0', 0.6); ring(R.hx, R.hy, 0, 200, 0.9, '#ff6ad5', 18); burst(R.hx, R.hy, 80, '#ff6ad5', 220, 4); }, 120);
+    if(!oBefore && omegaLv())
+      setTimeout(() => { showModal(`<h2>☄️ Ω OMEGA FUSION ☄️</h2><p>Three Mega Fusions have merged into</p><div class="reward" style="color:var(--gold)">APOCALYPSE</div><p>${OMEGA.info(omegaLv())}</p><button class="btn" data-close>Let it burn</button>`); flash('#ffffff', 0.8); R.shake = 0.6; }, 400);
     if(evo(p.id) && !wasEvo){
       showModal(`<h2>${p.eicon} EVOLVED!</h2><p>${p.icon} ${p.name} has become</p><div class="reward" style="color:var(--gold)">${p.evo}</div><p>${p.info(PW_MAX)}</p><button class="btn" data-close>Awesome!</button>`);
       flash('#ffe08a', 0.6); ring(R.hx, R.hy, 0, 160, 0.8, '#ffcf4a', 14); burst(R.hx, R.hy, 60, '#ffcf4a', 200, 4);
