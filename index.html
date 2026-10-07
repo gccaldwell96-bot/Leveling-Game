@@ -342,7 +342,7 @@ const PW = [
   {id:'poison',   name:'Toxic Cloud',    evo:'Plague',         icon:'☠️', eicon:'🦠', req:9,  cd:l=>6-0.2*l,
     info:l=> l>=PW_MAX ? `3 huge plague clouds, ${x1(0.7+0.35*l)}× ATK per sec` : `Poison cloud, ${x1(0.7+0.35*l)}× ATK per sec`},
   {id:'beam',     name:'Holy Beam',      evo:'Judgment',       icon:'✨', eicon:'🌟', req:12, cd:l=>5-0.2*l,
-    info:l=> l>=PW_MAX ? `6 beams of light in every direction, ${x1(3+l)}× ATK` : `Piercing laser, ${x1(3+l)}× ATK`},
+    info:l=> l>=PW_MAX ? `A fan of 6 huge beams sweeps the battlefield, ${x1(3+l)}× ATK` : `Piercing laser, ${x1(3+l)}× ATK`},
   {id:'rage',     name:'Berserk',        evo:'Godlike Fury',   icon:'😤', eicon:'👹', req:15, cd:()=>25,
     info:l=> l>=PW_MAX ? `Every 25s: +200% attack speed & +50% damage for 8s` : `Every 25s: +${50+10*l}% attack speed for 6s`},
   {id:'vamp',     name:'Vampiric Edge',  evo:'Blood Lord',     icon:'🩸', eicon:'🧛', req:18,
@@ -399,10 +399,10 @@ function enemyStats(s, boss){
   };
 }
 const KIND = {
-  slime: {r:11, spd:30, hp:1.0, dmg:1.0, from:1},
-  bat:   {r:9,  spd:55, hp:0.6, dmg:0.7, from:3},
-  goblin:{r:12, spd:40, hp:1.1, dmg:1.1, from:5},
-  golem: {r:16, spd:22, hp:2.4, dmg:1.6, from:8},
+  slime: {r:11, spd:42, hp:1.0, dmg:1.0, from:1},
+  bat:   {r:9,  spd:75, hp:0.6, dmg:0.7, from:3},
+  goblin:{r:12, spd:55, hp:1.1, dmg:1.1, from:5},
+  golem: {r:16, spd:32, hp:2.4, dmg:1.6, from:8},
 };
 const ZONES = [
   {name:'Green Meadow',   base:'#3f7d3a', a:'#4f9446', b:'#2f6a2c', hue:110, kind:'grass'},
@@ -457,17 +457,15 @@ const HERO_R = 13;
 const E = []; // enemies
 const FX = {parts:[], rings:[], bolts:[], beams:[], texts:[], decals:[], clouds:[], holes:[], meteors:[], projs:[], slashes:[], later:[], loot:[]};
 const R = {hp:0, atkT:0, dead:0, cd:{}, rage:0, immune:0, shake:0, flash:0, flashC:'#fff', spawnT:0, spawned:0, bossT:0,
-  pause:0, banner:0, bannerTxt:'', face:-Math.PI/2, swing:0, bladeA:0, time:0, hurt:0};
+  pause:0, banner:0, bannerTxt:'', face:0, swing:0, bladeA:0, time:0, hurt:0};
 
-let K = 1, HW = 180, HH = 180; // world scale and half-extents of the view
-function edgePoint(){
-  const a = Math.random() * Math.PI * 2, dx = Math.cos(a), dy = Math.sin(a), m = 24;
-  const s = Math.min((HW + m) / Math.abs(dx || 1e-6), (HH + m) / Math.abs(dy || 1e-6));
-  return [dx * s, dy * s];
-}
+// The hero stands at world (0,0), drawn HERO_SX of the way across the screen; enemies march in from the right.
+const HERO_SX = 0.2;
+let K = 1, VX0 = -60, VX1 = 240, HH = 180; // world scale, left/right edges and half-height of the view
+function edgePoint(){ return [VX1 + rand(15, 45), rand(-HH * 0.85, HH * 0.85)]; }
 function spawnEnemy(kind, boss, minion){
-  const st = enemyStats(S.stage, boss), k = boss ? {r:30, spd:20, hp:1, dmg:1} : KIND[kind];
-  const [x, y] = boss ? [0, -HH - 30] : edgePoint();
+  const st = enemyStats(S.stage, boss), k = boss ? {r:30, spd:28, hp:1, dmg:1} : KIND[kind];
+  const [x, y] = boss ? [VX1 + 40, 0] : edgePoint();
   E.push({x, y, kind: boss ? 'boss' : kind, boss, minion, r:k.r, spd:k.spd,
     hp: st.hp * k.hp, maxHp: st.hp * k.hp, dmg: st.dmg * k.dmg, gold: st.gold * k.hp, xp: st.xp * k.hp,
     atkT: 0, slow: 0, stun: 0, frozen: 0, flash: 0, kx: 0, ky: 0, bladeCd: 0, lunge: 0, die: 0, dead: false,
@@ -589,7 +587,7 @@ function nearest(x = 0, y = 0, exclude){
 }
 function cluster(){ // the enemy with the most neighbours (best AoE target)
   let best = null, bn = -1;
-  for(const e of E){ if(e.dead || Math.abs(e.x) > HW || Math.abs(e.y) > HH) continue;
+  for(const e of E){ if(e.dead || e.x > VX1 || Math.abs(e.y) > HH) continue;
     let n = 0; for(const o of E) if(!o.dead && Math.hypot(o.x - e.x, o.y - e.y) < 60) n++;
     if(n > bn){ bn = n; best = e; } }
   return best || nearest();
@@ -658,7 +656,7 @@ function castPower(id){
   }
   if(id === 'lightning'){ chainLightning(2 + 0.8*l, ev ? 10 : 2 + Math.floor(l/2), ev); return true; }
   if(id === 'nova'){
-    const r = (ev ? Math.max(HW, HH) * 1.5 : 70 + 8*l) * aoeMul(), dmg = pDmg(2 + 0.8*l);
+    const r = (ev ? Math.hypot(VX1, HH) : 70 + 8*l) * aoeMul(), dmg = pDmg(2 + 0.8*l);
     ring(0, 0, 10, r, 0.45, '#9be7ff', ev ? 22 : 14);
     ring(0, 0, 0, r * 0.7, 0.35, '#ffffff', 6);
     flash('#bfefff', ev ? 0.45 : 0.18);
@@ -684,7 +682,7 @@ function castPower(id){
     const t = nearest(), base = Math.atan2(t.y, t.x), n = ev ? 6 : 1;
     const w = (10 + 1.2*l) * aoeMul() * (ev ? 1.5 : 1), dmg = pDmg(3 + l);
     for(let i = 0; i < n; i++){
-      const a = base + i * Math.PI * 2 / n, cx = Math.cos(a), cy = Math.sin(a);
+      const a = base + (i - (n - 1) / 2) * 0.32, cx = Math.cos(a), cy = Math.sin(a);
       FX.beams.push({a, w, life:0.45, max:0.45});
       for(const e of E){
         if(e.dead) continue;
@@ -731,14 +729,14 @@ function chainLightning(mult, n, ev){
 }
 function quake(dmg, scale){
   R.shake = Math.max(R.shake, 0.5 * scale);
-  ring(0, 0, 10, Math.max(HW, HH) * 1.5, 0.7, '#ffb36b', 16 * scale);
-  ring(0, 0, 0, Math.max(HW, HH), 0.5, '#7a4a2a', 26 * scale);
+  ring(0, 0, 10, Math.hypot(VX1, HH), 0.7, '#ffb36b', 16 * scale);
+  ring(0, 0, 0, VX1 * 0.8, 0.5, '#7a4a2a', 26 * scale);
   for(let i = 0; i < 7; i++){
     const a = rand(0, 6.3), pts = [[0,0]]; let x = 0, y = 0;
     for(let k = 0; k < 8; k++){ const aa = a + rand(-0.4, 0.4); x += Math.cos(aa)*rand(18,32); y += Math.sin(aa)*rand(18,32); pts.push([x, y]); }
     FX.decals.push({kind:'crack', pts, life:3, max:3});
   }
-  for(let i = 0; i < 50; i++) FX.parts.push({x:rand(-HW,HW), y:rand(-HH,HH), vx:rand(-20,20), vy:rand(-70,-20), life:0.8, max:0.8, size:rand(3,7), color:'#c8a27a', dust:true});
+  for(let i = 0; i < 50; i++) FX.parts.push({x:rand(VX0,VX1), y:rand(-HH,HH), vx:rand(-20,20), vy:rand(-70,-20), life:0.8, max:0.8, size:rand(3,7), color:'#c8a27a', dust:true});
   for(const e of E) if(!e.dead){ e.stun = Math.max(e.stun, 0.7); hurt(e, dmg, {color:'#ffb36b', quiet:true}); }
 }
 function explode(x, y, r, dmg, color, shake = 0.2){
@@ -835,7 +833,7 @@ function tick(dt){
     if(e.stun > 0) continue;
     const d = Math.hypot(e.x, e.y) || 1, reach = HERO_R + e.r + 1;
     if(d > reach){
-      const sp = e.spd * (e.slow > 0 ? 0.45 : 1) * (d > Math.max(HW, HH) ? 2 : 1);
+      const sp = e.spd * (e.slow > 0 ? 0.45 : 1) * (e.x > VX1 ? 2 : 1);
       e.x -= e.x/d*sp*dt; e.y -= e.y/d*sp*dt;
     } else {
       e.atkT += dt * (e.slow > 0 ? 0.5 : 1);
@@ -937,7 +935,7 @@ function resize(){
   const r = cv.getBoundingClientRect(); DPR = Math.min(2, devicePixelRatio || 1);
   W = r.width; H = r.height;
   cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR);
-  K = Math.min(W, H) / 300; HW = W/2/K; HH = H/2/K;
+  K = Math.min(W, H) / 300; VX0 = -W*HERO_SX/K; VX1 = W*(1 - HERO_SX)/K; HH = H/2/K;
 }
 addEventListener('resize', resize);
 
@@ -1169,9 +1167,9 @@ function render(now){
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   let sx = 0, sy = 0; if(R.shake > 0){ const m = Math.min(R.shake, 0.6) * 22; sx = rand(-m, m); sy = rand(-m, m); }
   ctx.save();
-  ctx.translate(W/2 + sx, H/2 + sy); ctx.scale(K, K);
+  ctx.translate(W*HERO_SX + sx, H/2 + sy); ctx.scale(K, K);
   // ground
-  ctx.fillStyle = groundPattern(zoneIdx(S.stage)); ctx.fillRect(-HW - 30, -HH - 30, HW*2 + 60, HH*2 + 60);
+  ctx.fillStyle = groundPattern(zoneIdx(S.stage)); ctx.fillRect(VX0 - 30, -HH - 30, VX1 - VX0 + 60, HH*2 + 60);
   // decals
   for(const d of FX.decals){
     const a = Math.min(1, d.life / d.max * 2);
@@ -1369,7 +1367,7 @@ function rr(x, y, w, h, r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,
 cv.addEventListener('pointerdown', ev => {
   if(R.dead > 0) return;
   const r = cv.getBoundingClientRect();
-  const x = (ev.clientX - r.left - W/2) / K, y = (ev.clientY - r.top - H/2) / K, rad = 30 * aoeMul();
+  const x = (ev.clientX - r.left - W*HERO_SX) / K, y = (ev.clientY - r.top - H/2) / K, rad = 30 * aoeMul();
   aoe(x, y, rad, tapDmg(), {color:'#9be7ff', kb:80, quiet:false});
   ring(x, y, 2, rad, 0.25, '#9be7ff', 5);
   burst(x, y, 10, '#9be7ff', 120, 3);

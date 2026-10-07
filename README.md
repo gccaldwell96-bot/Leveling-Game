@@ -6,7 +6,7 @@ A free top-down idle RPG for your phone. Your hero fights on their own: you coll
 
 ## How to play
 
-- **Top-down arena.** Your hero stands in the middle while waves of enemies swarm in from every side, and your hero fights on their own. Every 10 enemies clears a stage. Every 10th stage is a **boss** with minions, and you have 30 seconds to beat it.
+- **Top-down arena.** Your hero holds the left side while waves of enemies charge in from the right, and your hero fights on their own. Every 10 enemies clears a stage. Every 10th stage is a **boss** with minions, and you have 30 seconds to beat it.
 - **Tap anywhere in the arena** to blast enemies in that area.
 - **Upgrades (gold):** Attack, HP, Attack Speed, Crit, Regen, Tap Damage, Greed. You can buy x1, x10, or Max.
 - **13 Powers (skill points from hero levels + bosses).** Each levels up to 10 and then **EVOLVES**:
