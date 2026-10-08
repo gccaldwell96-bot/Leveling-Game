@@ -268,7 +268,7 @@ function rollPref(breed){ const w = PREF_W[breed] || [1, 1, 1], tot = w[0] + w[1
 const prefFromStats = h => h.pot.acc >= h.pot.sta + 4 ? 'sprint' : h.pot.sta >= h.pot.acc + 4 ? 'long' : 'mile';
 const PREF_ICON = {sprint:'⚡ Sprint', mile:'🎯 Mile', long:'🛤️ Route'};
 const FAC = [
-  {id:'stables', n:'Stables',          icon:'🏠', base:6000,  g:1.9, max:16, info:l => `${4 + l} stalls`},
+  {id:'stables', n:'Stables',          icon:'🏠', base:3500,  g:1.45, max:20, info:l => `${4 + l} stalls`},
   {id:'train',   n:'Training Center',  icon:'🏋️', base:8000,  g:2.0, max:12, info:l => `+${20 * l}% training gains`},
   {id:'vet',     n:'Vet Clinic',       icon:'🩺', base:5000,  g:1.9, max:10, info:l => `-${8 * l}% injury risk, +${4 * l} form recovery`},
   {id:'barn',    n:'Breeding Barn',    icon:'💞', base:10000, g:2.0, max:10, info:l => l ? `Fertility ${Math.min(100, 70 + 3 * l)}%, mutation ${8 + 2 * l}%` : 'Unlocks breeding'},
