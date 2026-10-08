@@ -3283,8 +3283,8 @@ function renderPanel(){
   } else if(tab === 'gear'){
     const b = activeBuild();
     const inv = S.inv.slice().sort((a, b) => b.r - a.r || b.main - a.main);
-    const salvNames = ['Off', 'Common', 'Up to Rare', 'Up to Epic', 'Up to Legendary', 'Up to my lowest equipped'];
-    const low = lowestEqR(), sc = Object.entries(setCounts());
+    const salvNames = ['Off', 'Common', 'Up to Rare', 'Up to Epic', 'Up to Legendary', `Up to my lowest equipped (${RAR[lowestEqR()].n})`];
+    const sc = Object.entries(setCounts());
     P.innerHTML = `
       <div class="card buildcard ${b ? '' : 'none'}">${b ? `<h3>${b.icon} Build: ${b.n}</h3>${b.info}` : `<h3>No build bonus</h3>Pair the right weapon and armor to activate a build (see list below).`}</div>
       <div class="sec">Equipped</div>
@@ -3296,7 +3296,7 @@ function renderPanel(){
         return `<div class="lo"><b>Build ${i + 1}</b><div class="lic">${lo ? (w ? itemIcon(w) : '❔') + (a ? itemIcon(a) : '❔') + (lo.cls ? CLM[lo.cls].icon : '') : '—'}</div>
           <div class="row"><button class="sbtn" data-losave="${i}">Save</button><button class="sbtn go" data-loload="${i}" ${lo ? '' : 'disabled'}>Use</button></div></div>`; }).join('')}</div>
       <div class="sec"><span>Bag ${S.inv.length}/${BAG_SIZE}</span><button class="sbtn" id="autoSalv">Auto-salvage: ${salvNames[S.autoSalvage + 1]}</button></div>
-      ${inv.length ? `<button class="sbtn warn" id="salvAll" style="width:100%;margin-bottom:8px;padding:9px">Salvage all up to ${RAR[low].n} (your lowest equipped) + anything worse than equipped</button>` : ''}
+      ${inv.length ? `<button class="sbtn warn" id="salvAll" style="width:100%;margin-bottom:8px;padding:9px">Salvage all items worse than equipped</button>` : ''}
       ${inv.map(it => itemHTML(it, false)).join('') || '<div class="card" style="color:var(--dim);font-size:13px">No items yet. Enemies drop gear (bosses always do). Beat stages to find better loot!</div>'}
       <div class="sec">Builds</div>
       ${BUILDS.map(bd => `<div class="build ${b && b.id === bd.id ? 'active' : ''}"><span class="bi">${bd.icon}</span><div><b>${bd.n}</b><br>
@@ -3324,10 +3324,10 @@ function renderPanel(){
   updatePanel();
 }
 function findItem(uid){ for(const sl of SLOTS) if(S.eq[sl] && S.eq[sl].uid === uid) return S.eq[sl]; return S.inv.find(i => i.uid === uid); }
-function salvageable(it){ // what "Salvage all" removes: never forged items, items for empty slots, or set pieces you could use
+function salvageable(it){ // what "Salvage all" removes: items worse than what you wear (never forged, empty-slot or other-set pieces)
   const cur = S.eq[it.slot]; if(plusOf(it) || !cur) return false;
-  if(it.set) return it.r < lowestEqR() || (it.r <= cur.r && statOf(it) <= statOf(cur) && cur.set === it.set);
-  return it.r <= lowestEqR() || (it.r <= cur.r && statOf(it) <= statOf(cur));
+  if(it.set && cur.set !== it.set) return false;
+  return it.r <= cur.r && statOf(it) <= statOf(cur);
 }
 
 function updatePanel(){

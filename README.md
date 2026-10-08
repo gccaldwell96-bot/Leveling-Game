@@ -25,7 +25,7 @@ A free top-down idle RPG for your phone. Your hero fights on their own: you coll
 - **♾️ No wasted points:** once every power is maxed, extra skill points go into **Power Overdrive** (+3% power damage each); once a class is maxed, extra Mastery points go into **Paragon** (+2% damage & HP each). If new upgrades open up later, those catch-all points are refunded automatically.
 - **Gear:** 7 slots (weapon, armor, helm, gloves, boots, ring, amulet) in 5 rarities (Common → Mythic). Bosses always drop gear, and Mythic drops are about 3× more common than before.
   - **Sets:** Epic and better drops can belong to a set (Dragonlord's, Bonelord's, Titan's, Shadowstep, Stormcaller, Midas'). Wear 2 / 4 / 6 pieces for bonuses.
-  - **Salvage all** clears everything up to your lowest equipped rarity, plus anything worse than what you wear. It never touches forged items, items for an empty slot, or set pieces you could still use. Auto-salvage can also be set to "Up to my lowest equipped".
+  - **Auto-salvage** (button in the Gear tab): Off, Common, up to Rare / Epic / Legendary, or **Up to my lowest equipped**, which salvages new drops at or below the rarity of your weakest equipped item. It never salvages forged items, items for an empty slot, or set pieces. **Salvage all** clears bag items that are worse than what you wear.
   - Weapons fight differently: Sword (arc slash), Battle Axe (360° spin), Spear (long thrust), Twin Daggers (fast + crit), Longbow (piercing arrows), Staff (exploding orbs).
   - Armor types: Plate (tanky), Leather (fast), Mage Robe (powers), Shadow Garb (crits).
 - **⚒️ Forge:** upgrade your equipped weapon and armor with gold up to **+20**. Each level boosts its stats, every 5 levels adds a bonus stat, and forged weapons glow brighter.
