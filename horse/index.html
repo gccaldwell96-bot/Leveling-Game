@@ -641,7 +641,7 @@ function bigNotice(){
     ${crownWatch().map(x => `<br>${x}`).join('')}
     ${nxt.length ? `<br><span style="opacity:.85">🔜 Next month: ${nxt.map(f => `<b>${f.n}</b>${f.crown ? ` (Triple Crown ${f.crown}/3${f.age3 ? ', 3-year-olds' : ''})` : f.age3 ? ' (3-year-olds)' : f.age2 ? ' (2-year-olds)' : ''}`).join(', ')}: rest your runners so they're in top form.</span>` : ''}</div>`;
 }
-const mutChance = (l = S.fac.barn) => 0.11 + 0.025 * l; // per stat
+const mutChance = (l = S.fac.barn) => 0.10 + 0.04 * l; // per stat: 10% → 50% at barn level 10
 function foal(dam, sire){
   const mut = mutChance(), pot = {};
   let prodigy = false;
