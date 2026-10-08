@@ -57,6 +57,12 @@
   .horse{background:var(--panel);border-radius:14px;padding:9px;margin-bottom:8px;border:1px solid transparent}
   .horse.mine{border-color:#ffb34755}
   .horse.racing{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
+  .arr{display:flex;flex-wrap:wrap;gap:5px;align-items:center;font-size:12px}
+  .arr b{min-width:38px}
+  .arr .sbtn{min-width:0;padding:5px 9px;font-size:11.5px}
+  .mv{display:inline-flex;gap:2px;margin-right:3px}
+  .mv button{background:var(--card2);color:var(--dim);font-size:9px;padding:2px 5px;border-radius:5px;line-height:1}
+  .mv button:hover{color:var(--gold)}
   .entered{margin-top:6px;background:linear-gradient(90deg,#4a3410,#2b254f);border-radius:9px;padding:6px 9px;font-size:12px;color:var(--text);line-height:1.4}
   .rtag{font-size:9.5px;font-weight:900;background:var(--gold);color:#2a1400;padding:1px 6px;border-radius:99px;letter-spacing:.3px}
   .hrow{display:flex;gap:9px;align-items:center}
@@ -1012,6 +1018,16 @@ function planLabel(h){ const p = h.plan;
   if(p.t === 'breed') return `💞 Breed with ${p.sn}`;
   if(p.t === 'stud') return `🐎 At stud (${money(studFee(h))}/mare)`;
   return ''; }
+// ---- arranging the stable ----
+const totSt = h => Math.round(h.st.spd + h.st.sta + h.st.acc), totPot = h => h.pot.spd + h.pot.sta + h.pot.acc;
+const SORTS = [['custom', '✋ My order'], ['total', '🔢 Total skill'], ['pot', '★ Potential'], ['dist', '📏 Distance'], ['wins', '🏆 Wins'], ['age', '🍼 Youngest'], ['name', '🔤 Name']];
+const FILTERS = [['all', 'All', () => true], ['ready', '🏁 Race-ready', h => canRace(h)], ['foal', '🍼 Foals', h => h.age < 24], ['mare', '♀ Mares', h => h.sex === 'F'], ['stal', '♂ Stallions', h => h.sex === 'M'], ['ret', '🎓 Retired', h => h.age >= 144]];
+function stableList(){
+  const f = (FILTERS.find(x => x[0] === (S.filterBy || 'all')) || FILTERS[0])[2], by = S.sortBy || 'custom', L = S.horses.filter(f);
+  const cmp = {total:(a, b) => totSt(b) - totSt(a), pot:(a, b) => totPot(b) - totPot(a), dist:(a, b) => DORD[a.pref] - DORD[b.pref] || totSt(b) - totSt(a),
+    wins:(a, b) => b.wins - a.wins || b.earned - a.earned, age:(a, b) => a.age - b.age, name:(a, b) => a.name.localeCompare(b.name)}[by];
+  return cmp ? L.slice().sort(cmp) : L;
+}
 function horseCard(h){
   const st = statusTxt(h), p = h.plan, busy = h.preg || h.inj;
   const plans = busy ? `<span class="note">${st}</span>` : `
@@ -1025,12 +1041,13 @@ function horseCard(h){
   const er = p.t === 'race' && canRace(h) ? S.card.find(r => r.id === p.r) : null, eb = er ? betsOn(h) : [];
   const banner = er ? `<div class="entered">🏁 Entered in <b>${er.big ? '👑 ' : ''}${er.n}</b> · ${DIST[er.dist].n}${h.pref === er.dist ? ' ✓' : ''} · purse ${money(er.purse)} · win odds <b style="color:var(--gold)">${xs(odds(er, h).win.x)}</b>${eb.length ? ` · 🎟️ ${money(eb.reduce((a, b) => a + b.amt, 0))} bet` : ''}</div>` : '';
   return `<div class="horse mine ${er ? 'racing' : ''}"><div class="hrow"><div class="por d-${h.pref}" data-detail="${h.id}" title="${PREF_ICON[h.pref]} specialist"><span class="dt">${DICON[h.pref]}</span><img src="${portrait(h)}"></div>
-    <div class="hinfo"><div class="hname">${h.sex === 'M' ? '♂' : '♀'} ${h.name} <span class="st">${stars(grade(h))}</span>${er ? ' <span class="rtag">🏁 RACING</span>' : ''}</div>
+    <div class="hinfo"><div class="hname">${(S.sortBy || 'custom') === 'custom' ? `<span class="mv"><button data-mv="${h.id}" data-dir="-1" title="Move up">▲</button><button data-mv="${h.id}" data-dir="1" title="Move down">▼</button></span>` : ''}${h.sex === 'M' ? '♂' : '♀'} ${h.name} <span class="st">${stars(grade(h))}</span>${er ? ' <span class="rtag">🏁 RACING</span>' : ''}</div>
     <div class="hsub">${ageTxt(h.age)} · ${BREEDS[h.breed].n} · ${PREF_ICON[h.pref]} · ${h.wins}W/${h.starts}R${h.gw ? ` · ${h.gw} graded` : ''}</div>
     <div class="stats"><span>SPD</span>${bar(h.st.spd, h.pot.spd, '')}<span>${Math.round(h.st.spd)}/${h.pot.spd}</span>
       <span>STA</span>${bar(h.st.sta, h.pot.sta, 'sta')}<span>${Math.round(h.st.sta)}/${h.pot.sta}</span>
       <span>ACC</span>${bar(h.st.acc, h.pot.acc, 'acc')}<span>${Math.round(h.st.acc)}/${h.pot.acc}</span>
-      <span>FORM</span>${bar(h.form * 1.5, 150, 'form')}<span>${Math.round(h.form)}%</span></div></div></div>
+      <span>FORM</span>${bar(h.form * 1.5, 150, 'form')}<span>${Math.round(h.form)}%</span></div>
+    <div class="hsub" style="margin-top:3px">🔢 Total skill <b style="color:var(--text)">${totSt(h)}</b> / ${totPot(h)} potential</div></div></div>
     ${st && !busy ? `<div class="hsub" style="margin-top:4px">${st}</div>` : ''}${banner}
     <div class="plans">${plans}</div></div>`;
 }
@@ -1052,7 +1069,9 @@ function renderPanel(){
     P.innerHTML = (ent.length ? `<div class="card" style="padding:9px 12px">🏁 <b>${ent.length} horse${ent.length > 1 ? 's' : ''} entered this month:</b> ${ent.map(h => `${h.name} <span style="color:var(--dim)">(${S.card.find(r => r.id === h.plan.r).n})</span>`).join(', ')}</div>` : '') +
       `<div class="card" style="padding:7px 12px;font-size:12px">Portrait color = favorite distance: <span class="pimg d-sprint" style="padding:1px 7px;border-radius:6px;color:#fff">⚡ Sprint</span> <span class="pimg d-mile" style="padding:1px 7px;border-radius:6px;color:#fff">🎯 Mile</span> <span class="pimg d-long" style="padding:1px 7px;border-radius:6px;color:#fff">🛤️ Route</span></div>` +
       `<div class="sec"><span>Your horses ${S.horses.length}/${capacity()}</span><span style="text-transform:none;letter-spacing:0">Upkeep ${money(UPKEEP * (1 - 0.05 * S.fac.pasture))}/horse/mo</span></div>` +
-      S.horses.map(horseCard).join('') + (S.horses.length ? '' : '<div class="card">No horses! Buy one in the Market.</div>');
+      `<div class="card" style="padding:8px 12px"><div class="arr"><b>Sort</b>${SORTS.map(([id, n]) => `<button class="sbtn ${(S.sortBy || 'custom') === id ? 'on' : ''}" data-sort="${id}">${n}</button>`).join('')}</div>
+        <div class="arr" style="margin-top:5px"><b>Show</b>${FILTERS.map(([id, n, f]) => `<button class="sbtn ${(S.filterBy || 'all') === id ? 'on' : ''}" data-filter="${id}">${n} (${S.horses.filter(f).length})</button>`).join('')}</div></div>` +
+      stableList().map(horseCard).join('') + (S.horses.length ? (stableList().length ? '' : '<div class="card">No horses match this filter.</div>') : '<div class="card">No horses! Buy one in the Market.</div>');
   } else if(tab === 'races'){
     const m = S.t % 12;
     const row = r => { const ins = runnersFor(r), ok = S.horses.filter(h => !eligible(h, r)).length;
@@ -1211,6 +1230,10 @@ document.addEventListener('click', ev => {
   if(d.fac){ const f = FAC.find(x => x.id === d.fac), l = S.fac[f.id], c = facCost(f, l); if(S.cash < c){ toast('💸 Need ' + money(c)); return; }
     S.cash -= c; S.fac[f.id]++; toast(`${f.icon} ${f.n} upgraded to Lv ${S.fac[f.id]}!`); persist(); renderPanel(); return; }
   if(d.silk){ S.silk = +d.silk; SPR.clear(); persist(); renderPanel(); return; }
+  if(d.sort){ S.sortBy = d.sort; persist(); renderPanel(); return; }
+  if(d.filter){ S.filterBy = d.filter; persist(); renderPanel(); return; }
+  if(d.mv){ const L = stableList(), i = L.findIndex(x => x.id === +d.mv), j = i + +d.dir; if(i < 0 || j < 0 || j >= L.length) return;
+    const a = S.horses.indexOf(L[i]), b = S.horses.indexOf(L[j]); [S.horses[a], S.horses[b]] = [S.horses[b], S.horses[a]]; persist(); renderPanel(); return; }
   if(d.silk2){ S.silk2 = +d.silk2; SPR.clear(); persist(); renderPanel(); return; }
   if(d.silkpat){ S.silkPat = d.silkpat; SPR.clear(); persist(); renderPanel(); return; }
   if(t.id === 'menuBtn'){ showModal(`<h2>⚙️ Menu</h2><p>${monthName(S.t)} · net worth ${money(netWorth())}</p>
