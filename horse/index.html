@@ -294,7 +294,7 @@ const FAC = [
   {id:'stables', n:'Stables',          icon:'🏠', base:3500,  g:1.45, max:20, info:l => `${4 + 2 * l} stalls`},
   {id:'train',   n:'Training Center',  icon:'🏋️', base:8000,  g:2.0, max:12, info:l => `+${20 * l}% training gains`},
   {id:'vet',     n:'Vet Clinic',       icon:'🩺', base:5000,  g:1.9, max:10, info:l => `-${8 * l}% injury risk, +${4 * l} form recovery`},
-  {id:'barn',    n:'Breeding Barn',    icon:'💞', base:10000, g:2.0, max:10, info:l => l ? `Fertility ${Math.min(100, 70 + 3 * l)}%, mutation ${8 + 2 * l}%` : 'Unlocks breeding'},
+  {id:'barn',    n:'Breeding Barn',    icon:'💞', base:10000, g:2.0, max:10, info:l => l ? `Fertility ${Math.min(100, 70 + 3 * l)}%, mutation ${Math.round(mutChance(l) * 1000) / 10}%` : 'Unlocks breeding'},
   {id:'academy', n:'Jockey Academy',   icon:'🏇', base:15000, g:2.1, max:10, info:l => `+${2 * l}% race performance`},
   {id:'pasture', n:'Lush Pastures',    icon:'🌾', base:7000,  g:1.9, max:10, info:l => `-${5 * l}% horse upkeep, +${3 * l} form`},
   {id:'pool',    n:'Equine Pool',      icon:'🏊', base:12000, g:2.0, max:8,  info:l => `+${15 * l}% training gains, training costs ${Math.max(0, 8 - 2 * l)} form`},
@@ -612,11 +612,12 @@ function endMonth(){
 }
 function snapshot(h){ return {name:h.name, breed:h.breed, pot:{...h.pot}, coat:h.coat, mark:h.mark, socks:h.socks, id:h.id, pref:h.pref}; }
 function injuryRisk(h, racing){ const base = racing ? 0.05 : 0.015; return base * (h.form < 40 ? 2.5 : h.form < 60 ? 1.4 : 1) * (h.age > 96 ? 1.6 : 1) * Math.max(0.2, 1 - 0.08 * S.fac.vet); }
+const mutChance = (l = S.fac.barn) => 0.11 + 0.025 * l; // per stat
 function foal(dam, sire){
-  const mut = 0.08 + 0.02 * S.fac.barn, pot = {};
+  const mut = mutChance(), pot = {};
   let prodigy = false;
   for(const s of STATS){ let v = (dam.pot[s] + sire.pot[s]) / 2 * rand(0.95, 1.08) + gauss() * 2.5;
-    if(Math.random() < mut){ v += rand(5, 12); prodigy = true; } pot[s] = Math.round(clamp(v, 10, 150)); }
+    if(Math.random() < mut){ v += rand(6, 14); prodigy = true; } pot[s] = Math.round(clamp(v, 10, 150)); }
   const coat = Math.random() < 0.06 + 0.01 * S.fac.barn ? randCoat(true) : Math.random() < 0.5 ? dam.coat : sire.coat;
   const better = avgPot(dam) >= avgPot({pot:sire.pot}) ? dam.breed : sire.breed;
   const h = newHorse({breed:better, age:0, pot:[pot.spd, pot.sta, pot.acc]});
@@ -1095,7 +1096,7 @@ function renderPanel(){
   } else if(tab === 'breed'){
     if(!S.fac.barn){ P.innerHTML = `<div class="card"><h3>💞 Breeding</h3>Build a <b>Breeding Barn</b> on the Ranch tab to start breeding. Foals inherit their parents' potential, with a chance to mutate into something better, or a rare coat!</div>`; return; }
     const mares = S.horses.filter(h => h.sex === 'F'), stallions = S.horses.filter(h => h.sex === 'M');
-    P.innerHTML = `<div class="card"><h3>💞 Breeding</h3>Choose a mare (3y+) and a stallion. She's in foal for 5 months (no racing). Foals get the <b>average potential</b> of both parents ±, with a <b>${8 + 2 * S.fac.barn}%</b> chance per stat to mutate higher, and may get a rare coat. Your own stallions can also earn stud fees.</div>
+    P.innerHTML = `<div class="card"><h3>💞 Breeding</h3>Choose a mare (3y+) and a stallion. She's in foal for 5 months (no racing). Foals get the <b>average potential</b> of both parents ±, with a <b>${Math.round(mutChance() * 1000) / 10}%</b> chance per stat to mutate 6–14 points higher, and may get a rare coat. Your own stallions can also earn stud fees.</div>
       <div class="sec">Your mares</div>${mares.map(h => `<div class="item">${pimg(h, 96)}<div class="info"><div class="nm">${h.name} <span style="color:var(--gold);font-size:11px">${stars(grade(h))}</span></div><div class="ds">${statusTxt(h) || (canBreedMare(h) ? 'Ready to breed' : 'Too young (3y+)')}${h.plan.t === 'breed' ? ` · 💞 with ${h.plan.sn}` : ''}</div></div>${canBreedMare(h) ? `<button class="sbtn ${h.plan.t === 'breed' ? 'on' : 'can'}" data-plan="${h.id}" data-p="breed">${h.plan.t === 'breed' ? 'Change' : 'Breed…'}</button>` : ''}</div>`).join('') || '<div class="card">No mares yet.</div>'}
       <div class="sec">Stud book (outside stallions)</div>${S.studs.map(st => `<div class="item">${pimg(st, 96)}<div class="info"><div class="nm">${st.name} <span style="color:var(--gold);font-size:11px">${stars(grade(st))}</span></div><div class="ds">${BREEDS[st.breed].n} · ${COAT[st.coat].n} · ${st.wins} wins · pot ${st.pot.spd}/${st.pot.sta}/${st.pot.acc}</div></div><span class="sbtn">${money(st.fee)}</span></div>`).join('')}
       <div class="sec">Your stallions</div>${stallions.map(h => `<div class="item">${pimg(h, 96)}<div class="info"><div class="nm">${h.name} <span style="color:var(--gold);font-size:11px">${stars(grade(h))}</span></div><div class="ds">pot ${h.pot.spd}/${h.pot.sta}/${h.pot.acc} · stud fee ${money(studFee(h))}</div></div></div>`).join('') || '<div class="card">No stallions yet.</div>'}`;
