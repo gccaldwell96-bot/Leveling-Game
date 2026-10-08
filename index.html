@@ -302,6 +302,7 @@ const CSK = {
     {id:'lich',      n:'Lich Form',      icon:'🧟', evo:'Lich King', info:l=>`+${x1(0.5*l)}% damage for every undead you control`, evoInfo:'Your undead explode in necrotic fire when they expire'},
     // ✦ specials: unlock with Necromancer Mastery
     {id:'skulls',    n:'Skull Swarm',    icon:'☠️', special:true, req:10, info:l=>`${2+Math.floor(l/2)} green-flamed skulls orbit you, ${x1(0.6+0.25*l)}× ATK per hit`},
+    {id:'devour',    n:'Devour the Dead', icon:'🕯️', special:true, req:12, cd:12, info:l=>`Every 12s sacrifice your expiring undead (3 souls each) and absorb the souls of everything slain: each soul gives +${x1(2+0.4*l)}% damage & +1% attack speed for 15s (max ${20+2*l} souls)`},
     {id:'reaper',    n:'Soul Reaper',    icon:'🌘', special:true, req:15, cd:10, info:l=>`Every 10s a giant spectral scythe sweeps ahead for ${x1(4+1.2*l)}× ATK; heals 1% per enemy reaped`},
     {id:'pact',      n:'Death Pact',     icon:'🖤', special:true, req:20, info:l=>`Below 40% HP: sacrifice up to ${1+Math.floor(l/3)} undead, each heals ${4+l}% HP (8s cooldown)`},
     {id:'bonedragon',n:'Bone Dragon',    icon:'🐲', special:true, req:25, cd:30, evo:'Dracolich', info:l=>`Every 30s raise a Bone Dragon for ${10+l}s that breathes necrotic fire (${x1(0.5+0.15*l)}× ATK per tick)`, evoInfo:'Lasts 20s and anything it burns may rise as your skeleton'},
@@ -310,6 +311,50 @@ const CSK = {
 function mast(id = S.cls){ return S.mastery[id] || (S.mastery[id] = {lv:1, xp:0, pts:1, sk:{}}); }
 const sk = (id, c = S.cls) => mast(c).sk[id] || 0;
 const skLocked = k => k.req && mast().lv < k.req;
+// Class ladder: skills go to Lv 20 (evolving at 10) → 2 Class Fusions (both skills Lv 10, upgradable to 30 once both are 20)
+// → Class Fusion² (both fusions Lv 20, upgradable to 40 once both are 30) → Class Ultimate (Fusion² Lv 40, no cap).
+const SK_CAP = 20, CF_MIN = SK_MAX, CF_MAX = 30, CF2_MIN = 20, CF2_MAX = 40;
+const CTIER = {
+  knight: {f:[
+      {id:'k1', n:'Iron Fortress', icon:'🏯', a:'bulwark', b:'retal', cd:10, info:L=>`Every 10s: 2s invulnerable + a shockwave for ${x1(3+0.4*L)}× ATK that stuns`},
+      {id:'k2', n:'War Banner',    icon:'🚩', a:'sig',     b:'rally', cd:12, info:L=>`Every 12s: +${Math.round(30+2*L)}% damage & +30% attack speed for 6s, ${x1(4+0.5*L)}× ATK shockwave`}],
+    f2: {id:'k3', n:'Avatar of War', icon:'🗿', cd:18, info:L=>`Every 18s a golden spectral giant fights for 10s (${x1(4+0.5*L)}× ATK hits)`},
+    ult:{id:'k4', n:'Excalibur',     icon:'⚔️', cd:25, info:L=>`Every 25s a colossal holy sword falls on the biggest crowd for ${x1(25+6*L)}× ATK and stuns everything`}},
+  mage: {f:[
+      {id:'m1', n:'Arcane Torrent', icon:'🔮', a:'sig',  b:'mastery', cd:8,  info:L=>`Every 8s two waves of 8 homing missiles, ${x1(2+0.3*L)}× ATK each`},
+      {id:'m2', n:'Time Warp',      icon:'⌛', a:'flow', b:'mshield', cd:14, info:L=>`Every 14s slows every enemy for 4s and cuts all your cooldowns by ${Math.min(80, 30+L)}%`}],
+    f2: {id:'m3', n:'Arcane Singularity', icon:'🌀', cd:16, info:L=>`Every 16s an arcane vortex (${x1(2+0.4*L)}× ATK/sec) that detonates for ${x1(8+1.5*L)}× ATK`},
+    ult:{id:'m4', n:'Starfall',           icon:'🌠', cd:25, info:L=>`Every 25s 30 falling stars crash across the arena, ${x1(4+0.8*L)}× ATK each`}},
+  ranger: {f:[
+      {id:'r1', n:'Hail of Arrows', icon:'🎆', a:'sig',   b:'rapid', cd:8,  info:L=>`Every 8s a 360° volley of 24 piercing arrows, ${x1(1.5+0.25*L)}× ATK each`},
+      {id:'r2', n:'Deadeye',        icon:'🎯', a:'eagle', b:'mark',  cd:10, info:L=>`Every 10s snipes the 3 toughest enemies for ${x1(6+L)}× ATK guaranteed crits`}],
+    f2: {id:'r3', n:'Storm of Arrows', icon:'🌧️', cd:15, info:L=>`Every 15s 60 flaming arrows blanket the arena, ${x1(1+0.2*L)}× ATK each`},
+    ult:{id:'r4', n:'Celestial Bow',   icon:'🏹', cd:25, info:L=>`Every 25s a colossal arrow of light pierces the whole arena for ${x1(25+6*L)}× ATK`}},
+  rogue: {f:[
+      {id:'g1', n:'Blade Dance', icon:'💃', a:'sig',   b:'lethal', cd:9,  info:L=>`Every 9s blink through 4 enemies for ${x1(4+0.6*L)}× ATK crits`},
+      {id:'g2', n:'Smoke Bomb',  icon:'💨', a:'evade', b:'ambush', cd:12, info:L=>`Every 12s: 2s invulnerable, enemies nearby are blinded 2s and take ${x1(2+0.3*L)}× ATK`}],
+    f2: {id:'g3', n:'Shadow Clones', icon:'👥', cd:15, info:L=>`Every 15s 3 shadow clones fight for 10s (${x1(2+0.3*L)}× ATK hits)`},
+    ult:{id:'g4', n:'Thousand Cuts', icon:'🌪️', cd:25, info:L=>`Every 25s time stops and 30 shadow slashes rip through enemies, ${x1(1+0.3*L)}× ATK crits each`}},
+  paladin: {f:[
+      {id:'p1', n:'Consecration', icon:'🔆', a:'sig',     b:'light', cd:10, info:L=>`Every 10s holy ground for 5s: ${x1(1+0.25*L)}× ATK/sec to enemies, heals you 2%/sec`},
+      {id:'p2', n:'Crusade',      icon:'🛡️', a:'dshield', b:'zeal',  cd:12, info:L=>`Every 12s: +${Math.round(40+2*L)}% damage, +15% attack speed and 30% damage reduction for 6s`}],
+    f2: {id:'p3', n:'Archangel',      icon:'😇', cd:18, info:L=>`Every 18s an archangel descends for 10s (${x1(4+0.5*L)}× ATK hits)`},
+    ult:{id:'p4', n:"Heaven's Wrath", icon:'⚡', cd:25, info:L=>`Every 25s 12 holy hammers smash the arena for ${x1(8+1.5*L)}× ATK each, then you fully heal`}},
+  necro: {f:[
+      {id:'n1', n:'Bone Prison',    icon:'🦴', a:'bonespear', b:'deathnova', cd:10, info:L=>`Every 10s bone cages trap enemies near you for 2.5s and deal ${x1(3+0.5*L)}× ATK`},
+      {id:'n2', n:'Legion of Doom', icon:'💀', a:'sig',       b:'frenzy',    cd:14, info:L=>`Every 14s raise 6 elite skeletons (${x1(1.5+0.15*L)}× ATK) for 12s`}],
+    f2: {id:'n3', n:'Necropolis',      icon:'🏚️', cd:18, info:L=>`Every 18s raise 2 Bone Dragons for 12s (${x1(0.8+0.1*L)}× ATK breath); their victims rise`},
+    ult:{id:'n4', n:'Death Incarnate', icon:'☠️', cd:25, info:L=>`Every 25s you become Death: every enemy takes ${x1(25+6*L)}× ATK and the fallen rise as your army`}},
+};
+const ctier = () => CTIER[S.cls];
+const cfUp = id => ((mast().cf || {})[id]) || 0;
+function cfz(f){ const m = Math.min(sk(f.a), sk(f.b)); return m >= CF_MIN ? m + (m >= SK_CAP ? cfUp(f.id) : 0) : 0; }
+const cfCanUp = f => Math.min(sk(f.a), sk(f.b)) >= SK_CAP && cfz(f) < CF_MAX;
+function cf2Lv(){ const T = ctier(), m = Math.min(cfz(T.f[0]), cfz(T.f[1])); return m >= CF2_MIN ? m + (m >= CF_MAX ? (mast().cf2 || 0) : 0) : 0; }
+const cf2CanUp = () => { const T = ctier(); return Math.min(cfz(T.f[0]), cfz(T.f[1])) >= CF_MAX && cf2Lv() < CF2_MAX; };
+const cultLv = () => cf2Lv() >= CF2_MAX ? Math.max(1, mast().cult || 0) : 0;
+const cbuffV = k => R.cbuff && R.cbuff.t > 0 ? (R.cbuff[k] || 0) : 0;
+const devourB = () => S.cls === 'necro' && R.devour && R.devour.t > 0 ? R.devour.stacks : 0;
 const spendN = avail => S.spendAmt === 'max' ? avail : Math.min(1, avail);
 const SP_PER_LEVEL = 2, MAST_PTS = 2;
 const mastNeed = L => 30 * Math.pow(1.3, L - 1);
@@ -516,7 +561,12 @@ const FUSIONS = [
   {id:'firenado',    n:'Firenado',        icon:'🔥', a:'tornado',  b:'fireball',         info:L=>`Tornados ignite: +${30+5*L}% damage and they scorch the ground`},
 ];
 const FZM = Object.fromEntries(FUSIONS.map(f => [f.id, f]));
-function fz(id){ const f = FZM[id], m = Math.min(pw(f.a), pw(f.b)); return m >= FUSE_MIN ? m : 0; }
+// Tier caps: Fusion up to 20, Fusion² (Mega) up to 30, Fusion³ (Omega) up to 40, Fusion⁴ (Ultimate) unlimited.
+// Each tier can be upgraded with skill points once everything it is made of is maxed.
+const FZ_MAX = 20, MZ_MAX = 30, OM_MAX = 40;
+const fzUp = id => (S.fzUp || {})[id] || 0, mzUp = id => (S.mzUp || {})[id] || 0;
+function fz(id){ const f = FZM[id], m = Math.min(pw(f.a), pw(f.b)); return m >= FUSE_MIN ? m + (m >= PW_MAX ? fzUp(id) : 0) : 0; }
+const fzCanUp = id => { const f = FZM[id]; return Math.min(pw(f.a), pw(f.b)) >= PW_MAX && fz(id) < FZ_MAX; };
 const fzMul = id => { const f = FZM[id]; return pw(f.a) === pw(f.b) ? 1.5 : 1; };
 const activeFusions = () => FUSIONS.filter(f => fz(f.id)).map(f => f.id + (fzMul(f.id) > 1 ? '*' : ''));
 // Mega Fusions: two active fusions both at Lv 7+ fuse again. Omega: any 3 Mega Fusions unleash Apocalypse.
@@ -530,10 +580,15 @@ const MEGAS = [
 ];
 const MZM = Object.fromEntries(MEGAS.map(g => [g.id, g]));
 const OMEGA = {id:'apocalypse', n:'Apocalypse', icon:'☄️', need:3, cd:25, info:L=>`Every 25s the sky falls: 24 meteors (${x1(3+0.5*L)}× ATK each), lightning storms and a blinding shockwave`};
-function mz(id){ const g = MZM[id], m = Math.min(fz(g.a), fz(g.b)); return m >= MEGA_MIN ? m : 0; }
+function mz(id){ const g = MZM[id], m = Math.min(fz(g.a), fz(g.b)); return m >= MEGA_MIN ? m + (m >= FZ_MAX ? mzUp(id) : 0) : 0; }
+const mzCanUp = id => { const g = MZM[id]; return Math.min(fz(g.a), fz(g.b)) >= FZ_MAX && mz(id) < MZ_MAX; };
 const mzMul = id => { const g = MZM[id]; return fz(g.a) === fz(g.b) ? 1.5 : 1; };
 const activeMegas = () => MEGAS.filter(g => mz(g.id));
-function omegaLv(){ const a = activeMegas(); return a.length >= OMEGA.need ? Math.min(...a.map(g => mz(g.id))) : 0; }
+function omegaLv(){ const a = activeMegas(); if(a.length < OMEGA.need) return 0; const m = Math.min(...a.map(g => mz(g.id)));
+  return m + (MEGAS.every(g => mz(g.id) >= MZ_MAX) ? (S.omUp || 0) : 0); }
+const omCanUp = () => MEGAS.every(g => mz(g.id) >= MZ_MAX) && omegaLv() < OM_MAX;
+const ultLv = () => omegaLv() >= OM_MAX ? Math.max(1, S.ultLv || 0) : 0;
+const ULT = {n:'Big Bang', icon:'✴️', info:L=>`Every ${x1(Math.max(12, 30 - 0.4*L))}s: time stops, a singularity forms and detonates across the whole arena for ${x1(20 + 5*L)}× ATK, then ALL your cooldowns reset`};
 const pw = id => S.pw[id] || 0;
 const evo = id => pw(id) >= PW_MAX;
 
@@ -543,7 +598,7 @@ const evo = id => pw(id) >= PW_MAX;
 const soulMul = () => 1 + 0.1 * S.souls;
 const lvlMul  = () => Math.pow(1.03, S.heroLvl - 1);
 function atk(){ const l = up('atk'); return 5 * (1 + l) * Math.pow(1.05, l) * soulMul() * lvlMul() * (1 + gear().atk) * (R.rage > 0 && evo('rage') ? 1.5 : 1)
-  * (R.rage > 0 && fz('bloodfrenzy') ? 1 + 0.02 * fz('bloodfrenzy') * fzMul('bloodfrenzy') : 1) * (1 + bloodBonus()) * lichMul(); }
+  * (R.rage > 0 && fz('bloodfrenzy') ? 1 + 0.02 * fz('bloodfrenzy') * fzMul('bloodfrenzy') : 1) * (1 + bloodBonus()) * lichMul() * (1 + cbuffV('atk')) * (1 + devourB() * (0.02 + 0.004 * sk('devour'))); }
 function bloodBonus(){ if(!(R.blood > 0)) return 0; const l = pw('blood'); return (0.6 + 0.06*l) * (evo('blood') ? 1.6 : 1) * Math.max(0, R.hp) / maxHpRaw(); }
 function lichMul(){ return S.cls === 'necro' && sk('lich') ? 1 + 0.005 * sk('lich') * A.filter(a => a.undead).length : 1; }
 function maxHp(){ return maxHpRaw(); }
@@ -551,7 +606,7 @@ function maxHpRaw(){ const l = up('hp'); return 60 * (1 + 0.6*l) * Math.pow(1.05
 function aps(){
   let a = (1 + 0.05 * up('spd')) * wtype().aps * (1 + gear().aps);
   if(R.rage > 0) a *= evo('rage') ? 3 : 1 + (50 + 10*pw('rage'))/100;
-  return a * (1 + bloodBonus());
+  return a * (1 + bloodBonus()) * (1 + cbuffV('aps')) * (1 + devourB() * 0.01);
 }
 function critCh(){ return Math.min(0.8, 0.05 + 0.01 * up('crit') + gear().crit + wtype().crit); }
 function critMul(){ return 2.5 + gear().critDmg; }
@@ -559,13 +614,19 @@ function regenPct(){ return 0.02 + 0.0025 * up('regen') + gear().regen; }
 function tapDmg(){ return atk() * 0.25 * (1 + up('tap')); }
 function goldMul(){ return (1 + 0.1*up('greed')) * (1 + (evo('midas') ? 2.5 : 0.15*pw('midas'))) * (1 + gear().gold) * soulMul(); }
 const powerMul = () => (1 + gear().power) * (1 + 0.03 * (S.overdrive || 0));
-const classMaxed = () => CSK[S.cls].every(k => sk(k.id) >= SK_MAX);
-const powersMaxed = () => PW.every(p => pw(p.id) >= PW_MAX);
+const classMaxed = () => CSK[S.cls].every(k => sk(k.id) >= SK_CAP) && cf2Lv() >= CF2_MAX && ctier().f.every(f => cfz(f) >= CF_MAX);
+const powersMaxed = () => PW.every(p => pw(p.id) >= PW_MAX) && FUSIONS.every(f => fz(f.id) >= FZ_MAX) && MEGAS.every(g => mz(g.id) >= MZ_MAX) && omegaLv() >= OM_MAX;
+// Catch-all points (Paragon / Overdrive) only make sense once everything is maxed; if new upgrades open up, refund them.
+function refundCatchAll(){
+  const m = mast();
+  if(m.paragon > 0 && !classMaxed()){ m.pts += m.paragon; toast(`♾️ ${m.paragon} Paragon point${m.paragon > 1 ? 's' : ''} refunded: your ${cls().n} has new upgrades!`); m.paragon = 0; gearChanged(); }
+  if(S.overdrive > 0 && !powersMaxed()){ S.sp += S.overdrive; toast(`♾️ ${S.overdrive} Overdrive point${S.overdrive > 1 ? 's' : ''} refunded: new power upgrades are open!`); S.overdrive = 0; }
+}
 const cdMul = () => Math.max(0.25, 1 - gear().cdr - 0.02 * up('focus'));
 const xpMul = () => 1 + 0.12 * up('wis');
 const aoeMul = () => 1 + gear().aoe;
 const lifesteal = () => (evo('vamp') ? 0.2 : 0.015 * pw('vamp')) + gear().ls + (R.rage > 0 && fz('bloodfrenzy') ? 0.1 : 0) + (R.blood > 0 ? (evo('blood') ? 0.12 : 0.08) : 0);
-const dmgTaken = () => Math.max(0.2, 1 - (evo('shield') ? 0.5 : 0.05 * pw('shield')) - gear().dr);
+const dmgTaken = () => Math.max(0.2, 1 - (evo('shield') ? 0.5 : 0.05 * pw('shield')) - gear().dr - cbuffV('dr'));
 const thorns = () => gear().thorns + (evo('shield') ? 3 : 0);
 const xpNeed = L => 8 * Math.pow(1.22, L - 1);
 const pDmg = m => atk() * m * powerMul();
@@ -684,7 +745,7 @@ const HERO_R = 13;
 const E = []; // enemies
 const A = []; // allied minions (necromancer skeletons)
 const FX = {parts:[], rings:[], bolts:[], beams:[], texts:[], decals:[], clouds:[], holes:[], meteors:[], projs:[], eprojs:[],
-  slashes:[], later:[], loot:[], rain:[], trails:[], tele:[], cones:[], tornados:[], pillars:[], amb:[], scythes:[]};
+  slashes:[], later:[], loot:[], rain:[], trails:[], tele:[], cones:[], tornados:[], pillars:[], amb:[], scythes:[], bigbang:null};
 const R = {hp:0, atkT:0, dead:0, cd:{}, rage:0, immune:0, shake:0, flash:0, flashC:'#fff', spawnT:0, spawned:0, bossT:0,
   pause:0, banner:0, bannerTxt:'', face:0, swing:0, bladeA:0, time:0, hurt:0,
   hx:0, hy:0, ph:0, moving:false, pet:null, blood:0};
@@ -754,6 +815,7 @@ function killE(e){
   const g = e.gold * goldMul();
   S.gold += g; S.totalGold += g; S.totalKills++;
   addXp(e.xp * xpMul()); addMastXp(e.xp * xpMul());
+  if(S.cls === 'necro' && sk('devour')) R.fallen = Math.min(60, (R.fallen || 0) + 1);
   if(S.cls === 'necro' && !e.boss && sk('reanimate') && Math.random() < 0.03 * sk('reanimate')){
     const rx = e.x, ry = e.y;
     FX.later.push({t:0.35, fn:() => summonAlly({kind:'skel', undead:true, mult:0.7 * (1 + 0.25 * sk('sig')), life:8, r:11}, rx, ry)});
@@ -926,7 +988,7 @@ function castSignature(){
     const t = cluster(), n = 18 + 3 * sl;
     for(let i = 0; i < n; i++) FX.rain.push({x:t.x + rand(-55, 55), y:t.y + rand(-50, 50), t:-i * 0.035, dur:0.32, dmg:pDmg(0.6 * sm), fire:sev});
   } else if(c.id === 'rogue'){
-    const n = sev ? 6 : 1 + Math.floor(sl / 3), hit = new Set();
+    const n = Math.max(sev ? 6 : 0, 1 + Math.floor(sl / 3)), hit = new Set();
     for(let i = 0; i < n; i++) FX.later.push({t:i * 0.11, fn:() => {
       const pool = E.filter(e => !e.dead && !hit.has(e) && e.x < VX1); if(!pool.length) return;
       let t = pool[0]; for(const e of pool) if(e.hp > t.hp) t = e;
@@ -970,12 +1032,107 @@ function summonAlly(o, x, y){
   burst(x, y, o.giant ? 40 : 16, c, o.giant ? 140 : 90, 3); ring(x, y, 2, o.giant ? 50 : 26, 0.4, c, o.giant ? 8 : 5);
   while(A.length > 24) A.shift();
 }
+function castClassTier(id, L){
+  const live = alive(), hx = R.hx, hy = R.hy;
+  if(!live.length) return false;
+  const gold = '#ffe08a';
+  const strikes = (n, gap, fn) => { for(let i = 0; i < n; i++) FX.later.push({t:i * gap, fn:() => { const pool = alive().filter(e => e.x < VX1); if(pool.length) fn(pick(pool), i); }}); };
+  const blink = (t, dmg) => { const ox = R.hx, oy = R.hy, a = Math.atan2(t.y - oy, t.x - ox);
+    const nx = clampX(t.x + Math.cos(a) * (t.r + HERO_R + 2)), ny = clampY(t.y + Math.sin(a) * (t.r + HERO_R + 2));
+    FX.trails.push({x1:ox, y1:oy, x2:nx, y2:ny, life:0.35, max:0.35}); burst(nx, ny, 10, '#b066ff', 90, 3);
+    R.hx = nx; R.hy = ny; R.face = a + Math.PI; R.swing = 0.22; hurt(t, dmg, {crit:false, color:'#ffe14d', kb:120}); };
+  switch(id){
+    // ---------- Knight ----------
+    case 'k1': { R.immune = Math.max(R.immune, 2); const r = 110 * aoeMul();
+      ring(hx, hy, 6, r, 0.5, gold, 14); ring(hx, hy, 0, r * 0.6, 0.4, '#ffffff', 8);
+      for(const e of E) if(!e.dead && Math.hypot(e.x - hx, e.y - hy) < r + e.r){ e.stun = Math.max(e.stun, 1.2); hurt(e, pDmg(3 + 0.4*L), {kb:220, color:gold, quiet:true}); }
+      addText('IRON FORTRESS!', hx, hy - HERO_R - 24, gold, 13, true); return true; }
+    case 'k2': { R.cbuff = {t:6, atk:0.3 + 0.02*L, aps:0.3, dr:0}; const r = 90 * aoeMul();
+      FX.decals.push({kind:'rune', x:hx, y:hy, r:40, life:6, max:6, c:'#ff5d73'}); ring(hx, hy, 6, r, 0.45, '#ff5d73', 12);
+      aoe(hx, hy, r, pDmg(4 + 0.5*L), {kb:160, color:'#ffb0b0'}); addText('WAR BANNER!', hx, hy - HERO_R - 24, '#ff7a7a', 13, true); return true; }
+    case 'k3': summonAlly({kind:'spirit', giant:true, mult:4 + 0.5*L, life:10, r:24, spal:{m:'#ffe08a', d:'#8a6a20', a:'#ffffff'}}); return true;
+    case 'k4': { const t = cluster();
+      FX.pillars.push({x:t.x, y:t.y, t:0, delay:0.8, r:95 * aoeMul(), dmg:pDmg(25 + 6*L), c:'#fff3c0', sword:true});
+      FX.later.push({t:0.85, fn:() => { for(const e of E) if(!e.dead) e.stun = Math.max(e.stun, 2); R.shake = 0.6; }});
+      R.banner = 1.6; R.bannerTxt = '⚔️ EXCALIBUR ⚔️'; return true; }
+    // ---------- Mage ----------
+    case 'm1': for(let w = 0; w < 2; w++) FX.later.push({t:w * 0.4, fn:() => { const pool = alive(); if(!pool.length) return;
+        for(let i = 0; i < 8; i++) FX.projs.push({kind:'missile', x:R.hx, y:R.hy, a:R.face + (i - 3.5) * 0.4, spd:260, target:pick(pool), dmg:pDmg(2 + 0.3*L), life:2.5}); }});
+      return true;
+    case 'm2': { for(const e of E) if(!e.dead) e.slow = Math.max(e.slow, 4);
+      const k = 1 - Math.min(0.8, 0.3 + 0.01*L); for(const key of Object.keys(R.cd)) if(!key.startsWith('ct_')) R.cd[key] *= k;
+      flash('#9fdcff', 0.3); ring(hx, hy, 6, Math.hypot(VX1 - VX0, HH * 2), 0.8, '#9fdcff', 10); addText('TIME WARP!', hx, hy - HERO_R - 24, '#9fdcff', 13, true); return true; }
+    case 'm3': { const t = cluster(); FX.holes.push({x:t.x, y:t.y, r:140 * aoeMul(), life:3, max:3, dps:pDmg(2 + 0.4*L), tick:0, boom:pDmg(8 + 1.5*L), mega:true}); return true; }
+    case 'm4': for(let i = 0; i < 30; i++) FX.meteors.push({x:rand(VX0 + 30, VX1 - 10), y:rand(-HH * 0.9, HH * 0.9), t:-i * 0.06, dur:0.45, r:48 * aoeMul(), dmg:pDmg(4 + 0.8*L), kind:'star'});
+      R.banner = 1.6; R.bannerTxt = '🌠 STARFALL 🌠'; return true;
+    // ---------- Ranger ----------
+    case 'r1': for(let i = 0; i < 24; i++){ const a = i * Math.PI / 12; FX.projs.push({kind:'arrow', x:hx, y:hy, a, spd:520, dmg:pDmg(1.5 + 0.25*L), pierce:3, hit:new Set(), life:0.8, c:'#f4ecd0'}); }
+      ring(hx, hy, 4, 40, 0.3, '#f4ecd0', 6); return true;
+    case 'r2': { const top = live.filter(e => e.x < VX1).sort((a, b) => b.hp - a.hp).slice(0, 3);
+      for(const t of top){ const a = Math.atan2(t.y - hy, t.x - hx); FX.beams.push({x:hx, y:hy, a, w:5, life:0.35, max:0.35}); hurt(t, atk() * (6 + L) * critMul(), {crit:false, color:'#ffe14d', kb:200}); addText('HEADSHOT!', t.x, t.y - t.r - 18, '#ffe14d', 12, true); }
+      return true; }
+    case 'r3': for(let i = 0; i < 60; i++) FX.rain.push({x:rand(VX0 + 20, VX1 - 10), y:rand(-HH * 0.9, HH * 0.9), t:-i * 0.03, dur:0.32, dmg:pDmg(1 + 0.2*L), fire:true}); return true;
+    case 'r4': { const t = cluster(), a = Math.atan2(t.y - hy, t.x - hx), cx = Math.cos(a), cy = Math.sin(a);
+      FX.beams.push({x:hx, y:hy, a, w:40 * aoeMul(), life:0.7, max:0.7});
+      for(const e of E){ if(e.dead) continue; const ex = e.x - hx, ey = e.y - hy; if(ex*cx + ey*cy < 0) continue; if(Math.abs(-ex*cy + ey*cx) < 22 * aoeMul() + e.r) hurt(e, pDmg(25 + 6*L), {color:'#fff3a0', kb:260}); }
+      flash('#fff6c0', 0.5); R.shake = 0.5; R.banner = 1.6; R.bannerTxt = '🏹 CELESTIAL BOW 🏹'; return true; }
+    // ---------- Rogue ----------
+    case 'g1': strikes(4, 0.1, t => blink(t, atk() * (4 + 0.6*L) * critMul())); return true;
+    case 'g2': { R.immune = Math.max(R.immune, 2); const r = 90 * aoeMul();
+      for(let i = 0; i < 40; i++){ const a = rand(0, 6.3), d = rand(0, r); FX.parts.push({x:hx + Math.cos(a)*d, y:hy + Math.sin(a)*d, vx:rand(-15,15), vy:rand(-25,-5), life:1.4, max:1.4, size:rand(6,12), color:'#6a6478', dust:true}); }
+      for(const e of E) if(!e.dead && Math.hypot(e.x - hx, e.y - hy) < r + e.r){ e.stun = Math.max(e.stun, 2); hurt(e, pDmg(2 + 0.3*L), {quiet:true, color:'#cfc6e0'}); }
+      return true; }
+    case 'g3': for(let i = 0; i < 3; i++) summonAlly({kind:'spirit', mult:2 + 0.3*L, life:10, r:12, spal:{m:'#3a2a5a', d:'#140a28', a:'#b066ff'}}); return true;
+    case 'g4': { for(const e of E) if(!e.dead) e.stun = Math.max(e.stun, 2);
+      strikes(30, 0.05, t => { hurt(t, atk() * (1 + 0.3*L) * critMul(), {crit:false, color:'#d6a8ff', quiet:true}); FX.slashes.push({x:t.x, y:t.y, a:rand(0, 6.3), arc:2.2, r:t.r + 14, life:0.2, max:0.2, c:'#b066ff'}); });
+      flash('#2a1450', 0.4); R.banner = 1.6; R.bannerTxt = '🌪️ THOUSAND CUTS 🌪️'; return true; }
+    // ---------- Paladin ----------
+    case 'p1': FX.clouds.push({x:hx, y:hy, r:85 * aoeMul(), life:5, max:5, dps:pDmg(1 + 0.25*L), tick:0, seed:Math.random()*9, holy:true}); return true;
+    case 'p2': R.cbuff = {t:6, atk:0.4 + 0.02*L, aps:0.15, dr:0.3}; ring(hx, hy, 4, 60, 0.45, gold, 12); addText('CRUSADE!', hx, hy - HERO_R - 24, gold, 13, true); return true;
+    case 'p3': summonAlly({kind:'spirit', giant:true, mult:4 + 0.5*L, life:10, r:24, spal:{m:'#fff3d0', d:'#c9a24a', a:'#ffffff'}}); return true;
+    case 'p4': strikes(12, 0.1, t => FX.meteors.push({x:t.x, y:t.y, t:0, dur:0.45, r:60 * aoeMul(), dmg:pDmg(8 + 1.5*L), kind:'hammer'}));
+      FX.later.push({t:1.4, fn:() => { R.hp = maxHp(); addText('FULL HEAL', R.hx, R.hy - HERO_R - 20, '#5be38a', 14, true); }});
+      R.banner = 1.6; R.bannerTxt = "⚡ HEAVEN'S WRATH ⚡"; return true;
+    // ---------- Necromancer ----------
+    case 'n1': { const r = 130 * aoeMul();
+      for(const e of E) if(!e.dead && Math.hypot(e.x - hx, e.y - hy) < r + e.r){ e.stun = Math.max(e.stun, 2.5); hurt(e, pDmg(3 + 0.5*L), {quiet:true, color:'#efe6d0'});
+        FX.decals.push({kind:'rune', x:e.x, y:e.y, r:e.r + 8, life:2.5, max:2.5, c:'#efe6d0'});
+        for(let k = 0; k < 6; k++) FX.parts.push({x:e.x + rand(-e.r, e.r), y:e.y + rand(-e.r, e.r), vx:0, vy:-50, life:0.5, max:0.5, size:rand(2,4), color:'#efe6d0', drag:2}); }
+      ring(hx, hy, 6, r, 0.45, '#efe6d0', 10); return true; }
+    case 'n2': for(let i = 0; i < 6; i++) summonAlly({kind:'skel', undead:true, mult:1.5 + 0.15*L, life:12, r:12}); return true;
+    case 'n3': for(let i = 0; i < 2; i++) summonAlly({kind:'bonedragon', undead:true, mult:0.8 + 0.1*L, life:12, r:20, raise:true}, hx + 20, hy + (i ? 30 : -30)); return true;
+    case 'n4': { const dmg = pDmg(25 + 6*L); let raised = 0;
+      for(const e of E){ if(e.dead) continue; hurt(e, dmg, {quiet:true, color:'#7dff9a'});
+        if(e.dead && !e.boss && raised < 8){ raised++; const ex = e.x, ey = e.y; FX.later.push({t:0.3, fn:() => summonAlly({kind:'skel', undead:true, mult:1.5, life:12, r:12}, ex, ey)}); } }
+      flash('#3aff6a', 0.5); R.shake = 0.6; ring(hx, hy, 6, Math.hypot(VX1 - VX0, HH * 2), 0.9, '#5aff8a', 22);
+      R.banner = 1.6; R.bannerTxt = '☠️ DEATH INCARNATE ☠️'; return true; }
+  }
+  return false;
+}
 function castClassSkill(id){
   const live = alive(), hx = R.hx, hy = R.hy, l = sk(id);
   if(!live.length) return false;
   if(id === 'bonespear'){
     const t = nearest(), a0 = Math.atan2(t.y - hy, t.x - hx), n = 1 + Math.floor(l / 4);
     for(let i = 0; i < n; i++) FX.projs.push({kind:'bone', x:hx, y:hy, a:a0 + (i - (n - 1)/2) * 0.18, spd:430, dmg:pDmg(2 + 0.5*l), pierce:99, hit:new Set(), life:0.9, c:'#efe6d0'});
+    return true;
+  }
+  if(id === 'devour'){
+    const cap = 20 + 2 * l;
+    let gain = Math.min(R.fallen || 0, 30); R.fallen = 0;
+    const und = A.filter(a => a.undead && a.kind !== 'bonedragon' && a.life > 0).sort((a, b) => a.life - b.life);
+    const expiring = und.filter(a => a.life < 4), victims = expiring.length ? expiring : und.slice(0, 2);
+    for(const v of victims){
+      v.life = 0; gain += 3;
+      FX.bolts.push({pts:jag(v.x, v.y, hx, hy), life:0.35, max:0.35, w:2.5});
+      for(let k = 0; k < 8; k++) FX.parts.push({x:v.x + rand(-6, 6), y:v.y + rand(-6, 6), vx:rand(-60, 60), vy:rand(-90, -30), life:0.9, max:0.9, size:rand(3, 5), color:'#7dff9a', coin:true});
+    }
+    for(let k = 0; k < Math.min(20, gain); k++){ const a = rand(0, 6.3), d = rand(60, 160); FX.parts.push({x:hx + Math.cos(a)*d, y:hy + Math.sin(a)*d, vx:rand(-30, 30), vy:rand(-60, -20), life:0.9, max:0.9, size:rand(2.5, 4), color:'#b8ffcf', coin:true}); }
+    if(!gain) return false;
+    const prev = R.devour && R.devour.t > 0 ? R.devour.stacks : 0;
+    R.devour = {stacks:Math.min(cap, prev + gain), t:15};
+    addText(`+${gain} SOULS (${R.devour.stacks})`, hx, hy - HERO_R - 26, '#7dff9a', 13, true);
+    ring(hx, hy, 40, 4, 0.5, '#7dff9a', 8); flash('#a0ffb0', 0.12);
     return true;
   }
   if(id === 'reaper'){
@@ -1050,6 +1207,27 @@ function castOmega(){
   FX.later.push({t:2.2, fn:() => { ring(R.hx, R.hy, 10, Math.hypot(VX1 - VX0, HH * 2), 0.8, '#ffffff', 24); flash('#ffffff', 0.6); R.shake = 0.6;
     for(const e of E) if(!e.dead) hurt(e, dmg * 2, {color:'#ffffff', kb:200, quiet:true}); }});
   R.banner = 1.8; R.bannerTxt = '☄️ APOCALYPSE ☄️'; flash('#ff6a3a', 0.4);
+  return true;
+}
+function castUltimate(){
+  const L = ultLv(), live = alive();
+  if(!live.length) return false;
+  const cx = (VX0 + VX1) / 2 + 20, cy = 0;
+  for(const e of E) if(!e.dead) e.stun = Math.max(e.stun, 1.6);
+  FX.bigbang = {x:cx, y:cy, t:0, dur:1.3};
+  R.banner = 2; R.bannerTxt = '✴️ BIG BANG ✴️';
+  FX.later.push({t:1.3, fn:() => {
+    const dmg = pDmg(20 + 5 * L);
+    for(const e of E) if(!e.dead) hurt(e, dmg, {color:'#ffffff', kb:300, kx:cx, ky:cy});
+    for(const [c, w, d] of [['#ffffff', 30, 0.9], ['#ffd36b', 22, 1.1], ['#ff6ad5', 16, 1.3], ['#7fd0ff', 12, 1.5]]) ring(cx, cy, 6, Math.hypot(VX1 - VX0, HH * 2), d, c, w);
+    for(let i = 0; i < 120; i++){ const a = rand(0, 6.3), sp = rand(120, 520); FX.parts.push({x:cx, y:cy, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp, life:1, max:1, size:rand(3, 8), color:pick(['#ffffff','#ffd36b','#ff6ad5','#7fd0ff']), drag:1.2}); }
+    for(let i = 0; i < 10; i++){ const a = rand(0, 6.3), pts = [[cx, cy]]; let x = cx, y = cy;
+      for(let k = 0; k < 10; k++){ const aa = a + rand(-0.35, 0.35); x += Math.cos(aa)*rand(18, 30); y += Math.sin(aa)*rand(18, 30); pts.push([x, y]); }
+      FX.decals.push({kind:'crack', pts, life:5, max:5, w:7}); }
+    flash('#ffffff', 1); R.shake = 0.8;
+    for(const k of Object.keys(R.cd)) if(k !== 'ult') R.cd[k] = 0;   // rebirth: every cooldown resets
+    FX.bigbang = null;
+  }});
   return true;
 }
 function castFusion(id){
@@ -1565,7 +1743,7 @@ function tick(dt){
     m.t += dt;
     if(m.t >= m.dur && !m.done){
       m.done = true;
-      const c = m.kind === 'hammer' ? '#ffe08a' : '#ff6a1a';
+      const c = m.kind === 'hammer' ? '#ffe08a' : m.kind === 'star' ? '#c58bff' : '#ff6a1a';
       explode(m.x, m.y, m.r, m.dmg, c, 0.4); flash(m.kind === 'hammer' ? '#fff3c0' : '#ffb070', 0.2);
       for(let i = 0; i < 20; i++) FX.parts.push({x:m.x, y:m.y, vx:rand(-200,200), vy:rand(-200,200), life:0.8, max:0.8, size:rand(2,4), color:m.kind === 'hammer' ? '#fff3c0' : '#ffcf6a', drag:2});
     }
@@ -1575,6 +1753,7 @@ function tick(dt){
   // clouds
   for(const c of FX.clouds){
     c.life -= dt; c.tick -= dt;
+    if(c.holy && Math.hypot(R.hx - c.x, R.hy - c.y) < c.r) R.hp = Math.min(maxHp(), R.hp + maxHp() * 0.02 * dt);
     if(c.tick <= 0){ c.tick = 0.3; aoe(c.x, c.y, c.r, c.dps * 0.3, {crit:false, color:'#9cff6a'}); }
     if(Math.random() < dt * 30) FX.parts.push({x:c.x + rand(-c.r, c.r)*0.8, y:c.y + rand(-c.r, c.r)*0.8, vx:0, vy:-20, life:0.7, max:0.7, size:rand(3,6), color:'#7dff4a'});
   }
@@ -1681,6 +1860,15 @@ function tick(dt){
     R.cd[key] = Math.min(R.cd[key] ?? Math.min(full, 2), full) - dt;
     if(R.cd[key] <= 0) R.cd[key] = castClassSkill(k.id) ? full : 0;
   }
+  { const T = ctier();
+    for(const [d, L] of [[T.f[0], cfz(T.f[0])], [T.f[1], cfz(T.f[1])], [T.f2, cf2Lv()], [T.ult, cultLv()]]){
+      if(!L) continue;
+      const key = 'ct_' + d.id, full = d.cd * cdMul();
+      R.cd[key] = Math.min(R.cd[key] ?? Math.min(full, 2), full) - dt;
+      if(R.cd[key] <= 0) R.cd[key] = castClassTier(d.id, L) ? full : 0;
+    }
+    if(R.cbuff && R.cbuff.t > 0) R.cbuff.t -= dt;
+    if(R.devour && R.devour.t > 0) R.devour.t -= dt; }
   for(const f of FUSIONS){
     if(!f.cd || !fz(f.id)) continue;
     const key = 'fz_' + f.id, full = f.cd * cdMul();
@@ -1693,6 +1881,12 @@ function tick(dt){
     R.cd[key] = Math.min(R.cd[key] ?? Math.min(full, 3), full) - dt;
     if(R.cd[key] <= 0) R.cd[key] = castMega(g.id) ? full : 0;
   }
+  if(ultLv()){
+    const full = Math.max(12, 30 - 0.4 * ultLv()) * cdMul();
+    R.cd.ult = Math.min(R.cd.ult ?? Math.min(full, 4), full) - dt;
+    if(R.cd.ult <= 0) R.cd.ult = castUltimate() ? full : 0;
+  }
+  if(FX.bigbang) FX.bigbang.t += dt;
   if(omegaLv()){
     const full = OMEGA.cd * cdMul();
     R.cd.omega = Math.min(R.cd.omega ?? Math.min(full, 5), full) - dt;
@@ -2413,7 +2607,7 @@ function drawAlly(s, t){
   gglow(ctx, spirit ? '#6fc0ff' : '#5aff8a', 0, 0, s.r*1.6, s.giant ? 0.55 : 0.4);
   ctx.lineWidth = 1.2; ctx.strokeStyle = OL;
   if(e.lunge > 0) ctx.translate(Math.cos(e.face)*4, Math.sin(e.face)*4);
-  if(spirit){ ctx.globalAlpha *= 0.82; DRAW.knight(ctx, Object.assign(e, {pal:{m:'#7fc8ff', d:'#2a5a9a', a:'#ffffff'}}), t);
+  if(spirit){ ctx.globalAlpha *= 0.82; DRAW.knight(ctx, Object.assign(e, {pal:s.spal || {m:'#7fc8ff', d:'#2a5a9a', a:'#ffffff'}}), t);
     if(Math.random() < 0.3) FX.parts.push({x:s.x + rand(-6,6), y:s.y, vx:rand(-6,6), vy:rand(-30,-10), life:0.5, max:0.5, size:rand(1.5,3), color:'#9fdcff'});
     if(s.storm && Math.random() < 0.08) FX.bolts.push({pts:jag(s.x + rand(-14, 14), s.y - 40, s.x + rand(-10, 10), s.y), life:0.15, max:0.15, w:2}); }
   else skel(ctx, e, t, false);
@@ -2477,7 +2671,7 @@ function render(now){
   // poison clouds
   for(const c of FX.clouds){
     const a = Math.min(1, c.life, (c.max - c.life) * 4);
-    for(let i = 0; i < 6; i++){ const ang = c.seed + i + t*0.6, d = c.r*0.45; ctx.globalAlpha = 0.28 * a; ctx.fillStyle = i % 2 ? '#4fd12a' : '#7dff4a';
+    for(let i = 0; i < 6; i++){ const ang = c.seed + i + t*0.6, d = c.r*0.45; ctx.globalAlpha = 0.28 * a; ctx.fillStyle = c.holy ? (i % 2 ? '#ffd36b' : '#fff3c0') : i % 2 ? '#4fd12a' : '#7dff4a';
       circ(ctx, c.x + Math.cos(ang)*d, c.y + Math.sin(ang)*d, c.r*0.6); ctx.fill(); }
   }
   ctx.globalAlpha = 1;
@@ -2549,6 +2743,12 @@ function render(now){
     ctx.globalAlpha = a * 0.6; ctx.strokeStyle = '#b066ff'; ctx.lineWidth = 12; line(ctx, tr.x1, tr.y1, tr.x2, tr.y2);
     ctx.globalAlpha = a; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; line(ctx, tr.x1, tr.y1, tr.x2, tr.y2);
   }
+  if(FX.bigbang){ const B = FX.bigbang, p = Math.min(1, B.t / B.dur), rad = 10 + 70 * p * p;
+    for(let i = 0; i < 12; i++){ const a = t * 2 + i * Math.PI / 6; ctx.globalAlpha = 0.25 * p; ctx.strokeStyle = i % 2 ? '#ffd36b' : '#ff6ad5'; ctx.lineWidth = 6;
+      line(ctx, B.x, B.y - 20, B.x + Math.cos(a) * rad * 4, B.y - 20 + Math.sin(a) * rad * 4); }
+    dglow('#ff6ad5', B.x, B.y - 20, rad * 2.2, 0.8); dglow('#ffffff', B.x, B.y - 20, rad, 1);
+    if(Math.random() < 0.8){ const a = rand(0, 6.3), d = rand(120, 260); FX.parts.push({x:B.x + Math.cos(a)*d, y:B.y - 20 + Math.sin(a)*d, vx:-Math.cos(a)*d*1.6, vy:-Math.sin(a)*d*1.6, life:0.6, max:0.6, size:rand(2, 4), color:pick(['#ffffff','#ffd36b','#ff6ad5'])}); }
+  }
   for(const sc of FX.scythes){ // soul reaper sweep
     const p = 1 - sc.life / sc.max, a = Math.min(1, sc.life / sc.max * 2.5), start = sc.a - 1.75, cur = start + 3.5 * Math.min(1, p * 1.4);
     for(let k = 0; k < 3; k++){ ctx.globalAlpha = a * (0.55 - k * 0.15); ctx.strokeStyle = k ? '#5aff8a' : '#e8fff0'; ctx.lineWidth = 16 - k * 4;
@@ -2612,8 +2812,9 @@ function render(now){
       rrp(ctx, -2, -2, 4, 22, 1); fo(ctx, '#8a6a3a'); rrp(ctx, -11, -10, 22, 12, 3); fo(ctx, '#ffe08a');
       ctx.restore(); ctx.globalCompositeOperation = 'lighter';
     } else {
-      ctx.globalAlpha = 0.7; ctx.strokeStyle = '#ff7a2a'; ctx.lineWidth = 12; line(ctx, mx, my, mx - 30, my - 120);
-      dglow('#ff5a1a', mx, my, 34, 1); dglow('#fff0b0', mx, my, 14, 1);
+      const st = m.kind === 'star';
+      ctx.globalAlpha = 0.7; ctx.strokeStyle = st ? '#b98bff' : '#ff7a2a'; ctx.lineWidth = 12; line(ctx, mx, my, mx - 30, my - 120);
+      dglow(st ? '#a46bff' : '#ff5a1a', mx, my, 34, 1); dglow(st ? '#ffffff' : '#fff0b0', mx, my, 14, 1);
     }
   }
   for(const a of FX.rain){
@@ -2675,6 +2876,8 @@ function render(now){
     else dglow(['#e8ff7a', '', '', '#ff8a3a', '#c06aff'][m.k], m.x, y, m.k === 0 ? 5 + 2*Math.sin(t*6 + m.s) : 4, a * (m.k === 0 ? 0.5 + 0.5*Math.sin(t*4 + m.s) : 0.9));
   }
   if(R.blood > 0){ ctx.globalAlpha = 0.5 + 0.2*Math.sin(t*8); ctx.drawImage(glow('#ff1a3a'), hx - 34, hy - LIFT - 30, 68, 60); }
+  if(devourB()){ const z = 30 + devourB() * 0.6; ctx.globalAlpha = 0.45 + 0.15*Math.sin(t*6); ctx.drawImage(glow('#3aff7a'), hx - z, hy - LIFT - z*0.9, z*2, z*1.8);
+    if(Math.random() < 0.5) FX.parts.push({x:hx + rand(-14, 14), y:hy + rand(-8, 8) - LIFT, vx:rand(-8, 8), vy:rand(-45, -20), life:0.6, max:0.6, size:rand(1.5, 3), color:'#7dff9a'}); }
   // aura sparks + hound embers
   const auraC = LOOK.aura[S.look.aura]?.c;
   if(auraC && R.dead <= 0 && Math.random() < 0.5){
@@ -2699,6 +2902,7 @@ function render(now){
   { ctx.save(); ctx.translate(hx, hy); ctx.scale(1, UPR);
     const w = 34, y = -36; ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(-w/2 - 1, y - 1, w + 2, 5);
     const f = Math.max(0, R.hp) / maxHp(); ctx.fillStyle = f > 0.3 ? '#5be38a' : '#ff5d73'; ctx.fillRect(-w/2, y, w * f, 3);
+    if(devourB()){ ctx.font = '900 9px system-ui'; ctx.textAlign = 'center'; ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.strokeText('💀×' + devourB(), 0, y - 4); ctx.fillStyle = '#7dff9a'; ctx.fillText('💀×' + devourB(), 0, y - 4); }
     ctx.restore(); }
 
   // floating text
@@ -2718,6 +2922,11 @@ function render(now){
   const vg = ctx.createRadialGradient(W/2, H/2, Math.min(W, H)*0.35, W/2, H/2, Math.max(W, H)*0.75);
   vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.55)');
   ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+  if(FX.bigbang){ const B = FX.bigbang, p = Math.min(1, B.t / B.dur);
+    ctx.globalAlpha = 0.55 * p; ctx.fillStyle = '#05010f'; ctx.fillRect(0, 0, W, H);
+    const sx2 = W * HERO_SX + B.x * K, sy2 = H * CY + (B.y * TILT - 20) * K, rad = (10 + 70 * p * p) * K;
+    ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 1; ctx.drawImage(glow('#ff6ad5'), sx2 - rad*2, sy2 - rad*2, rad*4, rad*4); ctx.drawImage(glow('#ffffff'), sx2 - rad, sy2 - rad, rad*2, rad*2);
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; }
   if(R.flash > 0){ ctx.globalAlpha = Math.min(0.6, R.flash); ctx.fillStyle = R.flashC; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
   if(R.hurt > 0){ ctx.globalAlpha = R.hurt * 2; ctx.strokeStyle = '#ff2a4a'; ctx.lineWidth = 10; ctx.strokeRect(0, 0, W, H); ctx.globalAlpha = 1; }
 
@@ -2745,15 +2954,17 @@ function render(now){
   let ix = 8, iy;
   const icons = [{icon:cls().icon, full:sigCd(), cd:R.cd.sig, sig:true, ev:sk('sig') >= SK_MAX}];
   for(const k of CSK[S.cls]) if(k.cd && sk(k.id)) icons.push({icon:k.icon, full:k.cd * cdMul(), cd:R.cd['sk_' + k.id], sig:true});
+  { const T = ctier(); for(const [d, L] of [[T.f[0], cfz(T.f[0])], [T.f[1], cfz(T.f[1])], [T.f2, cf2Lv()], [T.ult, cultLv()]]) if(L) icons.push({icon:d.icon, full:d.cd * cdMul(), cd:R.cd['ct_' + d.id], ult:d === T.ult, mega:d === T.f2, fusion:true}); }
   for(const p of PW) if(p.cd && pw(p.id)) icons.push({icon:evo(p.id) ? p.eicon : p.icon, full:p.cd(pw(p.id)) * cdMul(), cd:R.cd[p.id], ev:evo(p.id), rage:(p.id === 'rage' && R.rage > 0) || (p.id === 'blood' && R.blood > 0)});
   for(const f of FUSIONS) if(f.cd && fz(f.id)) icons.push({icon:f.icon, full:f.cd * cdMul(), cd:R.cd['fz_' + f.id], fusion:true});
   for(const g of MEGAS) if(g.cd && mz(g.id)) icons.push({icon:g.icon, full:g.cd * cdMul(), cd:R.cd['mz_' + g.id], mega:true});
   if(omegaLv()) icons.push({icon:OMEGA.icon, full:OMEGA.cd * cdMul(), cd:R.cd.omega, mega:true});
+  if(ultLv()) icons.unshift({icon:ULT.icon, full:Math.max(12, 30 - 0.4 * ultLv()) * cdMul(), cd:R.cd.ult, ult:true});
   const Z = icons.length > 9 ? 22 : 30; iy = H - Z - 8;
   for(const ic of icons){
     const frac = Math.max(0, Math.min(1, (ic.cd ?? ic.full) / ic.full));
     ctx.fillStyle = '#000b'; rr(ix, iy, Z, Z, 7); ctx.fill();
-    if(ic.ev || ic.sig || ic.fusion || ic.mega){ ctx.strokeStyle = ic.mega ? '#ff6ad5' : ic.fusion ? '#5be3d8' : ic.sig ? '#a77bff' : '#ffcf4a'; ctx.lineWidth = 2; rr(ix, iy, Z, Z, 7); ctx.stroke(); }
+    if(ic.ev || ic.sig || ic.fusion || ic.mega || ic.ult){ ctx.strokeStyle = ic.ult ? '#ffffff' : ic.mega ? '#ff6ad5' : ic.fusion ? '#5be3d8' : ic.sig ? '#a77bff' : '#ffcf4a'; ctx.lineWidth = 2; rr(ix, iy, Z, Z, 7); ctx.stroke(); }
     ctx.font = `${Math.round(Z*0.53)}px system-ui`; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff'; ctx.fillText(ic.icon, ix + Z/2, iy + Z/2 + 1);
     if(frac > 0){ ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(ix, iy + Z*(1 - frac), Z, Z*frac); }
     if(ic.rage){ ctx.strokeStyle = '#ff7a45'; ctx.lineWidth = 2; rr(ix, iy, Z, Z, 7); ctx.stroke(); }
@@ -2825,7 +3036,7 @@ function renderPanel(){
       <button class="buy" data-buy="${u.id}"></button></div>`).join('');
   } else if(tab === 'pow'){
     P.innerHTML = `<div class="spendrow">Spend points: <button data-spend="1" class="${S.spendAmt === 'max' ? '' : 'active'}">x1</button><button data-spend="max" class="${S.spendAmt === 'max' ? 'active' : ''}">Max</button></div><div class="card" style="padding:10px 14px;font-size:13px">Spend <b>Skill Points</b> (from hero levels &amp; bosses) to learn and upgrade powers. At <b style="color:var(--gold)">Lv ${PW_MAX}</b> a power <b style="color:var(--gold)">EVOLVES</b> into something far stronger.</div>` +
-      `<div class="sec"><span>⚗️ Fusions</span></div><div class="card" style="padding:10px 14px;font-size:12px;color:var(--dim)">When two linked powers both reach <b style="color:var(--text)">Lv ${FUSE_MIN}</b> they <b style="color:#5be3d8">FUSE</b> into a new power. Keep them at the <b style="color:var(--gold)">same level</b> for a ⚖️ <b style="color:var(--gold)">Parity ×1.5</b> bonus!</div><div id="fusionList"></div><div class="sec"><span>🌌 Mega Fusions</span></div><div class="card" style="padding:10px 14px;font-size:12px;color:var(--dim)">Fusions on top of fusions! When two linked <b style="color:#5be3d8">fusions</b> both reach <b style="color:var(--text)">Lv ${MEGA_MIN}</b> they fuse into a <b style="color:#ff6ad5">Mega Fusion</b> (equal levels = ⚖️ ×1.5). Any <b style="color:var(--text)">${OMEGA.need}</b> Mega Fusions unleash the <b style="color:#ffcf4a">Ω Omega</b>.</div><div id="megaList"></div><div class="sec"><span>✨ Powers</span></div>` +
+      `<div class="sec"><span>⚗️ Fusions</span></div><div class="card" style="padding:10px 14px;font-size:12px;color:var(--dim)">When two linked powers both reach <b style="color:var(--text)">Lv ${FUSE_MIN}</b> they <b style="color:#5be3d8">FUSE</b> into a new power. Keep them at the <b style="color:var(--gold)">same level</b> for a ⚖️ <b style="color:var(--gold)">Parity ×1.5</b> bonus! Once both powers are Lv ${PW_MAX}, upgrade the fusion itself up to <b style="color:var(--text)">Lv ${FZ_MAX}</b>. Each tier fuses again: Fusion² → Fusion³ → <b style="color:#fff">Fusion⁴ Ultimate</b>.</div><div id="fusionList"></div><div class="sec"><span>🌌 Fusion² · Mega</span></div><div class="card" style="padding:10px 14px;font-size:12px;color:var(--dim)">Fusions on top of fusions! When two linked <b style="color:#5be3d8">fusions</b> both reach <b style="color:var(--text)">Lv ${MEGA_MIN}</b> they fuse into a <b style="color:#ff6ad5">Mega Fusion</b> (equal levels = ⚖️ ×1.5). Any <b style="color:var(--text)">${OMEGA.need}</b> Mega Fusions unleash the <b style="color:#ffcf4a">Ω Omega</b>.</div><div id="megaList"></div><div class="sec"><span>✨ Powers</span></div>` +
       PW.map(p => `<div class="item" data-pwrow="${p.id}"><div class="ic">${p.icon}</div>
       <div class="info"><div class="nm"><span data-pwname></span><small data-pwlv></small></div>
       <div class="ds" data-pwdesc></div><div class="pips" data-pips></div></div>
@@ -2847,19 +3058,20 @@ function renderPanel(){
       <div class="sec"><span>${c.icon} ${c.n} skills</span><span style="text-transform:none;color:var(--accent)">${mast().pts} pt${mast().pts === 1 ? '' : 's'}</span></div><div class="spendrow">Spend points: <button data-spend="1" class="${S.spendAmt === 'max' ? '' : 'active'}">x1</button><button data-spend="max" class="${S.spendAmt === 'max' ? 'active' : ''}">Max</button></div>
       <div class="card" style="padding:10px 12px;font-size:12px;color:var(--dim)">Mastery <b style="color:var(--text)">Lv ${mast().lv}</b>. Your ${c.n} earns Mastery by fighting, and each level gives ${MAST_PTS} points. Every class keeps its own progress, even through Ascension.
         <div class="bar" style="margin-top:6px"><i style="width:${Math.min(100, mast().xp / mastNeed(mast().lv) * 100)}%;background:linear-gradient(90deg,#ffcf4a,#ff7a45)"></i></div></div>
-      ${CSK[S.cls].map((k, ki) => { const l = sk(k.id), ev = k.evo && l >= SK_MAX, max = l >= SK_MAX, lock = skLocked(k), nn = Math.max(1, spendN(Math.min(mast().pts, SK_MAX - l)));
+      ${CSK[S.cls].map((k, ki) => { const l = sk(k.id), ev = k.evo && l >= SK_MAX, max = l >= SK_CAP, lock = skLocked(k), nn = Math.max(1, spendN(Math.min(mast().pts, SK_CAP - l)));
         const head = k.special && !CSK[S.cls][ki - 1].special ? `<div class="sec"><span>✦ ${c.n} specials</span><span style="text-transform:none">unlock with Mastery</span></div>` : '';
         let d = k.info(Math.max(1, l));
         if(lock) d += `<br><span class="dn">🔒 Unlocks at ${c.n} Mastery Lv ${k.req}</span>`;
         if(l && !max) d += `<br><span class="up">Next: ${k.info(l + 1)}</span>`;
         if(k.evo) d += ev ? `<br><span class="evo">${k.evoInfo}</span>` : `<br><span class="evo">At Lv ${SK_MAX} evolves → ${k.evo}: ${k.evoInfo}</span>`;
         return head + `<div class="item ${lock ? 'locked' : ''} ${k.special ? 'sel' : ''}"><div class="ic ${ev ? 'evo' : ''}">${k.icon}</div>
-          <div class="info"><div class="nm">${ev ? `<span style="color:var(--gold)">${k.evo}</span>` : k.n}<small>${max ? 'MAX' : 'Lv ' + l + '/' + SK_MAX}</small></div>
-          <div class="ds">${d}</div><div class="pips ${ev ? 'evo' : ''}">${Array.from({length:SK_MAX}, (_, i) => `<i class="${i < l ? 'on' : ''}"></i>`).join('')}</div></div>
-          ${max ? '<span class="buy max">★ MAX</span>' : lock ? '<span class="buy">🔒</span>' : `<button class="buy ${mast().pts > 0 ? (k.evo && l + nn >= SK_MAX ? 'evo' : 'can') : ''}" data-skill="${k.id}">${k.evo && l + nn >= SK_MAX && mast().pts >= SK_MAX - l ? 'EVOLVE!' : l ? 'Upgrade' : 'Learn'}<small>${nn > 1 ? '+' + nn + ' levels' : '1 mastery pt'}</small></button>`}</div>`; }).join('')}
+          <div class="info"><div class="nm">${ev ? `<span style="color:var(--gold)">${k.evo}</span>` : k.n}<small>${max ? 'MAX' : 'Lv ' + l + '/' + SK_CAP}</small></div>
+          <div class="ds">${d}</div><div class="pips ${ev || l >= SK_MAX ? 'evo' : ''}">${Array.from({length:SK_CAP}, (_, i) => `<i class="${i < l ? 'on' : ''}"></i>`).join('')}</div></div>
+          ${max ? '<span class="buy max">★ MAX</span>' : lock ? '<span class="buy">🔒</span>' : `<button class="buy ${mast().pts > 0 ? (k.evo && l < SK_MAX && l + nn >= SK_MAX ? 'evo' : 'can') : ''}" data-skill="${k.id}">${k.evo && l < SK_MAX && l + nn >= SK_MAX ? 'EVOLVE!' : l ? 'Upgrade' : 'Learn'}<small>${nn > 1 ? '+' + nn + ' levels' : '1 mastery pt'}</small></button>`}</div>`; }).join('')}
+      ${classTierHTML()}
       <div class="item ${classMaxed() ? 'sel' : 'locked'}"><div class="ic ${classMaxed() ? 'evo' : ''}">♾️</div>
         <div class="info"><div class="nm">${c.n} Paragon<small>Lv ${mast().paragon || 0}</small></div>
-        <div class="ds">${classMaxed() ? 'Every extra Mastery point: <b style="color:var(--text)">+2% damage & +2% HP</b>, no limit.' : 'Unlocks once every ' + c.n + ' skill is maxed: extra points are never wasted.'}<br>Now: +${2 * (mast().paragon || 0)}% damage & HP</div></div>
+        <div class="ds">${classMaxed() ? 'Every extra Mastery point: <b style="color:var(--text)">+2% damage & +2% HP</b>, no limit.' : 'Unlocks once every ' + c.n + ' skill (Lv ' + SK_CAP + ') and class fusion is maxed. Points put here come back automatically if new upgrades open up.'}<br>Now: +${2 * (mast().paragon || 0)}% damage & HP</div></div>
         ${classMaxed() ? `<button class="buy ${mast().pts > 0 ? 'can' : ''}" data-paragon="1">+${Math.max(1, spendN(mast().pts))}<small>${Math.max(1, spendN(mast().pts))} mastery pt${spendN(mast().pts) > 1 ? 's' : ''}</small></button>` : '<span class="buy">🔒</span>'}</div>
       <div class="sec">Companion</div>
       ${PETS.map(p => { const ok = unlocked(p.req), sel = S.pet === p.id;
@@ -2928,17 +3140,20 @@ function updatePanel(){
     { const ok = powersMaxed(), od = S.overdrive || 0, row = $('odRow');
       row.classList.toggle('sel', ok); row.classList.toggle('locked', !ok);
       setHTML(row, `<div class="ic ${ok ? 'evo' : ''}">♾️</div><div class="info"><div class="nm">Power Overdrive<small>Lv ${od}</small></div>
-        <div class="ds">${ok ? 'Every extra skill point: <b style="color:var(--text)">+3% power damage</b>, no limit.' : 'Unlocks once every power is maxed: extra skill points are never wasted.'}<br>Now: +${3 * od}% power damage</div></div>
+        <div class="ds">${ok ? 'Every extra skill point: <b style="color:var(--text)">+3% power damage</b>, no limit.' : 'Unlocks once every power, fusion, Fusion² and Fusion³ is maxed. Points put here come back automatically if new upgrades open up.'}<br>Now: +${3 * od}% power damage</div></div>
         ${ok ? `<button class="buy ${S.sp > 0 ? 'can' : ''}" data-overdrive="1">+${Math.max(1, spendN(S.sp))}<small>${Math.max(1, spendN(S.sp))} skill pt${spendN(S.sp) > 1 ? 's' : ''}</small></button>` : '<span class="buy">🔒</span>'}`); }
     setHTML($('megaList'), MEGAS.map(g => { const L = mz(g.id), A2 = FZM[g.a], B2 = FZM[g.b], par = L && mzMul(g.id) > 1;
-      return `<div class="item ${L ? 'sel' : 'locked'}"><div class="ic ${par ? 'evo' : ''}">${g.icon}</div><div class="info"><div class="nm">${g.n}<small>${L ? 'Lv ' + L : 'Locked'}</small>${par ? ' <small style="color:var(--gold)">⚖️ ×1.5</small>' : ''}</div>
-        <div class="ds">${A2.icon} ${A2.n} (${fz(g.a) || '–'}) + ${B2.icon} ${B2.n} (${fz(g.b) || '–'})${L ? '' : ` · both fusions need Lv ${MEGA_MIN}`}<br>${g.info(L || MEGA_MIN)}</div></div></div>`; }).join('') +
+      return `<div class="item ${L ? 'sel' : 'locked'}"><div class="ic ${par ? 'evo' : ''}">${g.icon}</div><div class="info"><div class="nm">${g.n}<small>${L ? 'Lv ' + L + '/' + MZ_MAX : 'Locked'}</small>${par ? ' <small style="color:var(--gold)">⚖️ ×1.5</small>' : ''}</div>
+        <div class="ds">${A2.icon} ${A2.n} (${fz(g.a) || '–'}) + ${B2.icon} ${B2.n} (${fz(g.b) || '–'})${L ? '' : ` · both fusions need Lv ${MEGA_MIN}`}${L && !mzCanUp(g.id) && L < MZ_MAX ? ` · both fusions at Lv ${FZ_MAX} to upgrade` : ''}<br>${g.info(L || MEGA_MIN)}</div></div>${mzCanUp(g.id) ? `<button class="buy ${S.sp > 0 ? 'can' : ''}" data-mzup="${g.id}">+${Math.max(1, spendN(Math.min(S.sp, MZ_MAX - L)))}<small>${Math.max(1, spendN(Math.min(S.sp, MZ_MAX - L)))} skill pt${spendN(Math.min(S.sp, MZ_MAX - L)) > 1 ? 's' : ''}</small></button>` : ''}</div>`; }).join('') +
       (() => { const L = omegaLv(), n = activeMegas().length;
         return `<div class="item ${L ? 'sel' : 'locked'}" style="${L ? 'border-color:#ffcf4a;box-shadow:0 0 14px #ffcf4a55' : ''}"><div class="ic ${L ? 'evo' : ''}">${OMEGA.icon}</div><div class="info"><div class="nm" style="color:var(--gold)">Ω ${OMEGA.n}<small>${L ? 'Lv ' + L : `${n}/${OMEGA.need} Mega Fusions`}</small></div>
-          <div class="ds">${OMEGA.info(L || MEGA_MIN)}</div></div></div>`; })());
+          <div class="ds">${OMEGA.info(L || MEGA_MIN)}${L && !omCanUp() && L < OM_MAX ? `<br>Upgradable to Lv ${OM_MAX} once all 5 Fusion² are Lv ${MZ_MAX}` : ''}</div></div>${omCanUp() ? `<button class="buy ${S.sp > 0 ? 'can' : ''}" data-omup="${1}">+${Math.max(1, spendN(Math.min(S.sp, OM_MAX - L)))}<small>${Math.max(1, spendN(Math.min(S.sp, OM_MAX - L)))} skill pt${spendN(Math.min(S.sp, OM_MAX - L)) > 1 ? 's' : ''}</small></button>` : ''}</div>`; })() +
+      (() => { const L = ultLv();
+        return `<div class="sec"><span>✴️ Fusion⁴: Ultimate</span></div><div class="item ${L ? 'sel' : 'locked'}" style="${L ? 'border-color:#ffffff;box-shadow:0 0 18px #ff6ad588;background:linear-gradient(135deg,#2a1450,#4a1238)' : ''}"><div class="ic ${L ? 'evo' : ''}" style="font-size:28px">${ULT.icon}</div><div class="info"><div class="nm" style="color:#fff">${ULT.n}<small>${L ? 'Lv ' + L + ' (no cap)' : 'Locked'}</small></div>
+          <div class="ds">${ULT.info(L || 1)}${L ? `<br><span class="up">Next: ${ULT.info(L + 1)}</span>` : `<br>Unlocks when Ω ${OMEGA.n} reaches Lv ${OM_MAX} (now ${omegaLv() || '–'})`}</div></div>${L ? `<button class="buy ${S.sp > 0 ? 'can' : ''}" data-ultup="${1}">+${Math.max(1, spendN(Math.min(S.sp, 1e9)))}<small>${Math.max(1, spendN(Math.min(S.sp, 1e9)))} skill pt${spendN(Math.min(S.sp, 1e9)) > 1 ? 's' : ''}</small></button>` : ''}</div>`; })());
     setHTML($('fusionList'), FUSIONS.map(f => { const L = fz(f.id), A2 = PWM[f.a], B2 = PWM[f.b], par = L && fzMul(f.id) > 1;
-      return `<div class="item ${L ? 'sel' : 'locked'}"><div class="ic ${par ? 'evo' : ''}">${f.icon}</div><div class="info"><div class="nm">${f.n}<small>${L ? 'Lv ' + L : 'Locked'}</small>${par ? ' <small style="color:var(--gold)">⚖️ PARITY ×1.5</small>' : ''}</div>
-        <div class="ds">${A2.icon} ${A2.name} (${pw(f.a)}) + ${B2.icon} ${B2.name} (${pw(f.b)})${L ? '' : ` · both need Lv ${FUSE_MIN}`}<br>${f.info(L || FUSE_MIN)}</div></div></div>`; }).join(''));
+      return `<div class="item ${L ? 'sel' : 'locked'}"><div class="ic ${par ? 'evo' : ''}">${f.icon}</div><div class="info"><div class="nm">${f.n}<small>${L ? 'Lv ' + L + '/' + FZ_MAX : 'Locked'}</small>${par ? ' <small style="color:var(--gold)">⚖️ PARITY ×1.5</small>' : ''}</div>
+        <div class="ds">${A2.icon} ${A2.name} (${pw(f.a)}) + ${B2.icon} ${B2.name} (${pw(f.b)})${L ? '' : ` · both need Lv ${FUSE_MIN}`}${L && !fzCanUp(f.id) && L < FZ_MAX ? ` · both at Lv ${PW_MAX} to upgrade` : ''}<br>${f.info(L || FUSE_MIN)}${fzCanUp(f.id) ? `<br><span class="up">Next: ${f.info(L + 1)}</span>` : ''}</div></div>${fzCanUp(f.id) ? `<button class="buy ${S.sp > 0 ? 'can' : ''}" data-fzup="${f.id}">+${Math.max(1, spendN(Math.min(S.sp, FZ_MAX - L)))}<small>${Math.max(1, spendN(Math.min(S.sp, FZ_MAX - L)))} skill pt${spendN(Math.min(S.sp, FZ_MAX - L)) > 1 ? 's' : ''}</small></button>` : ''}</div>`; }).join(''));
     for(const p of PW){
       const l = pw(p.id), locked = S.heroLvl < p.req, ev = l >= PW_MAX;
       const row = document.querySelector(`[data-pwrow="${p.id}"]`); if(!row) continue;
@@ -2990,6 +3205,21 @@ function updatePanel(){
   }
 }
 
+function classTierHTML(){
+  const T = ctier(), m = mast(), c = cls(), skn = id => CSK[S.cls].find(x => x.id === id);
+  const btn = (cond, attr, avail) => cond ? `<button class="buy ${m.pts > 0 ? 'can' : ''}" ${attr}>+${Math.max(1, spendN(Math.min(m.pts, avail)))}<small>${Math.max(1, spendN(Math.min(m.pts, avail)))} mastery pt${spendN(Math.min(m.pts, avail)) > 1 ? 's' : ''}</small></button>` : '';
+  let h = `<div class="sec"><span>⚗️ ${c.n} fusions</span></div><div class="card" style="padding:10px 12px;font-size:12px;color:var(--dim)">Class skills go to <b style="color:var(--text)">Lv ${SK_CAP}</b>. Two skills at Lv ${CF_MIN} <b style="color:#5be3d8">fuse</b>; both at Lv ${SK_CAP} lets you upgrade the fusion to Lv ${CF_MAX}. Both fusions at Lv ${CF2_MIN} fuse into <b style="color:#ff6ad5">Fusion²</b> (to Lv ${CF2_MAX}), which unlocks the <b style="color:#fff">${c.n} Ultimate</b>.</div>`;
+  for(const f of T.f){ const L = cfz(f), A2 = skn(f.a), B2 = skn(f.b);
+    h += `<div class="item ${L ? 'sel' : 'locked'}"><div class="ic">${f.icon}</div><div class="info"><div class="nm">${f.n}<small>${L ? 'Lv ' + L + '/' + CF_MAX : 'Locked'}</small></div>
+      <div class="ds">${A2.icon} ${A2.n} (${sk(f.a)}) + ${B2.icon} ${B2.n} (${sk(f.b)})${L ? '' : ` · both need Lv ${CF_MIN}`}${L && !cfCanUp(f) && L < CF_MAX ? ` · both at Lv ${SK_CAP} to upgrade` : ''}<br>${f.info(L || CF_MIN)}</div></div>${btn(cfCanUp(f), `data-cfup="${f.id}"`, CF_MAX - L)}</div>`; }
+  { const L = cf2Lv(), f2 = T.f2;
+    h += `<div class="item ${L ? 'sel' : 'locked'}" style="${L ? 'border-color:#ff6ad5' : ''}"><div class="ic">${f2.icon}</div><div class="info"><div class="nm" style="color:#ff9ae0">${f2.n} <small>Fusion² · ${L ? 'Lv ' + L + '/' + CF2_MAX : 'Locked'}</small></div>
+      <div class="ds">${T.f[0].n} (${cfz(T.f[0]) || '–'}) + ${T.f[1].n} (${cfz(T.f[1]) || '–'})${L ? '' : ` · both need Lv ${CF2_MIN}`}${L && !cf2CanUp() && L < CF2_MAX ? ` · both at Lv ${CF_MAX} to upgrade` : ''}<br>${f2.info(L || CF2_MIN)}</div></div>${btn(cf2CanUp(), 'data-cf2up="1"', CF2_MAX - L)}</div>`; }
+  { const L = cultLv(), u = T.ult;
+    h += `<div class="item ${L ? 'sel' : 'locked'}" style="${L ? 'border-color:#fff;box-shadow:0 0 16px #ff6ad588;background:linear-gradient(135deg,#2a1450,#4a1238)' : ''}"><div class="ic ${L ? 'evo' : ''}" style="font-size:26px">${u.icon}</div><div class="info"><div class="nm" style="color:#fff">✴️ ${u.n}<small>${L ? 'Ultimate Lv ' + L + ' (no cap)' : 'Ultimate · Locked'}</small></div>
+      <div class="ds">${u.info(L || 1)}${L ? `<br><span class="up">Next: ${u.info(L + 1)}</span>` : `<br>Unlocks when ${T.f2.n} reaches Lv ${CF2_MAX} (now ${cf2Lv() || '–'})`}</div></div>${btn(L, 'data-cultup="1"', 1e9)}</div>`; }
+  return h;
+}
 function drawHeroPreview(){
   const c = $('lookCv'); if(!c) return;
   const g = c.getContext('2d');
@@ -3078,14 +3308,45 @@ document.addEventListener('click', ev => {
   }
   if(t.dataset.skill){
     const k = CSK[S.cls].find(x => x.id === t.dataset.skill), m = mast();
-    if(!k || m.pts < 1 || sk(k.id) >= SK_MAX) return;
+    if(!k || m.pts < 1 || sk(k.id) >= SK_CAP) return;
     if(skLocked(k)){ toast(`🔒 Unlocks at ${cls().n} Mastery Lv ${k.req}`); return; }
-    const nn = spendN(Math.min(m.pts, SK_MAX - sk(k.id)));
+    const nn = spendN(Math.min(m.pts, SK_CAP - sk(k.id))), before = sk(k.id), cfBefore = ctier().f.map(cfz);
     m.pts -= nn; m.sk[k.id] = sk(k.id) + nn; gearChanged();
-    if(k.evo && sk(k.id) >= SK_MAX){
+    ctier().f.forEach((f, i) => { if(!cfBefore[i] && cfz(f)) setTimeout(() => { showModal(`<h2>⚗️ CLASS FUSION!</h2><p>${CSK[S.cls].find(x => x.id === f.a).n} + ${CSK[S.cls].find(x => x.id === f.b).n}</p><div class="reward" style="color:#5be3d8">${f.icon} ${f.n}</div><p>${f.info(cfz(f))}</p><button class="btn" data-close>Awesome!</button>`); flash('#a0fff0', 0.5); }, 80); });
+    if(k.evo && before < SK_MAX && sk(k.id) >= SK_MAX){
       showModal(`<h2>${k.icon} EVOLVED!</h2><p>${k.n} has become</p><div class="reward" style="color:var(--gold)">${k.evo}</div><p>${k.evoInfo}</p><button class="btn" data-close>Awesome!</button>`);
       flash('#ffe08a', 0.6); ring(R.hx, R.hy, 0, 160, 0.8, '#ffcf4a', 14); burst(R.hx, R.hy, 60, '#ffcf4a', 200, 4);
     } else { toast(`${k.icon} ${k.n} Lv ${sk(k.id)}`); burst(R.hx, R.hy, 20, '#a77bff', 100, 3); }
+    renderPanel(); persist(); return;
+  }
+  if(t.dataset.fzup || t.dataset.mzup || t.dataset.omup || t.dataset.ultup){
+    if(S.sp < 1) return;
+    const hadUlt = ultLv() > 0;
+    let nn = 0, name = '';
+    if(t.dataset.fzup){ const id = t.dataset.fzup; if(!fzCanUp(id)) return; nn = spendN(Math.min(S.sp, FZ_MAX - fz(id))); S.fzUp = S.fzUp || {}; S.fzUp[id] = fzUp(id) + nn; name = `${FZM[id].icon} ${FZM[id].n} Lv ${fz(id)}`; }
+    else if(t.dataset.mzup){ const id = t.dataset.mzup; if(!mzCanUp(id)) return; nn = spendN(Math.min(S.sp, MZ_MAX - mz(id))); S.mzUp = S.mzUp || {}; S.mzUp[id] = mzUp(id) + nn; name = `${MZM[id].icon} ${MZM[id].n} Lv ${mz(id)}`; }
+    else if(t.dataset.omup){ if(!omCanUp()) return; nn = spendN(Math.min(S.sp, OM_MAX - omegaLv())); S.omUp = (S.omUp || 0) + nn; name = `☄️ Ω ${OMEGA.n} Lv ${omegaLv()}`; }
+    else { if(!ultLv()) return; nn = spendN(S.sp); S.ultLv = ultLv() + nn; name = `✴️ ${ULT.n} Lv ${ultLv()}`; }
+    S.sp -= nn;
+    if(!hadUlt && ultLv()){
+      S.ultLv = Math.max(1, S.ultLv || 0);
+      showModal(`<h2>✴️ FUSION⁴ ✴️</h2><p>Every fusion has become one.</p><div class="reward" style="color:#fff;text-shadow:0 0 12px #ff6ad5">ULTIMATE: ${ULT.n}</div><p>${ULT.info(ultLv())}</p><button class="btn" data-close>Become a god</button>`);
+      flash('#ffffff', 1); R.shake = 0.8; ring(R.hx, R.hy, 0, 260, 1.2, '#ff6ad5', 22);
+    } else { toast(name); burst(R.hx, R.hy, 24, '#ff6ad5', 120, 3); }
+    updatePanel(); persist(); return;
+  }
+  if(t.dataset.cfup || t.dataset.cf2up || t.dataset.cultup){
+    const m = mast(), T = ctier(); if(m.pts < 1) return;
+    const hadUlt = cultLv() > 0; let nn = 0, name = '';
+    if(t.dataset.cfup){ const f = T.f.find(x => x.id === t.dataset.cfup); if(!f || !cfCanUp(f)) return; nn = spendN(Math.min(m.pts, CF_MAX - cfz(f))); m.cf = m.cf || {}; m.cf[f.id] = cfUp(f.id) + nn; name = `${f.icon} ${f.n} Lv ${cfz(f)}`; }
+    else if(t.dataset.cf2up){ if(!cf2CanUp()) return; nn = spendN(Math.min(m.pts, CF2_MAX - cf2Lv())); m.cf2 = (m.cf2 || 0) + nn; name = `${T.f2.icon} ${T.f2.n} Lv ${cf2Lv()}`; }
+    else { if(!cultLv()) return; nn = spendN(m.pts); m.cult = cultLv() + nn; name = `${T.ult.icon} ${T.ult.n} Lv ${cultLv()}`; }
+    m.pts -= nn;
+    if(!hadUlt && cultLv()){
+      m.cult = Math.max(1, m.cult || 0);
+      showModal(`<h2>✴️ ${cls().n.toUpperCase()} ULTIMATE ✴️</h2><p>Your class has reached its peak.</p><div class="reward" style="color:#fff;text-shadow:0 0 12px #ff6ad5">${T.ult.icon} ${T.ult.n}</div><p>${T.ult.info(cultLv())}</p><button class="btn" data-close>Unleash it</button>`);
+      flash('#ffffff', 1); R.shake = 0.8; ring(R.hx, R.hy, 0, 260, 1.2, '#ff6ad5', 22);
+    } else { toast(name); burst(R.hx, R.hy, 24, '#5be3d8', 120, 3); }
     renderPanel(); persist(); return;
   }
   if(t.dataset.spend){ S.spendAmt = t.dataset.spend; renderPanel(); persist(); return; }
@@ -3171,7 +3432,7 @@ document.addEventListener('click', ev => {
   }
   if(t.id === 'ascYes'){
     const g = soulGain();
-    Object.assign(S, {souls:S.souls + g, gold:0, stage:1, maxStage:1, kills:0, farm:false, heroLvl:1, xp:0, sp:0, up:{}, pw:{}, overdrive:0, ascensions:S.ascensions + 1});
+    Object.assign(S, {souls:S.souls + g, gold:0, stage:1, maxStage:1, kills:0, farm:false, heroLvl:1, xp:0, sp:0, up:{}, pw:{}, overdrive:0, fzUp:{}, mzUp:{}, omUp:0, ultLv:0, ascensions:S.ascensions + 1});
     Object.assign(R, {cd:{}, rage:0, dead:0, pendingStage:0, hx:0, hy:0});
     R.hp = maxHp(); startStage();
     closeModal(); renderPanel(); persist();
@@ -3200,6 +3461,7 @@ function updateHud(){
   const fb = $('farmBtn');
   fb.className = S.farm ? 'off' : 'on';
   fb.textContent = S.farm ? (isBoss(S.stage + 1) ? '👑 Fight boss' : '🔁 Farming') : '⏩ Auto';
+  refundCatchAll();
   $('lvl').textContent = S.heroLvl;
   if(Object.keys(S.pw).length) $('tapHint').style.display = 'none';
   $('xpFill').style.width = (S.xp / xpNeed(S.heroLvl) * 100) + '%';
