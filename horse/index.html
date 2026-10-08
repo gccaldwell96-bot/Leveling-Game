@@ -478,6 +478,7 @@ function betModal(h){
 let REPORT = null;
 function endMonth(){
   if(S.pending){ showEvent(); return; }
+  R.freeze = {cash:S.cash, fame:S.fame, t:S.t, yearEarn:S.yearEarn, rivals:S.rivals.map(r => r.earn)}; R.toastQ = []; // no spoilers until the report
   const rep = {lines:[], races:[], births:[], deaths:[], notes:[], income:0, expense:0, month:S.t}, fresh = new Set();
   const led = (txt, v) => { rep.lines.push([txt, v]); if(v > 0) rep.income += v; else rep.expense -= v; S.cash += v; if(v > 0){ S.yearEarn += v; S.total += v; } };
   // ---- races ----
@@ -648,7 +649,7 @@ const GOALS = [
   {id:'longshot', n:'Cash a bet paying 10× or more',    r:20000},
   {id:'nw100m', n:'Net worth $100M',                    r:3000000, chk:() => netWorth() >= 1e8},
 ];
-function goal(id){ if(S.goals[id]) return; const g = GOALS.find(x => x.id === id); if(!g) return; S.goals[id] = true; S.cash += g.r; setTimeout(() => toast(`🎯 Goal: ${g.n}! +${money(g.r)}`), 400); }
+function goal(id){ if(S.goals[id]) return; const g = GOALS.find(x => x.id === id); if(!g) return; S.goals[id] = true; S.cash += g.r; const msg = `🎯 Goal: ${g.n}! +${money(g.r)}`; if(R.freeze){ R.toastQ.push(msg); return; } setTimeout(() => toast(msg), 400); }
 function checkGoals(){ for(const g of GOALS) if(g.chk && !S.goals[g.id] && g.chk()) goal(g.id); }
 
 // =====================================================================
@@ -923,7 +924,9 @@ function drawRaceOverlay(){
 
 // ---- month report ----
 function monthReport(){
-  const rep = REPORT; R.play = null; setSceneBtns(); if(!rep) return;
+  const rep = REPORT; R.play = null; setSceneBtns();
+  R.freeze = null; renderPanel(); (R.toastQ || []).forEach((m, i) => setTimeout(() => toast(m), 600 + i * 2600)); R.toastQ = [];
+  if(!rep) return;
   const net = rep.income - rep.expense;
   let h = `<h2>📅 ${monthName(rep.month)} report</h2>`;
   if(rep.deaths.length) h += rep.deaths.map(m => `<div class="card" style="text-align:center;margin:6px 0"><img src="${portrait(m)}" style="width:70px;image-rendering:pixelated;filter:grayscale(.6)"><br>🕊️ <b>${m.name}</b> passed away peacefully at ${Math.floor(m.age / 12)}.<br>${m.wins ? `${m.wins} wins · ${money(m.earned)} earned. ` : ''}${m.wins >= 3 ? 'A memorial has been placed in your Hall of Fame.' : 'Rest easy, old friend.'}</div>`).join('');
@@ -1048,9 +1051,11 @@ function renderPanel(){
   updateTop();
 }
 function updateTop(){
-  $('cash').textContent = money(S.cash); $('cash').style.color = S.cash < 0 ? 'var(--bad)' : '';
-  $('fame').textContent = '⭐ ' + fmt(S.fame); $('date').textContent = monthName(S.t);
-  const table = [...S.rivals.map(r => r.earn), S.yearEarn].sort((a, b) => b - a); $('rank').textContent = '🏆 #' + (table.indexOf(S.yearEarn) + 1);
+  const Z = R.freeze, cash = Z ? Z.cash : S.cash, ye = Z ? Z.yearEarn : S.yearEarn;
+  $('cash').textContent = money(cash); $('cash').style.color = cash < 0 ? 'var(--bad)' : '';
+  $('fame').textContent = '⭐ ' + fmt(Z ? Z.fame : S.fame); $('date').textContent = monthName(Z ? Z.t : S.t);
+  const table = [...(Z ? Z.rivals : S.rivals.map(r => r.earn)), ye].sort((a, b) => b - a); $('rank').textContent = '🏆 #' + (table.indexOf(ye) + 1);
+  if(Z){ $('planSum').innerHTML = '🏁 <b>Race day!</b> Watch your races, or tap Skip.<br>Results and money come with the month report.'; $('endBtn').disabled = true; return; }
   const n = k => S.horses.filter(h => h.plan.t === k && !h.inj && !h.preg).length;
   const fees = S.card.reduce((s, r) => s + r.fee * runnersFor(r).length, 0);
   const bt = (S.bets || []).reduce((s, b) => s + b.amt, 0);
@@ -1100,9 +1105,9 @@ document.addEventListener('change', ev => {
 document.addEventListener('click', ev => {
   const t = ev.target.closest('button,.por'); if(!t || t.disabled) return;
   const d = t.dataset;
-  if(d.tab){ tab = d.tab; renderPanel(); $('panel').scrollTop = 0; return; }
-  if(t.id === 'endBtn'){ if(R.play) return; if(!S.noBetWin && !S.pending && S.card.some(r => runnersFor(r).length)){ betWindow(); return; } endMonth(); renderPanel(); return; }
-  if(t.id === 'runRaces'){ R.betWin = false; $('modal').hidden = true; endMonth(); renderPanel(); return; }
+  if(d.tab){ if(R.freeze){ toast('🏁 Finish watching the races first (or tap Skip)'); return; } tab = d.tab; renderPanel(); $('panel').scrollTop = 0; return; }
+  if(t.id === 'endBtn'){ if(R.play) return; if(!S.noBetWin && !S.pending && S.card.some(r => runnersFor(r).length)){ betWindow(); return; } endMonth(); if(R.freeze) updateTop(); else renderPanel(); return; }
+  if(t.id === 'runRaces'){ R.betWin = false; $('modal').hidden = true; endMonth(); if(R.freeze) updateTop(); else renderPanel(); return; }
   if(t.id === 'toBets'){ R.betWin = false; $('modal').hidden = true; tab = 'bets'; renderPanel(); $('panel').scrollTop = 0; return; }
   if(d.openrace){ (R.open = R.open || new Set()).add(d.openrace); renderPanel(); return; }
   if(d.pb){ const race = S.card.find(r => r.id === d.pr); if(race && placeBet(race, d.pk, d.pb)) afterBet(); return; }
