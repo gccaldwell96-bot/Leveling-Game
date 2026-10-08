@@ -598,7 +598,7 @@ function endMonth(){
   S.t++;
   const yearEnd = S.t % 12 === 0;
   if(yearEnd) rep.year = yearSummary();
-  if(S.t % 12 === 0) refreshStuds();
+  refreshStuds(); // a fresh set of outside stallions every month
   refreshMarket(); makeCard();
   for(const h of S.horses){ if(h.plan.t === 'race' || h.plan.t === 'breed') h.plan = {t:'train', f:h.plan.f || 'spd'}; if(h.plan.t === 'stud' && !canStud(h)) h.plan = {t:'rest'}; if(h.age < 6 && h.plan.t === 'train') h.plan = {t:'rest'}; }
   // ---- event card ----
@@ -1098,7 +1098,7 @@ function renderPanel(){
     const mares = S.horses.filter(h => h.sex === 'F'), stallions = S.horses.filter(h => h.sex === 'M');
     P.innerHTML = `<div class="card"><h3>💞 Breeding</h3>Choose a mare (3y+) and a stallion. She's in foal for 5 months (no racing). Foals get the <b>average potential</b> of both parents ±, with a <b>${Math.round(mutChance() * 1000) / 10}%</b> chance per stat to mutate 6–14 points higher, and may get a rare coat. Your own stallions can also earn stud fees.</div>
       <div class="sec">Your mares</div>${mares.map(h => `<div class="item">${pimg(h, 96)}<div class="info"><div class="nm">${h.name} <span style="color:var(--gold);font-size:11px">${stars(grade(h))}</span></div><div class="ds">${statusTxt(h) || (canBreedMare(h) ? 'Ready to breed' : 'Too young (3y+)')}${h.plan.t === 'breed' ? ` · 💞 with ${h.plan.sn}` : ''}</div></div>${canBreedMare(h) ? `<button class="sbtn ${h.plan.t === 'breed' ? 'on' : 'can'}" data-plan="${h.id}" data-p="breed">${h.plan.t === 'breed' ? 'Change' : 'Breed…'}</button>` : ''}</div>`).join('') || '<div class="card">No mares yet.</div>'}
-      <div class="sec">Stud book (outside stallions)</div>${S.studs.map(st => `<div class="item">${pimg(st, 96)}<div class="info"><div class="nm">${st.name} <span style="color:var(--gold);font-size:11px">${stars(grade(st))}</span></div><div class="ds">${BREEDS[st.breed].n} · ${COAT[st.coat].n} · ${st.wins} wins · pot ${st.pot.spd}/${st.pot.sta}/${st.pot.acc}</div></div><span class="sbtn">${money(st.fee)}</span></div>`).join('')}
+      <div class="sec"><span>Stud book (outside stallions)</span><span style="text-transform:none;letter-spacing:0">New stallions every month</span></div>${S.studs.map(st => `<div class="item">${pimg(st, 96)}<div class="info"><div class="nm">${st.name} <span style="color:var(--gold);font-size:11px">${stars(grade(st))}</span></div><div class="ds">${BREEDS[st.breed].n} · ${COAT[st.coat].n} · ${st.wins} wins · pot ${st.pot.spd}/${st.pot.sta}/${st.pot.acc}</div></div><span class="sbtn">${money(st.fee)}</span></div>`).join('')}
       <div class="sec">Your stallions</div>${stallions.map(h => `<div class="item">${pimg(h, 96)}<div class="info"><div class="nm">${h.name} <span style="color:var(--gold);font-size:11px">${stars(grade(h))}</span></div><div class="ds">pot ${h.pot.spd}/${h.pot.sta}/${h.pot.acc} · stud fee ${money(studFee(h))}</div></div></div>`).join('') || '<div class="card">No stallions yet.</div>'}`;
   } else if(tab === 'market'){
     P.innerHTML = `<div class="card"><h3>🛒 Horse market</h3>New horses every month. ★ = potential grade. Bars show current stats vs. potential (faint).</div>` + S.market.map(marketCard).join('') +
