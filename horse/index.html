@@ -267,7 +267,9 @@ function grade(h){ const a = avgPot(h); return a >= 95 ? 5 : a >= 78 ? 4 : a >= 
 const stars = n => '★'.repeat(n) + `<span style="opacity:.22">${'★'.repeat(5 - n)}</span>`;
 const isAdult = h => h.age >= 24;
 const canRace = h => h.age >= 24 && h.age < 144 && !h.inj && !h.preg;
-const canBreedMare = h => h.sex === 'F' && h.age >= 36 && !h.preg && !h.inj;
+const canBreedMare = h => h.sex === 'F' && h.age >= 36 && h.age < 300 && !h.preg && !h.inj;
+const fertility = h => Math.min(1, 0.7 + 0.03 * S.fac.barn) * (h.age < 216 ? 1 : Math.max(0.15, 1 - (h.age - 216) / 100)); // drops after 18, none after 25
+const breedable = h => h.sex === 'F' ? h.age < 240 : h.age < 264; // still worth something as breeding stock
 const canStud = h => h.sex === 'M' && h.age >= 36 && !h.inj;
 const capacity = () => 4 + S.fac.stables;
 const perfMul = () => 1 + 0.02 * S.fac.academy;
@@ -276,10 +278,13 @@ function rating(h, dist){ const w = DIST[dist].w; return (h.st.spd * w[0] + h.st
 function value(h){
   const ap = avgPot(h), as = avgSt(h);
   let v = 350 * Math.pow(ap / 20, 2.6) + 250 * Math.pow(as / 20, 2.6);
-  const y = h.age / 12; v *= y < 2 ? 0.9 : y < 6 ? 1.15 : y < 10 ? 0.75 : 0.4;
+  const y = h.age / 12, retired = y >= 12;
+  v *= y < 2 ? 0.9 : y < 6 ? 1.15 : y < 10 ? 0.75 : y < 12 ? 0.4 : breedable(h) ? 0.55 - 0.04 * (y - 12) : 0.02;
   v *= 1 + 0.12 * Math.min(h.wins, 20) + 0.25 * h.gw; if(COAT[h.coat].rare) v *= 1.6; if(h.inj) v *= 0.7;
-  return Math.round(v / 50) * 50 + 500;
+  if(retired && !breedable(h) && avgPot(h) < 55 && h.wins < 3) return 0; // a pleasure horse: rehome for free
+  return Math.round(v / 50) * 50 + (retired ? 0 : 500);
 }
+const sellPrice = h => Math.round(value(h) * 0.9);
 const studFee = h => Math.round((300 * Math.pow(avgPot(h) / 20, 2.4) * (1 + 0.2 * Math.min(h.wins, 15) + 0.5 * h.gw)) / 50) * 50;
 const netWorth = () => S.cash + S.horses.reduce((s, h) => s + value(h), 0) + FAC.reduce((s, f) => s + facSpent(f, S.fac[f.id]) * 0.5, 0);
 const facCost = (f, l) => Math.round(f.base * Math.pow(f.g, l));
@@ -390,7 +395,7 @@ function betModal(h){
 let REPORT = null;
 function endMonth(){
   if(S.pending){ showEvent(); return; }
-  const rep = {lines:[], races:[], births:[], notes:[], income:0, expense:0, month:S.t}, fresh = new Set();
+  const rep = {lines:[], races:[], births:[], deaths:[], notes:[], income:0, expense:0, month:S.t}, fresh = new Set();
   const led = (txt, v) => { rep.lines.push([txt, v]); if(v > 0) rep.income += v; else rep.expense -= v; S.cash += v; if(v > 0){ S.yearEarn += v; S.total += v; } };
   // ---- races ----
   for(const race of S.card){
@@ -436,7 +441,7 @@ function endMonth(){
     const sire = h.plan.own ? S.horses.find(x => x.id === h.plan.s) : S.studs.find(x => x.id === h.plan.s);
     if(!sire){ continue; }
     if(!h.plan.own) led(`💞 Stud fee: ${sire.name}`, -sire.fee);
-    if(Math.random() < Math.min(1, 0.7 + 0.03 * S.fac.barn)){ h.preg = {sire:sire.name, s:snapshot(sire), due:5}; rep.notes.push(`💞 ${h.name} is in foal to ${sire.name}! Due in 5 months.`); }
+    if(Math.random() < fertility(h)){ h.preg = {sire:sire.name, s:snapshot(sire), due:5}; rep.notes.push(`💞 ${h.name} is in foal to ${sire.name}! Due in 5 months.`); }
     else rep.notes.push(`💔 ${h.name} didn't take this time. Try again next month.`);
     h.plan = {t:'rest'};
   }
@@ -444,10 +449,17 @@ function endMonth(){
   // ---- aging ----
   for(const h of S.horses){ h.age++;
     if(h.age > 96) for(const s of STATS) h.st[s] = Math.max(5, h.st[s] - rand(0.3, 1.2));
-    if(h.age === 144) rep.notes.push(`🎓 ${h.name} is 12 and retires from racing (can still breed or join the Hall of Fame).`); }
+    if(h.age === 144) rep.notes.push(`🎓 ${h.name} is 12 and retires from racing. Keep them for breeding, sell them, or rehome them.`);
+    if(h.age === 216 && h.sex === 'F') rep.notes.push(`🌅 ${h.name} is 18: her fertility is starting to fade.`); }
+  for(const h of S.horses.slice()){ const y = h.age / 12; // old age: most horses live to about 25–28, none past 32
+    if(y < 22 || h.preg) continue;
+    if(y >= 32 || Math.random() < 0.01 * Math.pow(1.5, y - 22)){
+      const m = {name:h.name, coat:h.coat, mark:h.mark, socks:h.socks, age:h.age, wins:h.wins, earned:h.earned, gw:h.gw, rip:true, sex:h.sex, died:S.t};
+      (S.memorial = S.memorial || []).unshift(m); if(h.wins >= 3) S.hall.push(m);
+      S.horses = S.horses.filter(x => x !== h); rep.deaths.push(m); } }
   // ---- costs ----
   const up = Math.round(UPKEEP * S.horses.length * (1 - 0.05 * S.fac.pasture));
-  led(`Upkeep: ${S.horses.length} horses`, -up);
+  led(`Upkeep: ${S.horses.length} horse${S.horses.length === 1 ? '' : 's'}`, -up);
   // ---- rivals ----
   for(const rv of S.rivals){ const g = rand(2000, 22000) * rv.str * Math.pow(1.6, Math.floor(S.t / 12)) * (1 + (S.t % 12) * 0.04); rv.earn += g; rv.total += g; }
   // ---- advance ----
@@ -830,6 +842,7 @@ function monthReport(){
   const rep = REPORT; R.play = null; setSceneBtns(); if(!rep) return;
   const net = rep.income - rep.expense;
   let h = `<h2>📅 ${monthName(rep.month)} report</h2>`;
+  if(rep.deaths.length) h += rep.deaths.map(m => `<div class="card" style="text-align:center;margin:6px 0"><img src="${portrait(m)}" style="width:70px;image-rendering:pixelated;filter:grayscale(.6)"><br>🕊️ <b>${m.name}</b> passed away peacefully at ${Math.floor(m.age / 12)}.<br>${m.wins ? `${m.wins} wins · ${money(m.earned)} earned. ` : ''}${m.wins >= 3 ? 'A memorial has been placed in your Hall of Fame.' : 'Rest easy, old friend.'}</div>`).join('');
   if(rep.births.length) h += rep.births.map(f => `<div class="card" style="text-align:center;margin:6px 0"><img src="${portrait(f)}" style="width:70px;image-rendering:pixelated"><br>🍼 <b>${f.name}</b> is born! ${f.sex === 'M' ? '♂ colt' : '♀ filly'}, ${COAT[f.coat].n}<br><span style="color:var(--gold)">${stars(grade(f))}</span>${f.prodigy ? ' <span class="tag win">PRODIGY</span>' : ''}</div>`).join('');
   if(rep.notes.length) h += `<p style="text-align:left">${rep.notes.join('<br>')}</p>`;
   h += `<div class="ledger">${rep.lines.map(([t, v]) => `<div><span>${t}</span><b class="${v >= 0 ? 'pos' : 'neg'}">${v >= 0 ? '+' : ''}${money(v)}</b></div>`).join('')}<div><span><b>Net</b></span><b class="${net >= 0 ? 'pos' : 'neg'}">${net >= 0 ? '+' : ''}${money(net)}</b></div></div>`;
@@ -852,7 +865,8 @@ function statusTxt(h){
   if(h.age < 24) return `🍼 Foal: races at 2y (${24 - h.age} months)`;
   if(h.inj) return `🤕 Injured: ${h.inj} month${h.inj > 1 ? 's' : ''}`;
   if(h.preg) return `🤰 In foal to ${h.preg.sire}: due in ${h.preg.due} months`;
-  if(h.age >= 144) return '🎓 Retired from racing';
+  if(h.age >= 264) return `🌅 Twilight years (${Math.floor(h.age / 12)}y)`;
+  if(h.age >= 144) return h.sex === 'F' && h.age >= 216 ? `🎓 Retired · fertility ${Math.round(fertility(h) * 100)}%` : '🎓 Retired from racing';
   return '';
 }
 function planLabel(h){ const p = h.plan;
@@ -870,7 +884,8 @@ function horseCard(h){
     ${canRace(h) ? `<button class="${p.t === 'race' ? 'on' : ''}" data-plan="${h.id}" data-p="race">🏁 ${p.t === 'race' ? planLabel(h).slice(3) : 'Race…'}</button>` : ''}
     ${p.t === 'race' && canRace(h) ? `<button class="${betsOn(h).length ? 'on' : ''}" data-betfor="${h.id}">🎟️ ${betsOn(h).length ? money(betsOn(h).reduce((s, b) => s + b.amt, 0)) + ' bet' : 'Bet'}</button>` : ''}
     ${canBreedMare(h) && S.fac.barn ? `<button class="${p.t === 'breed' ? 'on' : ''}" data-plan="${h.id}" data-p="breed">💞 ${p.t === 'breed' ? p.sn : 'Breed…'}</button>` : ''}
-    ${canStud(h) && S.fac.barn ? `<button class="${p.t === 'stud' ? 'on' : ''}" data-plan="${h.id}" data-p="stud">🐎 Stud ${money(studFee(h))}</button>` : ''}`;
+    ${canStud(h) && S.fac.barn ? `<button class="${p.t === 'stud' ? 'on' : ''}" data-plan="${h.id}" data-p="stud">🐎 Stud ${money(studFee(h))}</button>` : ''}
+    ${h.age >= 144 ? `<button data-sell="${h.id}">${sellPrice(h) ? '💰 Sell ' + money(sellPrice(h)) : '🏡 Rehome'}</button>` : ''}`;
   return `<div class="horse mine"><div class="hrow"><div class="por" data-detail="${h.id}"><img src="${portrait(h)}"></div>
     <div class="hinfo"><div class="hname">${h.sex === 'M' ? '♂' : '♀'} ${h.name} <span class="st">${stars(grade(h))}</span></div>
     <div class="hsub">${ageTxt(h.age)} · ${BREEDS[h.breed].n} · ${COAT[h.coat].n} · ${h.wins}W/${h.starts}R${h.gw ? ` · ${h.gw} graded` : ''}</div>
@@ -913,7 +928,7 @@ function renderPanel(){
       <div class="sec">Your stallions</div>${stallions.map(h => `<div class="item"><img src="${portrait(h)}" style="width:52px;image-rendering:pixelated"><div class="info"><div class="nm">${h.name} <span style="color:var(--gold);font-size:11px">${stars(grade(h))}</span></div><div class="ds">pot ${h.pot.spd}/${h.pot.sta}/${h.pot.acc} · stud fee ${money(studFee(h))}</div></div></div>`).join('') || '<div class="card">No stallions yet.</div>'}`;
   } else if(tab === 'market'){
     P.innerHTML = `<div class="card"><h3>🛒 Horse market</h3>New horses every month. ★ = potential grade. Bars show current stats vs. potential (faint).</div>` + S.market.map(marketCard).join('') +
-      `<div class="sec">Sell your horses</div>` + S.horses.map(h => `<div class="item"><img src="${portrait(h)}" style="width:52px;image-rendering:pixelated"><div class="info"><div class="nm">${h.name}</div><div class="ds">${stars(grade(h))} · ${ageTxt(h.age)} · ${h.wins}W</div></div><button class="sbtn" data-sell="${h.id}">Sell<br>${money(Math.round(value(h) * 0.9))}</button></div>`).join('');
+      `<div class="sec">Sell your horses</div>` + S.horses.map(h => `<div class="item"><img src="${portrait(h)}" style="width:52px;image-rendering:pixelated"><div class="info"><div class="nm">${h.name}</div><div class="ds">${stars(grade(h))} · ${ageTxt(h.age)} · ${h.wins}W</div></div><button class="sbtn" data-sell="${h.id}">${sellPrice(h) ? `Sell<br>${money(sellPrice(h))}` : '🏡<br>Rehome'}</button></div>`).join('');
   } else if(tab === 'ranch'){
     P.innerHTML = `<div class="card"><h3>🏗️ Your ranch</h3>Upgrades are permanent. Net worth: <b>${money(netWorth())}</b>.</div>` + FAC.map(f => { const l = S.fac[f.id], c = facCost(f, l), max = l >= f.max;
       return `<div class="item"><div class="ic">${f.icon}</div><div class="info"><div class="nm">${f.n} <span style="color:var(--dim);font-size:12px">Lv ${l}</span></div><div class="ds">${f.info(l)}${max ? '' : `<br><span style="color:var(--good)">Next: ${f.info(l + 1)}</span>`}</div></div>${max ? '<span class="sbtn">MAX</span>' : `<button class="sbtn ${S.cash >= c ? 'can' : ''}" data-fac="${f.id}">${money(c)}</button>`}</div>`; }).join('') +
@@ -923,7 +938,8 @@ function renderPanel(){
     P.innerHTML = `<div class="card"><h3>🏆 Year ${Math.floor(S.t / 12) + 1} standings</h3>${table.map((r, i) => `<div class="stat"><span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${r.silk};margin-right:6px"></span>${i + 1}. ${r.me ? '<b style="color:var(--gold)">You</b>' : r.n}</span><b>${money(r.earn)}</b></div>`).join('')}
       <p style="margin:6px 0 0">Year-end bonus: #1 ${money(500000)}, #2 ${money(150000)}, #3 ${money(50000)}.</p></div>
       <div class="sec">Goals</div>${GOALS.map(g => `<div class="item ${S.goals[g.id] ? 'done' : ''}"><div class="ic">${S.goals[g.id] ? '✅' : '🎯'}</div><div class="info"><div class="nm">${g.n}</div><div class="ds">Reward ${money(g.r)}</div></div></div>`).join('')}
-      <div class="sec">Hall of Fame</div>${S.hall.length ? S.hall.map(x => `<div class="item"><img src="${portrait(x)}" style="width:52px;image-rendering:pixelated"><div class="info"><div class="nm">🏅 ${x.name}</div><div class="ds">${x.wins} wins · ${money(x.earned)} earned${x.gw ? ` · ${x.gw} graded` : ''}</div></div></div>`).join('') : '<div class="card">Retire a champion (from its detail card) to honor it here.</div>'}
+      <div class="sec">Hall of Fame</div>${S.hall.length ? S.hall.map(x => `<div class="item"><img src="${portrait(x)}" style="width:52px;image-rendering:pixelated"><div class="info"><div class="nm">${x.rip ? '🕊️' : '🏅'} ${x.name}</div><div class="ds">${x.wins} wins · ${money(x.earned)} earned${x.gw ? ` · ${x.gw} graded` : ''}${x.rip ? ` · lived to ${Math.floor(x.age / 12)}` : ''}</div></div></div>`).join('') : '<div class="card">Retire a champion (from its detail card) to honor it here.</div>'}
+      ${(S.memorial || []).length ? `<div class="sec">In memoriam</div><div class="card">${S.memorial.map(m => `🕊️ <b>${m.name}</b> (${Math.floor(m.age / 12)}y${m.wins ? `, ${m.wins} wins` : ''}) · ${monthName(m.died)}`).join('<br>')}</div>` : ''}
       <div class="sec">Stats</div><div class="card">${[['Net worth', money(netWorth())], ['Career earnings', money(S.total)], ['Races run', S.stats.races], ['Wins', S.stats.wins], ['Foals bred', S.stats.foals], ['Bets won', `${S.stats.betsWon || 0}/${S.stats.bets || 0}`], ['Betting profit', money(S.stats.betProfit || 0)], ['Fame', '⭐ ' + fmt(S.fame)]].map(([a, b]) => `<div class="stat"><span>${a}</span><b>${b}</b></div>`).join('')}</div>
       <div class="card"><h3>📱 Install</h3><b>iPhone:</b> Safari → Share → Add to Home Screen. <b>Android:</b> Chrome → ⋮ → Install app.</div>
       <div class="card"><button class="btn danger" id="wipeBtn">Start a new game</button></div>`;
@@ -953,7 +969,7 @@ function breedPicker(h){
   const own = S.horses.filter(x => x !== h && canStud(x) && x.plan.t !== 'race');
   const opt = (x, isOwn) => { const exp = STATS.map(s => Math.round((h.pot[s] + x.pot[s]) / 2)).join('/');
     return `<button data-pickstud="${x.id}" data-own="${isOwn ? 1 : 0}" data-h="${h.id}">${x.name} ${stars(grade(x))} · ${isOwn ? 'your stallion (free)' : money(x.fee)}<small>Expected foal potential ≈ ${exp} (SPD/STA/ACC) · ${COAT[x.coat].n}</small></button>`; };
-  showModal(`<h2>💞 Breed ${h.name}</h2><p>Her potential: ${h.pot.spd}/${h.pot.sta}/${h.pot.acc}</p><div class="pick">${own.map(x => opt(x, true)).join('')}${S.studs.map(x => opt(x, false)).join('')}</div><button class="btn ghost" data-close>Cancel</button>`);
+  showModal(`<h2>💞 Breed ${h.name}</h2><p>Her potential: ${h.pot.spd}/${h.pot.sta}/${h.pot.acc} · fertility ${Math.round(fertility(h) * 100)}%</p><div class="pick">${own.map(x => opt(x, true)).join('')}${S.studs.map(x => opt(x, false)).join('')}</div><button class="btn ghost" data-close>Cancel</button>`);
 }
 function detail(h, market){
   const ped = h.sire ? `<p>By <b>${h.sire}</b> out of <b>${h.dam}</b> · generation ${h.gen}</p>` : '';
@@ -961,7 +977,7 @@ function detail(h, market){
     <p><span style="color:var(--gold)">${stars(grade(h))}</span> · ${BREEDS[h.breed].n} · ${COAT[h.coat].n} · ${ageTxt(h.age)}</p>${ped}
     <p>Potential ${h.pot.spd}/${h.pot.sta}/${h.pot.acc} · Record ${h.wins}W ${h.places}P ${h.starts}R · Earned ${money(h.earned)}${h.crown && h.crown.length ? ' · 👑 ' + h.crown.length + ' classics' : ''}</p>
     <p>Value ≈ <b>${money(value(h))}</b></p>
-    ${market ? '' : `<button class="btn ghost" data-rename="${h.id}">✏️ Rename</button>${h.wins >= 3 ? `<button class="btn ghost" data-retire="${h.id}">🏅 Retire to Hall of Fame</button>` : ''}<button class="btn ghost" data-sell="${h.id}">💰 Sell for ${money(Math.round(value(h) * 0.9))}</button>`}
+    ${market ? '' : `<button class="btn ghost" data-rename="${h.id}">✏️ Rename</button>${h.wins >= 3 ? `<button class="btn ghost" data-retire="${h.id}">🏅 Retire to Hall of Fame</button>` : ''}<button class="btn ghost" data-sell="${h.id}">${sellPrice(h) ? `💰 Sell for ${money(sellPrice(h))}` : '🏡 Rehome (free)'}</button>`}
     <button class="btn" data-close>Close</button>`);
 }
 
@@ -1001,9 +1017,11 @@ document.addEventListener('click', ev => {
     S.cash -= h.price; S.stats.bought++; delete h.kind; const pr = h.price; delete h.price; h.plan = canRace(h) ? {t:'train', f:'spd'} : {t:'rest'}; h.id = S.nextId++;
     S.horses.push(h); S.market.splice(i, 1); toast(`🐎 ${h.name} joins your stable (${money(pr)})`); checkGoals(); persist(); renderPanel(); return; }
   if(d.sell){ const h = S.horses.find(x => x.id === +d.sell); if(!h) return;
-    showModal(`<h2>Sell ${h.name}?</h2><p>You'll get <b>${money(Math.round(value(h) * 0.9))}</b>.</p><button class="btn" data-sellyes="${h.id}">Sell</button><button class="btn ghost" data-close>Keep</button>`); return; }
-  if(d.sellyes){ const h = S.horses.find(x => x.id === +d.sellyes); if(!h) return; refundBets(h); const v = Math.round(value(h) * 0.9); S.cash += v; S.horses = S.horses.filter(x => x !== h); S.stats.sold++;
-    $('modal').hidden = true; toast(`💰 Sold ${h.name} for ${money(v)}`); persist(); renderPanel(); return; }
+    const v = sellPrice(h), up = Math.round(UPKEEP * (1 - 0.05 * S.fac.pasture));
+    showModal(v ? `<h2>Sell ${h.name}?</h2><p>You'll get <b>${money(v)}</b>${h.age >= 144 ? (breedable(h) ? ' as breeding stock' : '') : ''} and save ${money(up)}/month upkeep.</p><button class="btn" data-sellyes="${h.id}">Sell</button><button class="btn ghost" data-close>Keep</button>`
+      : `<h2>🏡 Rehome ${h.name}?</h2><p>${h.name} is past racing and breeding, so nobody will pay for them. A retirement farm will give them a happy home for free.</p><p>You save <b>${money(up)}/month</b> upkeep and gain +1 ⭐.</p><button class="btn" data-sellyes="${h.id}">Rehome</button><button class="btn ghost" data-close>Keep</button>`); return; }
+  if(d.sellyes){ const h = S.horses.find(x => x.id === +d.sellyes); if(!h) return; refundBets(h); const v = sellPrice(h); S.cash += v; S.horses = S.horses.filter(x => x !== h); S.stats.sold++;
+    if(!v) S.fame += 1; $('modal').hidden = true; toast(v ? `💰 Sold ${h.name} for ${money(v)}` : `🏡 ${h.name} went to a retirement farm. Happy trails!`); persist(); renderPanel(); return; }
   if(d.retire){ const h = S.horses.find(x => x.id === +d.retire); if(!h) return; refundBets(h); S.hall.push({name:h.name, coat:h.coat, mark:h.mark, socks:h.socks, age:h.age, wins:h.wins, earned:h.earned, gw:h.gw});
     S.horses = S.horses.filter(x => x !== h); S.fame += 10 + h.wins * 2; $('modal').hidden = true; toast(`🏅 ${h.name} enters the Hall of Fame! +${10 + h.wins * 2} ⭐`); persist(); renderPanel(); return; }
   if(d.rename){ const h = S.horses.find(x => x.id === +d.rename); const n = prompt('New name', h.name); if(n && n.trim()){ h.name = n.trim().slice(0, 22); persist(); detail(h); renderPanel(); } return; }

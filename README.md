@@ -66,6 +66,7 @@ A free **turn-based horse breeding and racing tycoon** in `horse/`. It plays on 
 3. **Event cards:** surprises, some with choices (a buyer's offer, a mystery yearling, a famous trainer, storms, sponsors).
 
 - **Horses** have Speed, Stamina and Accel (current vs. potential), form, age and coats including rare Pearl, Golden and Midnight. They peak at 3–6 and decline after 8.
+- **Life cycle:** racing from 2 to 12, then breeding stock (mares lose fertility after 18 and stop at 25). Horses pass away of old age from about 22 (most around 23–27); champions get a Hall of Fame memorial. Retired horses can be sold as breeding stock, or rehomed for free when they're worth nothing.
 - **Breeding:** foals inherit their parents' potential with a chance to mutate higher (Prodigy!) or get a rare coat. Use your own stallions or the stud book.
 - **Racing:** Maiden → Claiming → Allowance → Stakes → Grade III/II/I, plus big races: the **Golden Derby, Royal Stakes and Crown Classic (Triple Crown)** and the **World Championship**. Distance matters: Sprint, Mile, Route.
 - **Ranch:** Stables, Training Center, Vet Clinic, Breeding Barn, Jockey Academy, Lush Pastures. They appear on your ranch as you build them.
