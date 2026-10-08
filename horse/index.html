@@ -343,6 +343,7 @@ function load(){
     for(const f of FAC) if(S.fac[f.id] == null) S.fac[f.id] = 0;
     if(!S.tough2){ S.rivals.forEach(r => { if(r.lvl != null) r.lvl += 4; }); S.tough2 = true; } // rivals stepped up
     if(S.rivals.some(r => r.lvl == null)){ S.rivals.forEach((r, i) => { r.lvl = RIVAL_NAMES[i][2] + 2 * Math.floor(S.t / 12); r.earn = 0; r.wins = 0; delete r.str; }); S.yearWins = S.yearWins || 0; }
+    if(S.card && S.card.length) addHighStakes(S.card); // older cards skipped High Stakes next to restricted races
     if(!S.card || S.card.some(r => !r.field0)){ for(const b of S.bets) S.cash += b.amt; S.bets = []; makeCard(); for(const h of S.horses) if(h.plan.t === 'race') h.plan = {t:'train', f:'spd'}; }
     return; } }catch(e){}
   freshSave();
@@ -386,17 +387,22 @@ function trainGain(h){ const y = h.age / 12; return (y < 2 ? 1.25 : y < 5 ? 1 : 
 // =====================================================================
 //  MONTHLY RACE CARD, MARKET, STUD BOOK
 // =====================================================================
+function addRace(card, o){ const yr = Math.floor(S.t / 12); let k = card.length; while(card.some(r => r.id === 'r' + S.t + '_' + k)) k++; o.id = 'r' + S.t + '_' + k; o.fee = Math.max(100, Math.round(o.purse * 0.02 / 50) * 50); const tough = (o.crown ? 1.13 : o.big ? 1.10 : o.cls >= 3 ? 1.13 : o.cls === 2 ? 1.07 : o.cls === 1 ? 1.02 : 1) * (1 + 0.045 * Math.min(yr, 12)); o.lo *= tough; o.hi *= tough; /* tougher fields higher up, and every year */ o.field0 = makeField(o); card.push(o); }
+const openRace = r => !r.age2 && !r.age3 && !r.sex && !r.vet && !r.maiden; // any horse can enter (fame aside)
+function addHighStakes(card){ // an open High Stakes race at every distance that has no open big race this month ($450K+, growing each year)
+  const yr = Math.floor(S.t / 12);
+  for(const d of Object.keys(DIST).filter(d => !card.some(r => r.big && r.dist === d && openRace(r))))
+    addRace(card, {n:`High Stakes ${DIST[d].n}`, dist:d, lo:58, hi:76, purse:Math.round(450000 * (1 + 0.08 * yr) / 25000) * 25000, fame:50, req:0, big:true, cn:'Feature'});
+}
 function makeCard(){
-  const m = S.t % 12, yr = Math.floor(S.t / 12), card = [], dists = Object.keys(DIST);
-  const add = o => { o.id = 'r' + S.t + '_' + card.length; o.fee = Math.max(100, Math.round(o.purse * 0.02 / 50) * 50); const tough = (o.crown ? 1.13 : o.big ? 1.10 : o.cls >= 3 ? 1.13 : o.cls === 2 ? 1.07 : o.cls === 1 ? 1.02 : 1) * (1 + 0.045 * Math.min(yr, 12)); o.lo *= tough; o.hi *= tough; /* tougher fields higher up, and every year */ o.field0 = makeField(o); card.push(o); };
+  const m = S.t % 12, card = [], dists = Object.keys(DIST), add = o => addRace(card, o);
   const names = STAKE_NAMES.slice().sort(() => Math.random() - 0.5);
   CLS.forEach((c, ci) => { const ds = dists.slice().sort(() => Math.random() - 0.5).slice(0, ci === 6 ? 1 : 2);
     for(const d of ds) add({cls:ci, cn:c.n, n:ci < 3 ? `${c.n} ${DIST[d].n}` : `${names.pop()} ${ci === 3 ? 'Stakes' : pick(['Stakes', 'Handicap', 'Cup'])}`, dist:d, lo:c.lo, hi:c.hi, purse:c.purse, fame:c.fame, req:c.req || 0, maiden:ci === 0}); });
   for(const sp of SPECIALS.slice().sort(() => Math.random() - 0.5).slice(0, 2)) add({...sp, cls:2, cn:'Special', dist:pick(dists), req:0});
   const feats = FEATURES.filter(f => f.m === m);
   for(const f of feats) add({...f, big:true, cn:'Feature'});
-  for(const d of dists.filter(d => !feats.some(f => f.dist === d))) // a High Stakes race at each distance without a named big race this month ($450K+, growing each year)
-    add({n:`High Stakes ${DIST[d].n}`, dist:d, lo:58, hi:76, purse:Math.round(450000 * (1 + 0.08 * yr) / 25000) * 25000, fame:50, req:0, big:true, cn:'Feature'});
+  addHighStakes(card);
   S.card = card;
 }
 function makeField(race){ // the other 8 runners are known in advance, so you can study the field and bet
@@ -1161,7 +1167,7 @@ function renderPanel(){
         return `${w.length ? '✅' : S.t % 12 > c.m ? '❌' : '⬜'} ${c.crown}. <b>${c.n}</b> · ${MONTHS[c.m]} · ${DIST[c.dist].n} · ${money(c.purse)}${w.length ? ` · won by <b style="color:var(--gold)">${w.map(h => h.name).join(', ')}</b>` : ''}`; }).join('<br>')}${crownWatch().map(x => `<br>${x}`).join('')}</div>`; })() +
       `<div class="sec">Feature & special races</div>` + S.card.filter(r => r.big || r.cn === 'Special').sort((a, b) => !!b.crown - !!a.crown).map(row).join('') +
       CLS.map((c, ci) => `<div class="sec">${c.n}</div>` + S.card.filter(r => r.cls === ci && !r.big && r.cn !== 'Special').map(row).join('')).join('') +
-      `<div class="sec">Big races calendar</div><div class="card" style="padding:8px 12px">👑 Every month there's a big race at each distance: the named races below, and a <b>High Stakes Sprint / Mile / Route</b> for any distance without one (${money(Math.round(450000 * (1 + 0.08 * Math.floor(S.t / 12)) / 25000) * 25000)} each, open to every horse, growing every year).</div>` + FEATURES.map(b => `<div class="race ${b.crown ? 'big crown' : b.m === m ? 'big' : ''}"><b>${MONTHS[b.m]}: ${b.crown ? RN(b) : b.n}</b> <span class="tag">${DIST[b.dist].n}</span>${b.age3 ? '<span class="tag">3yo</span>' : ''}${b.age2 ? '<span class="tag">2yo</span>' : ''}${b.sex ? '<span class="tag">Fillies & mares</span>' : ''}${b.vet ? '<span class="tag">7+</span>' : ''} · ${money(b.purse)} · ⭐ ${b.req}</div>`).join('') +
+      `<div class="sec">Big races calendar</div><div class="card" style="padding:8px 12px">👑 Every month there's a big race at each distance: the named races below, and a <b>High Stakes Sprint / Mile / Route</b> for any distance without an open one: restricted races like the 3-year-old classics, fillies, juvenile and veterans races don't count (${money(Math.round(450000 * (1 + 0.08 * Math.floor(S.t / 12)) / 25000) * 25000)} each, open to every horse, growing every year).</div>` + FEATURES.map(b => `<div class="race ${b.crown ? 'big crown' : b.m === m ? 'big' : ''}"><b>${MONTHS[b.m]}: ${b.crown ? RN(b) : b.n}</b> <span class="tag">${DIST[b.dist].n}</span>${b.age3 ? '<span class="tag">3yo</span>' : ''}${b.age2 ? '<span class="tag">2yo</span>' : ''}${b.sex ? '<span class="tag">Fillies & mares</span>' : ''}${b.vet ? '<span class="tag">7+</span>' : ''} · ${money(b.purse)} · ⭐ ${b.req}</div>`).join('') +
       `<div class="sec">Recent results</div>` + (S.log.length ? S.log.slice(0, 15).map(l => `<div class="race">${monthName(l.m)} · ${l.race}: <b>${l.horse}</b> <span class="tag ${l.place === 1 ? 'win' : ''}">${l.place === 1 ? '🥇 1st' : ord(l.place)}</span> ${l.prize ? money(l.prize) : ''}</div>`).join('') : '<div class="card">No races yet.</div>');
   } else if(tab === 'bets'){
     R.open = R.open || new Set();
