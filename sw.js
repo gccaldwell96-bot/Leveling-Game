@@ -1,5 +1,5 @@
 // Offline support: serve cached files, refresh them in the background.
-const CACHE = 'power-surge-v15';
+const CACHE = 'power-surge-v16';
 const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
