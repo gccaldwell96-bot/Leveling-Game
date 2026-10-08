@@ -222,7 +222,24 @@ const STATS = ['spd', 'sta', 'acc'], STAT_N = {spd:'Speed', sta:'Stamina', acc:'
 const ADJ = ['Thunder', 'Silver', 'Midnight', 'Golden', 'Wild', 'Lucky', 'Royal', 'Storm', 'Shadow', 'Crimson', 'Desert', 'Northern', 'Blazing', 'Velvet', 'Iron', 'Majestic', 'Dancing', 'Rapid', 'Secret', 'Winter', 'Starlight', 'Copper', 'Brave', 'Noble', 'Sapphire', 'Mystic', 'Prairie', 'Ocean'];
 const NOUN = ['Comet', 'Arrow', 'Dream', 'Spirit', 'Rose', 'Thunder', 'Prince', 'Lady', 'Runner', 'Storm', 'Legend', 'Flash', 'Echo', 'Fortune', 'Glory', 'Rebel', 'Breeze', 'Knight', 'Dancer', 'Star', 'Blaze', 'Charm', 'Rocket', 'Tide', 'Queen', 'Whisper', 'Outlaw', 'Duchess'];
 const genName = () => pick(ADJ) + ' ' + pick(NOUN);
-const SILKS = ['#e83a3a', '#3a7ae8', '#2fae5a', '#9a4ae0', '#ffcf3a', '#ff6ab8', '#f4f4f4', '#ff8a2a'];
+const SILKS = ['#e83a3a', '#3a7ae8', '#2fae5a', '#9a4ae0', '#ffcf3a', '#ff6ab8', '#f4f4f4', '#ff8a2a', '#1a1a22', '#1e2f6a', '#20a0a0', '#9ae03a', '#7a4a22', '#8a1a2a', '#7ac8ff'];
+const PATS = [['solid', 'Solid'], ['hoops', 'Hoops'], ['stripes', 'Stripes'], ['checks', 'Checks'], ['sash', 'Sash'], ['stars', 'Stars'], ['diamonds', 'Diamonds'],
+  ['rainbow', '🌈 Rainbow', () => S.fame >= 100, 'Unlocks at ⭐ 100 fame'], ['gold', '🏆 Champion Gold', () => S.goals.graded, 'Unlocks when you win a Graded race']];
+const mySilk = () => `${SILKS[S.silk]}~${S.silkPat || 'solid'}~${SILKS[S.silk2 ?? 6]}`;
+const RAINBOW = ['#e83a3a', '#ff8a2a', '#ffcf3a', '#2fae5a', '#3a7ae8', '#9a4ae0'];
+function silkPattern(g, path, pat, c2, x0, y0, w, h){ // overlay a silks design inside a shape
+  if(pat === 'solid') return;
+  g.save(); path(g); g.clip(); g.fillStyle = c2;
+  if(pat === 'hoops') for(let y = y0 + 2; y < y0 + h; y += 4.5) g.fillRect(x0, y, w, 2.2);
+  else if(pat === 'stripes') for(let x = x0 + 1; x < x0 + w; x += 4.5) g.fillRect(x, y0, 2.2, h);
+  else if(pat === 'checks') for(let i = 0; i < w; i += 3.2) for(let j = 0; j < h; j += 3.2){ if((Math.round(i / 3.2) + Math.round(j / 3.2)) % 2) g.fillRect(x0 + i, y0 + j, 3.2, 3.2); }
+  else if(pat === 'sash'){ g.beginPath(); g.moveTo(x0, y0 + h * 0.15); g.lineTo(x0 + w * 0.15, y0); g.lineTo(x0 + w, y0 + h * 0.85); g.lineTo(x0 + w * 0.85, y0 + h); g.closePath(); g.fill(); }
+  else if(pat === 'stars') for(const [a, b] of [[0.2, 0.3], [0.55, 0.25], [0.8, 0.6], [0.35, 0.7]]){ const cx = x0 + a * w, cy = y0 + b * h; g.beginPath(); for(let k = 0; k < 10; k++){ const r = k % 2 ? 0.9 : 2.2, an = -Math.PI / 2 + k * Math.PI / 5; g.lineTo(cx + Math.cos(an) * r, cy + Math.sin(an) * r); } g.fill(); }
+  else if(pat === 'diamonds') for(let i = 0; i < 4; i++){ const cx = x0 + (i + 0.5) * w / 4, cy = y0 + h / 2; g.beginPath(); g.moveTo(cx, cy - 3); g.lineTo(cx + 2, cy); g.lineTo(cx, cy + 3); g.lineTo(cx - 2, cy); g.fill(); }
+  else if(pat === 'rainbow') RAINBOW.forEach((c, i) => { g.fillStyle = c; g.fillRect(x0 + i * w / 6, y0, w / 6 + 0.5, h); });
+  else if(pat === 'gold'){ g.fillStyle = '#fff6c0'; for(const [a, b] of [[0.25, 0.3], [0.6, 0.5], [0.4, 0.75], [0.8, 0.25]]) g.fillRect(x0 + a * w, y0 + b * h, 1.6, 1.6); }
+  g.restore(); path(g); g.stroke();
+}
 const DIST = {
   sprint:{n:'Sprint', d:'6f', w:[0.45, 0.10, 0.45], len:900, dur:9},
   mile:  {n:'Mile',   d:'1m', w:[0.50, 0.25, 0.25], len:1300, dur:11.5},
@@ -268,7 +285,7 @@ function rollPref(breed){ const w = PREF_W[breed] || [1, 1, 1], tot = w[0] + w[1
 const prefFromStats = h => h.pot.acc >= h.pot.sta + 4 ? 'sprint' : h.pot.sta >= h.pot.acc + 4 ? 'long' : 'mile';
 const PREF_ICON = {sprint:'⚡ Sprint', mile:'🎯 Mile', long:'🛤️ Route'};
 const FAC = [
-  {id:'stables', n:'Stables',          icon:'🏠', base:3500,  g:1.45, max:20, info:l => `${4 + l} stalls`},
+  {id:'stables', n:'Stables',          icon:'🏠', base:3500,  g:1.45, max:20, info:l => `${4 + 2 * l} stalls`},
   {id:'train',   n:'Training Center',  icon:'🏋️', base:8000,  g:2.0, max:12, info:l => `+${20 * l}% training gains`},
   {id:'vet',     n:'Vet Clinic',       icon:'🩺', base:5000,  g:1.9, max:10, info:l => `-${8 * l}% injury risk, +${4 * l} form recovery`},
   {id:'barn',    n:'Breeding Barn',    icon:'💞', base:10000, g:2.0, max:10, info:l => l ? `Fertility ${Math.min(100, 70 + 3 * l)}%, mutation ${8 + 2 * l}%` : 'Unlocks breeding'},
@@ -329,7 +346,7 @@ const canBreedMare = h => h.sex === 'F' && h.age >= 36 && h.age < 300 && !h.preg
 const fertility = h => Math.min(1, 0.7 + 0.03 * S.fac.barn) * (h.age < 216 ? 1 : Math.max(0.15, 1 - (h.age - 216) / 100)); // drops after 18, none after 25
 const breedable = h => h.sex === 'F' ? h.age < 240 : h.age < 264; // still worth something as breeding stock
 const canStud = h => h.sex === 'M' && h.age >= 36 && !h.inj;
-const capacity = () => 4 + S.fac.stables;
+const capacity = () => 4 + 2 * S.fac.stables;
 const perfMul = () => 1 + 0.02 * S.fac.academy;
 const formF = f => 0.8 + 0.2 * clamp(f / 75, 0, 1);
 function rating(h, dist){ const w = DIST[dist].w; return (h.st.spd * w[0] + h.st.sta * w[1] + h.st.acc * w[2]) * formF(h.form) * perfMul() * apt(h.pref, dist); }
@@ -418,7 +435,7 @@ function oddsTxt(h, race){ const r = rating(h, race.dist), mid = (race.lo + race
   return r >= race.hi ? ['Favorite', 'pos'] : r >= mid + 3 ? ['Strong chance', 'pos'] : r >= mid - 3 ? ['Contender', ''] : r >= race.lo ? ['Long shot', 'neg'] : ['Outclassed', 'neg']; }
 function fieldOf(race, extra){ // everyone in the race right now: your entries (+ a horse you're considering) + the pre-drawn rivals
   const mine = runnersFor(race); if(extra && !mine.includes(extra)) mine.unshift(extra);
-  return [...mine.map(h => ({key:'h' + h.id, mine:true, h, name:h.name, silk:SILKS[S.silk], coat:h.coat, mark:h.mark, socks:h.socks, pref:h.pref, r:rating(h, race.dist), acc:h.st.acc, sta:h.st.sta})),
+  return [...mine.map(h => ({key:'h' + h.id, mine:true, h, name:h.name, silk:mySilk(), coat:h.coat, mark:h.mark, socks:h.socks, pref:h.pref, r:rating(h, race.dist), acc:h.st.acc, sta:h.st.sta})),
     ...race.field0.slice(0, 8 - mine.length).map(o => ({...o, owner:o.ri >= 0 ? S.rivals[o.ri].n : o.own || 'Independent', rv:o.ri >= 0 ? S.rivals[o.ri] : null, r:o.base}))];
 }
 function runRace(race){
@@ -765,12 +782,15 @@ function horseD(g, coat, mark, socks, pose, fr, silk, foalish){
   if(silk){
     F(g, '#f0f0f0', pP(-1, -44, 5, -45, 9, -36, 5, -35));
     F(g, '#2a1a10', pP(5, -37, 10, -37, 10, -33, 5, -33));
-    SH(g, silk, pE(1, -50, 9, 5.6, -0.3), 8);
-    BAR(g, silk, 3.6, 6, -51, 17, -47);
+    const [sc, pat = 'solid', s2 = '#f4f4f4'] = silk.split('~'), main = pat === 'gold' ? '#e8b830' : sc;
+    const torso = pE(1, -50, 9, 5.6, -0.3), helm = pC(9, -59, 4.8);
+    SH(g, main, torso, 8); silkPattern(g, torso, pat, pat === 'gold' ? '#fff6c0' : s2, -8.5, -56.5, 19, 13);
+    BAR(g, pat === 'hoops' || pat === 'stripes' ? s2 : main, 3.6, 6, -51, 17, -47);
     F(g, '#ffd9b3', pC(17.5, -47, 2));
-    SH(g, silk, pC(9, -59, 4.8), 5);
+    const hc = pat === 'solid' || pat === 'gold' ? main : pat === 'rainbow' ? '#ffcf3a' : s2;
+    SH(g, hc, helm, 5); if(pat === 'checks' || pat === 'stars') silkPattern(g, helm, pat, main, 4, -64, 10, 10);
     F(g, '#ffd9b3', pP(11, -58, 14.5, -58, 14, -54, 10.5, -54));
-    g.fillStyle = shade(silk, -0.45); g.fillRect(7.5, -63, 9, 2);
+    g.fillStyle = shade(hc, -0.45); g.fillRect(7.5, -63, 9, 2);
   }
   // near legs
   legD(g, -14, -24, legs[2], body, low, socks);
@@ -1066,7 +1086,12 @@ function renderPanel(){
   } else if(tab === 'ranch'){
     P.innerHTML = `<div class="card"><h3>🏗️ Your ranch</h3>Upgrades are permanent. Net worth: <b>${money(netWorth())}</b>.</div>` + FAC.map(f => { const l = S.fac[f.id], c = facCost(f, l), max = l >= f.max;
       return `<div class="item"><div class="ic">${f.icon}</div><div class="info"><div class="nm">${f.n} <span style="color:var(--dim);font-size:12px">Lv ${l}</span></div><div class="ds">${f.info(l)}${max ? '' : `<br><span style="color:var(--good)">Next: ${f.info(l + 1)}</span>`}</div></div>${max ? '<span class="sbtn">MAX</span>' : `<button class="sbtn ${S.cash >= c ? 'can' : ''}" data-fac="${f.id}">${money(c)}</button>`}</div>`; }).join('') +
-      `<div class="sec">Your racing silks</div><div class="card">${SILKS.map((c, i) => `<button class="swatch ${S.silk === i ? 'on' : ''}" style="background:${c}" data-silk="${i}"></button>`).join('')}</div>`;
+      `<div class="sec">Your racing silks</div><div class="card" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+        <div style="background:linear-gradient(#4aa8ff,#c8ecff 70%,#b07a4a 70%);border-radius:12px;padding:8px 14px"><img src="${horseSpr({coat:'bay', mark:2, socks:true}, 'gal', 0, mySilk(), 0.7).c.toDataURL()}" style="width:150px;image-rendering:pixelated;display:block"></div>
+        <div style="flex:1;min-width:220px"><b>Main color</b><br>${SILKS.map((c, i) => `<button class="swatch ${S.silk === i ? 'on' : ''}" style="background:${c}" data-silk="${i}"></button>`).join('')}
+        <br><b>Design</b><br><div style="display:flex;flex-wrap:wrap;gap:5px;margin:4px 0 6px">${PATS.map(([id, n, ok, why]) => { const open = !ok || ok(); return `<button class="sbtn ${(S.silkPat || 'solid') === id ? 'on' : ''}" ${open ? `data-silkpat="${id}"` : `disabled title="${why}" style="opacity:.45"`}>${open ? '' : '🔒 '}${n}</button>`; }).join('')}</div>
+        <b>Second color</b><br>${SILKS.map((c, i) => `<button class="swatch ${(S.silk2 ?? 6) === i ? 'on' : ''}" style="background:${c}" data-silk2="${i}"></button>`).join('')}
+        <p style="margin:6px 0 0;font-size:12px">🔒 ${PATS.filter(p => p[2] && !p[2]()).map(p => `${p[1]}: ${p[3]}`).join(' · ') || 'All designs unlocked!'}</p></div></div>`;
   } else {
     const table = [...S.rivals.map(r => ({n:r.n, earn:r.earn, wins:r.wins || 0, silk:r.silk, tier:rivalTier(r.lvl)})), {n:'You', earn:S.yearEarn, wins:S.yearWins || 0, me:true, silk:SILKS[S.silk]}].sort((a, b) => b.earn - a.earn);
     P.innerHTML = `<div class="card"><h3>🏆 Year ${Math.floor(S.t / 12) + 1} standings</h3>${table.map((r, i) => `<div class="stat"><span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${r.silk};margin-right:6px"></span>${i + 1}. ${r.me ? '<b style="color:var(--gold)">You</b>' : `${r.n} <small style="color:var(--dim)">· ${r.tier} level</small>`}</span><b>${money(r.earn)} · ${r.wins} win${r.wins === 1 ? '' : 's'}</b></div>`).join('')}
@@ -1186,6 +1211,8 @@ document.addEventListener('click', ev => {
   if(d.fac){ const f = FAC.find(x => x.id === d.fac), l = S.fac[f.id], c = facCost(f, l); if(S.cash < c){ toast('💸 Need ' + money(c)); return; }
     S.cash -= c; S.fac[f.id]++; toast(`${f.icon} ${f.n} upgraded to Lv ${S.fac[f.id]}!`); persist(); renderPanel(); return; }
   if(d.silk){ S.silk = +d.silk; SPR.clear(); persist(); renderPanel(); return; }
+  if(d.silk2){ S.silk2 = +d.silk2; SPR.clear(); persist(); renderPanel(); return; }
+  if(d.silkpat){ S.silkPat = d.silkpat; SPR.clear(); persist(); renderPanel(); return; }
   if(t.id === 'menuBtn'){ showModal(`<h2>⚙️ Menu</h2><p>${monthName(S.t)} · net worth ${money(netWorth())}</p>
     <button class="btn ghost" id="howBtn">❓ How to play</button><button class="btn danger" id="wipeBtn">🔄 New game (reset)</button><button class="btn" data-close>Back to the ranch</button>`); return; }
   if(t.id === 'howBtn'){ showModal(HOWTO); return; }
