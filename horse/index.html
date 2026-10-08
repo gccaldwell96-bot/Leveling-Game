@@ -273,7 +273,11 @@ const FAC = [
   {id:'coach',   n:'Head Trainer',     icon:'👨‍🏫', base:18000, g:2.1, max:8,  info:l => l ? `+${l} extra point${l > 1 ? 's' : ''} a month to the stat you focus on` : 'Hire a head trainer: flat bonus points every month'},
 ];
 const UPKEEP = 600; // per horse per month
-const RIVAL_NAMES = [['Bluegrass Farms', '#3a7ae8'], ['Silver Spur Stables', '#c8c8d8'], ['Red Oak Racing', '#c03030'], ['Golden Gate Stud', '#ffcf3a'], ['Darkwood Equine', '#4a2a6a']];
+// rival stables: lvl = how good their horses are (they improve a little each year)
+const RIVAL_NAMES = [['Bluegrass Farms', '#3a7ae8', 54], ['Silver Spur Stables', '#c8c8d8', 48], ['Red Oak Racing', '#c03030', 43], ['Golden Gate Stud', '#ffcf3a', 38], ['Darkwood Equine', '#4a2a6a', 33]];
+const INDIE = ['Maple Run Farm', 'Lone Star Racing', 'Hilltop Stables', 'Sunny Acres', 'Briarwood', 'Pine Hill Racing', 'Twin Oaks', 'Starlight Farm', 'Rolling Hills', 'Cedar Creek'];
+const INDIE_SILK = ['#8a8a96', '#5aa06a', '#c87a3a', '#7a6ab0', '#3aa0a0', '#b05a7a'];
+const rivalTier = l => l >= 68 ? 'Grade I' : l >= 60 ? 'Grade II' : l >= 52 ? 'Grade III' : l >= 43 ? 'Stakes' : l >= 34 ? 'Allowance' : 'Claiming';
 
 // =====================================================================
 //  SAVE
@@ -289,7 +293,7 @@ function newHorse(o = {}){
 }
 function freshSave(){
   S = {v:1, t:0, cash:30000, fame:0, nextId:1, horses:[], fac:{stables:0, train:0, vet:0, barn:0, academy:0, pasture:0, pool:0, coach:0}, silk:0,
-    market:[], studs:[], rivals:RIVAL_NAMES.map(([n, c], i) => ({n, silk:c, earn:0, total:0, str:0.9 + i * 0.06})), yearEarn:0, total:0,
+    market:[], studs:[], rivals:RIVAL_NAMES.map(([n, c, l]) => ({n, silk:c, lvl:l, earn:0, total:0, wins:0})), yearEarn:0, yearWins:0, total:0,
     log:[], goals:{}, hall:[], pending:null, stats:{races:0, wins:0, foals:0, sold:0, bought:0, spent:0, bets:0, betsWon:0, betProfit:0}, bets:[], seen:false, lastYear:null};
   S.horses.push(newHorse({breed:'mustang', age:40, extra:{name:'Daisy Belle', sex:'F'}}));
   S.horses.push(newHorse({breed:'quarter', age:30, extra:{name:'Copper Jack', sex:'M'}}));
@@ -300,6 +304,7 @@ function load(){
   try{ const raw = localStorage.getItem(SAVE_KEY); if(raw){ S = JSON.parse(raw); S.bets = S.bets || [];
     for(const h of [...S.horses, ...(S.market || []), ...(S.studs || [])]) if(!h.pref) h.pref = prefFromStats(h);
     for(const f of FAC) if(S.fac[f.id] == null) S.fac[f.id] = 0;
+    if(S.rivals.some(r => r.lvl == null)){ S.rivals.forEach((r, i) => { r.lvl = RIVAL_NAMES[i][2] + 2 * Math.floor(S.t / 12); r.earn = 0; r.wins = 0; delete r.str; }); S.yearWins = S.yearWins || 0; }
     if(!S.card || S.card.some(r => !r.field0)){ for(const b of S.bets) S.cash += b.amt; S.bets = []; makeCard(); for(const h of S.horses) if(h.plan.t === 'race') h.plan = {t:'train', f:'spd'}; }
     return; } }catch(e){}
   freshSave();
@@ -354,10 +359,13 @@ function makeCard(){
 }
 function makeField(race){ // the other 8 runners are known in advance, so you can study the field and bet
   const out = [];
-  for(let i = 0; i < 8; i++){ const ri = irand(0, S.rivals.length - 1), rv = S.rivals[ri], q = Math.random(), near = ['sprint', 'mile', 'long'].filter(d => Math.abs(DORD[d] - DORD[race.dist]) === 1);
+  for(let i = 0; i < 8; i++){ const q = Math.random(), near = ['sprint', 'mile', 'long'].filter(d => Math.abs(DORD[d] - DORD[race.dist]) === 1);
     const pref = q < 0.55 ? race.dist : q < 0.92 ? pick(near) : ['sprint', 'mile', 'long'].find(d => Math.abs(DORD[d] - DORD[race.dist]) === 2) || race.dist; // trainers mostly enter horses at a distance they like
-    const mid = (race.lo + race.hi) / 2, base = (mid + (Math.random() + Math.random() - 1) * (race.hi - race.lo) * 0.42) * (0.95 + rv.str * 0.05) * apt(pref, race.dist); // bunched near the middle: competitive fields
-    out.push({key:'o' + i, name:genName(), ri, silk:rv.silk, coat:randCoat(false), mark:irand(0, 3), socks:Math.random() < 0.3, pref, base, acc:base * rand(0.8, 1.2), sta:base * rand(0.8, 1.2)}); }
+    const mid = (race.lo + race.hi) / 2, raw = mid + (Math.random() + Math.random() - 1) * (race.hi - race.lo) * 0.42, base = raw * apt(pref, race.dist); // bunched near the middle: competitive fields
+    // who owns it: rival stables enter horses at their own level; everyone else is an independent owner
+    const w = S.rivals.map(r => 0.55 * Math.exp(-Math.pow(raw - r.lvl, 2) / 162)); let roll = Math.random() * (1 + w.reduce((a, b) => a + b, 0)), ri = -1;
+    for(let k = 0; k < w.length; k++){ roll -= w[k]; if(roll < 0){ ri = k; break; } }
+    out.push({key:'o' + i, name:genName(), ri, own:ri < 0 ? pick(INDIE) : null, silk:ri < 0 ? pick(INDIE_SILK) : S.rivals[ri].silk, coat:randCoat(false), mark:irand(0, 3), socks:Math.random() < 0.3, pref, base, acc:base * rand(0.8, 1.2), sta:base * rand(0.8, 1.2)}); }
   return out;
 }
 
@@ -406,14 +414,14 @@ function oddsTxt(h, race){ const r = rating(h, race.dist), mid = (race.lo + race
 function fieldOf(race, extra){ // everyone in the race right now: your entries (+ a horse you're considering) + the pre-drawn rivals
   const mine = runnersFor(race); if(extra && !mine.includes(extra)) mine.unshift(extra);
   return [...mine.map(h => ({key:'h' + h.id, mine:true, h, name:h.name, silk:SILKS[S.silk], coat:h.coat, mark:h.mark, socks:h.socks, pref:h.pref, r:rating(h, race.dist), acc:h.st.acc, sta:h.st.sta})),
-    ...race.field0.slice(0, 8 - mine.length).map(o => ({...o, owner:S.rivals[o.ri].n, rv:S.rivals[o.ri], r:o.base}))];
+    ...race.field0.slice(0, 8 - mine.length).map(o => ({...o, owner:o.ri >= 0 ? S.rivals[o.ri].n : o.own || 'Independent', rv:o.ri >= 0 ? S.rivals[o.ri] : null, r:o.base}))];
 }
 function runRace(race){
   const field = fieldOf(race);
   for(const f of field) f.perf = f.r * (1 + gauss() * NOISE);
   field.sort((a, b) => b.perf - a.perf);
   const share = [0.6, 0.2, 0.1, 0.05];
-  field.forEach((f, i) => { f.place = i + 1; f.prize = Math.round(race.purse * (share[i] || 0)); if(f.rv) { f.rv.earn += f.prize; f.rv.total += f.prize; } });
+  field.forEach((f, i) => { f.place = i + 1; f.prize = Math.round(race.purse * (share[i] || 0)); if(f.rv){ f.rv.earn += f.prize; f.rv.total += f.prize; if(i === 0) f.rv.wins = (f.rv.wins || 0) + 1; } });
   return {race, field};
 }
 const raceTags = r => `<span class="tag">${PREF_ICON[r.dist].split(' ')[0]} ${DIST[r.dist].n} ${DIST[r.dist].d}</span>${r.cls >= 3 && !r.big ? `<span class="tag">${r.cn}</span>` : ''}${r.maiden ? '<span class="tag">Maidens</span>' : ''}${r.age3 ? '<span class="tag">3yo</span>' : ''}${r.age2 ? '<span class="tag">2yo</span>' : ''}${r.sex === 'F' ? '<span class="tag">Fillies & mares</span>' : ''}${r.vet ? '<span class="tag">7+</span>' : ''}${r.crown ? `<span class="tag">Triple Crown ${r.crown}/3</span>` : ''}${r.req ? `<span class="tag ${S.fame >= r.req ? '' : 'bad'}">⭐ ${r.req}</span>` : ''}`;
@@ -496,7 +504,7 @@ function endMonth(){
   const led = (txt, v) => { rep.lines.push([txt, v]); if(v > 0) rep.income += v; else rep.expense -= v; S.cash += v; if(v > 0){ S.yearEarn += v; S.total += v; } };
   // ---- races ----
   for(const race of S.card){
-    const mine = runnersFor(race), betOn = (S.bets || []).some(b => b.r === race.id); if(!mine.length && !betOn) continue;
+    const mine = runnersFor(race), betOn = (S.bets || []).some(b => b.r === race.id); if(!mine.length && !betOn){ runRace(race); continue; } // races you skip still happen
     if(mine.length) led(`Entry fees: ${race.n}`, -race.fee * mine.length);
     const res = runRace(race); rep.races.push(res);
     for(const b of (S.bets || []).filter(b => b.r === race.id)){ const f = res.field.find(x => x.key === betKey(b)); if(!f) continue;
@@ -507,7 +515,7 @@ function endMonth(){
     for(const f of res.field.filter(x => x.mine)){
       const h = f.h; h.starts++; S.stats.races++; h.form = clamp(h.form - 28, 0, 100);
       for(const s of STATS) h.st[s] = Math.min(h.pot[s], h.st[s] + 0.6 * trainGain(h));
-      if(f.place === 1){ h.wins++; S.stats.wins++; if(race.cls >= 4 || race.big) h.gw++; if(race.crown) h.crown.push(race.crown + '@' + Math.floor(S.t / 12)); }
+      if(f.place === 1){ h.wins++; S.stats.wins++; S.yearWins = (S.yearWins || 0) + 1; if(race.cls >= 4 || race.big) h.gw++; if(race.crown) h.crown.push(race.crown + '@' + Math.floor(S.t / 12)); }
       if(f.place <= 3) h.places++;
       if(f.prize){ h.earned += f.prize; led(`${f.place === 1 ? '🥇' : f.place === 2 ? '🥈' : f.place === 3 ? '🥉' : '🎗️'} ${h.name}: ${race.n}`, f.prize); }
       const fm = f.place === 1 ? race.fame : f.place === 2 ? race.fame * 0.4 : f.place === 3 ? race.fame * 0.2 : 0; S.fame += Math.round(fm);
@@ -558,7 +566,6 @@ function endMonth(){
   const up = Math.round(UPKEEP * S.horses.length * (1 - 0.05 * S.fac.pasture));
   led(`Upkeep: ${S.horses.length} horse${S.horses.length === 1 ? '' : 's'}`, -up);
   // ---- rivals ----
-  for(const rv of S.rivals){ const g = rand(2000, 22000) * rv.str * Math.pow(1.6, Math.floor(S.t / 12)) * (1 + (S.t % 12) * 0.04); rv.earn += g; rv.total += g; }
   // ---- advance ----
   S.t++;
   const yearEnd = S.t % 12 === 0;
@@ -593,14 +600,14 @@ function foal(dam, sire){
   return h;
 }
 function yearSummary(){
-  const yr = Math.floor((S.t - 1) / 12) + 1, me = {n:'You', earn:S.yearEarn, me:true};
-  const table = [...S.rivals.map(r => ({n:r.n, earn:r.earn})), me].sort((a, b) => b.earn - a.earn);
+  const yr = Math.floor((S.t - 1) / 12) + 1, me = {n:'You', earn:S.yearEarn, wins:S.yearWins || 0, me:true};
+  const table = [...S.rivals.map(r => ({n:r.n, earn:r.earn, wins:r.wins || 0})), me].sort((a, b) => b.earn - a.earn);
   const pos = table.findIndex(x => x.me) + 1, bonus = pos === 1 ? 500000 : pos === 2 ? 150000 : pos === 3 ? 50000 : 0;
   if(bonus){ S.cash += bonus; } if(pos === 1) goal('champ');
   const hoty = S.horses.slice().sort((a, b) => (b.earned - (b._ye || 0)) - (a.earned - (a._ye || 0)))[0];
   for(const h of S.horses) h._ye = h.earned;
   S.lastYear = {yr, table, pos};
-  for(const r of S.rivals){ r.earn = 0; r.str *= rand(1.0, 1.08); } S.yearEarn = 0;
+  for(const r of S.rivals){ r.earn = 0; r.wins = 0; r.lvl += irand(1, 3); } S.yearEarn = 0; S.yearWins = 0;
   return {yr, table, pos, bonus, hoty: hoty && hoty.name};
 }
 
@@ -949,7 +956,7 @@ function monthReport(){
   if(rep.notes.length) h += `<p style="text-align:left">${rep.notes.join('<br>')}</p>`;
   h += `<div class="ledger">${rep.lines.map(([t, v]) => `<div><span>${t}</span><b class="${v >= 0 ? 'pos' : 'neg'}">${v >= 0 ? '+' : ''}${money(v)}</b></div>`).join('')}<div><span><b>Net</b></span><b class="${net >= 0 ? 'pos' : 'neg'}">${net >= 0 ? '+' : ''}${money(net)}</b></div></div>`;
   if(rep.year){ const Y = rep.year;
-    h += `<div class="card" style="text-align:left"><h3>🏆 Year ${Y.yr} final standings</h3>${Y.table.map((r, i) => `<div class="stat"><span>${i + 1}. ${r.me ? '<b style="color:var(--gold)">You</b>' : r.n}</span><b>${money(r.earn)}</b></div>`).join('')}
+    h += `<div class="card" style="text-align:left"><h3>🏆 Year ${Y.yr} final standings</h3>${Y.table.map((r, i) => `<div class="stat"><span>${i + 1}. ${r.me ? '<b style="color:var(--gold)">You</b>' : r.n}</span><b>${money(r.earn)} · ${r.wins} wins</b></div>`).join('')}
       ${Y.bonus ? `<p>Year-end bonus for finishing #${Y.pos}: <b class="pos">+${money(Y.bonus)}</b></p>` : ''}${Y.hoty ? `<p>🐎 Your horse of the year: <b>${Y.hoty}</b></p>` : ''}</div>`; }
   h += `<button class="btn" id="repOk">${S.pending ? 'Next: event card ▶' : 'Continue'}</button>`;
   showModal(h);
@@ -1053,9 +1060,9 @@ function renderPanel(){
       return `<div class="item"><div class="ic">${f.icon}</div><div class="info"><div class="nm">${f.n} <span style="color:var(--dim);font-size:12px">Lv ${l}</span></div><div class="ds">${f.info(l)}${max ? '' : `<br><span style="color:var(--good)">Next: ${f.info(l + 1)}</span>`}</div></div>${max ? '<span class="sbtn">MAX</span>' : `<button class="sbtn ${S.cash >= c ? 'can' : ''}" data-fac="${f.id}">${money(c)}</button>`}</div>`; }).join('') +
       `<div class="sec">Your racing silks</div><div class="card">${SILKS.map((c, i) => `<button class="swatch ${S.silk === i ? 'on' : ''}" style="background:${c}" data-silk="${i}"></button>`).join('')}</div>`;
   } else {
-    const table = [...S.rivals.map(r => ({n:r.n, earn:r.earn, silk:r.silk})), {n:'You', earn:S.yearEarn, me:true, silk:SILKS[S.silk]}].sort((a, b) => b.earn - a.earn);
-    P.innerHTML = `<div class="card"><h3>🏆 Year ${Math.floor(S.t / 12) + 1} standings</h3>${table.map((r, i) => `<div class="stat"><span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${r.silk};margin-right:6px"></span>${i + 1}. ${r.me ? '<b style="color:var(--gold)">You</b>' : r.n}</span><b>${money(r.earn)}</b></div>`).join('')}
-      <p style="margin:6px 0 0">Year-end bonus: #1 ${money(500000)}, #2 ${money(150000)}, #3 ${money(50000)}.</p></div>
+    const table = [...S.rivals.map(r => ({n:r.n, earn:r.earn, wins:r.wins || 0, silk:r.silk, tier:rivalTier(r.lvl)})), {n:'You', earn:S.yearEarn, wins:S.yearWins || 0, me:true, silk:SILKS[S.silk]}].sort((a, b) => b.earn - a.earn);
+    P.innerHTML = `<div class="card"><h3>🏆 Year ${Math.floor(S.t / 12) + 1} standings</h3>${table.map((r, i) => `<div class="stat"><span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${r.silk};margin-right:6px"></span>${i + 1}. ${r.me ? '<b style="color:var(--gold)">You</b>' : `${r.n} <small style="color:var(--dim)">· ${r.tier} level</small>`}</span><b>${money(r.earn)} · ${r.wins} win${r.wins === 1 ? '' : 's'}</b></div>`).join('')}
+      <p style="margin:6px 0 0">Ranked by prize money won this year. Every race on the card is run each month, and rival stables only earn what their horses win. Rivals improve a little each year, so to stay #1 you'll need to win the big Stakes and Graded races, not just the small ones. Year-end bonus: #1 ${money(500000)}, #2 ${money(150000)}, #3 ${money(50000)}.</p></div>
       <div class="sec">Goals</div>${GOALS.map(g => `<div class="item ${S.goals[g.id] ? 'done' : ''}"><div class="ic">${S.goals[g.id] ? '✅' : '🎯'}</div><div class="info"><div class="nm">${g.n}</div><div class="ds">Reward ${money(g.r)}</div></div></div>`).join('')}
       <div class="sec">Hall of Fame</div>${S.hall.length ? S.hall.map(x => `<div class="item"><img src="${portrait(x)}" style="width:52px;image-rendering:pixelated"><div class="info"><div class="nm">${x.rip ? '🕊️' : '🏅'} ${x.name}</div><div class="ds">${x.wins} wins · ${money(x.earned)} earned${x.gw ? ` · ${x.gw} graded` : ''}${x.rip ? ` · lived to ${Math.floor(x.age / 12)}` : ''}</div></div></div>`).join('') : '<div class="card">Retire a champion (from its detail card) to honor it here.</div>'}
       ${(S.memorial || []).length ? `<div class="sec">In memoriam</div><div class="card">${S.memorial.map(m => `🕊️ <b>${m.name}</b> (${Math.floor(m.age / 12)}y${m.wins ? `, ${m.wins} wins` : ''}) · ${monthName(m.died)}`).join('<br>')}</div>` : ''}
