@@ -501,9 +501,11 @@ const UPG = [
   {id:'tap',   name:'Mighty Tap',    icon:'👆', base:15, g:1.15, desc:()=>`Tap blast: ${fmt(tapDmg())}`},
   {id:'greed', name:'Greed',         icon:'🪙', base:40, g:1.17, desc:()=>`Gold bonus: +${Math.round((goldMul()/soulMul()-1)*100)}%`},
   {id:'wis',   name:'Wisdom',        icon:'📘', base:35, g:1.24, desc:()=>`XP bonus: +${Math.round((xpMul()-1)*100)}% (hero & class mastery)`},
+  {id:'tome',  name:'Skill Tome',    icon:'📕', base:150, g:1.2, desc:()=>`+1 skill point per level (${up('tome')} bought this run)`},
+  {id:'mtome', name:'Mastery Tome',  icon:'📗', base:250, g:1.2, desc:()=>`+1 ${cls().n} Mastery point per level (${up('mtome')} bought, never resets)`},
   {id:'focus', name:'Focus',         icon:'⏳', base:60, g:1.3,  max:20, desc:()=>`All cooldowns: -${Math.round(up('focus')*2)}%`},
 ];
-const up = id => S.up[id] || 0;
+const up = id => id === 'mtome' ? (S.mtomes || 0) : (S.up[id] || 0); // Mastery Tomes are permanent (kept through Ascension)
 const upCost = (u, lvl) => u.base * Math.pow(u.g, lvl);
 
 // =====================================================================
@@ -623,7 +625,7 @@ function refundCatchAll(){
   if(S.overdrive > 0 && !powersMaxed()){ S.sp += S.overdrive; toast(`♾️ ${S.overdrive} Overdrive point${S.overdrive > 1 ? 's' : ''} refunded: new power upgrades are open!`); S.overdrive = 0; }
 }
 const cdMul = () => Math.max(0.25, 1 - gear().cdr - 0.02 * up('focus'));
-const xpMul = () => 1 + 0.12 * up('wis');
+const xpMul = () => 1 + 0.2 * up('wis');
 const aoeMul = () => 1 + gear().aoe;
 const lifesteal = () => (evo('vamp') ? 0.2 : 0.015 * pw('vamp')) + gear().ls + (R.rage > 0 && fz('bloodfrenzy') ? 0.1 : 0) + (R.blood > 0 ? (evo('blood') ? 0.12 : 0.08) : 0);
 const dmgTaken = () => Math.max(0.2, 1 - (evo('shield') ? 0.5 : 0.05 * pw('shield')) - gear().dr - cbuffV('dr'));
@@ -641,7 +643,7 @@ function enemyStats(s, boss){
     hp:   10 * Math.pow(1.27, s-1) * (boss ? 30 : 1),
     dmg:  3  * Math.pow(1.145, s-1) * (boss ? 3 : 1),
     gold: 2  * Math.pow(1.15, s-1) * (boss ? 15 : 1),
-    xp:   2  * Math.pow(1.1,  s-1) * (boss ? 8 : 1),
+    xp:   4  * Math.pow(1.1,  s-1) * (boss ? 8 : 1),
   };
 }
 // r = size, spd = walk speed, hp/dmg = multipliers. ranged enemies stop at `range` and shoot.
@@ -836,7 +838,7 @@ function killE(e){
   if(gear().killHeal) R.hp = Math.min(maxHp(), R.hp + maxHp() * gear().killHeal);
   if(e.boss || Math.random() < 0.035) FX.loot.push({x:e.x, y:e.y, t:0, it:rollDrop(e.boss)});
   if(e.boss){
-    S.bossKills++; S.sp += 2;
+    S.bossKills++; S.sp += 2; R.hitstop = 0.14;
     R.shake = 0.5; flash('#ffffff', 0.5);
     toast('👑 ' + e.bossName + ' defeated! +2 Skill Points');
     for(const m of E) if(!m.dead){ m.dead = true; m.die = 0.3; burst(m.x, m.y, 10, '#fff', 80, 3); }
@@ -1418,6 +1420,7 @@ function quake(dmg, scale){
   for(const e of E) if(!e.dead){ e.stun = Math.max(e.stun, 0.7); hurt(e, dmg, {color:'#ffb36b', quiet:true}); }
 }
 function explode(x, y, r, dmg, color, shake = 0.2){
+  if(shake >= 0.4) R.hitstop = Math.max(R.hitstop || 0, 0.05);
   aoe(x, y, r, dmg, {kb:140});
   ring(x, y, 4, r, 0.35, color, 10);
   ring(x, y, 0, r * 0.6, 0.25, '#ffffff', 5);
@@ -2012,15 +2015,80 @@ function backdrop(z){
   bdCache = {key, c};
   return c;
 }
+// ---- dynamic lighting: a low-res light map darkens each zone, every light source punches light back in ----
+const AMBIENT = ['rgba(12,24,48,0.22)', 'rgba(40,18,0,0.14)', 'rgba(10,22,52,0.22)', 'rgba(18,0,0,0.64)', 'rgba(6,0,22,0.68)'];
+const LIGHTS = [];
+const LM = document.createElement('canvas'), LMX = LM.getContext('2d');
+let LSPR = null;
+function lightSprite(){
+  if(LSPR) return LSPR;
+  LSPR = document.createElement('canvas'); LSPR.width = LSPR.height = 64;
+  const g = LSPR.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.45, 'rgba(255,255,255,0.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return LSPR;
+}
+function collectLights(){
+  LIGHTS.length = 0;
+  const add = (x, y, r, a) => { if(LIGHTS.length < 400 && a > 0.02) LIGHTS.push(x, y, r, a); };
+  if(R.dead <= 0) add(R.hx, R.hy, 130, 0.95);
+  if(R.blood > 0) add(R.hx, R.hy, 150, 0.6);
+  if(FX.bigbang) add(FX.bigbang.x, FX.bigbang.y, 320, 1);
+  for(const p of FX.projs) add(p.x, p.y, p.kind === 'plasma' ? 120 : p.kind === 'fire' ? 85 : 45, 0.85);
+  for(const p of FX.eprojs) add(p.x, p.y, 40, 0.6);
+  for(const m of FX.meteors) if(m.t >= 0) add(m.x, m.y, 60 + 90 * (m.t / m.dur), 0.75);
+  for(const P of FX.pillars) if(P.fired) add(P.x, P.y, 170, Math.max(0, 1 - (P.t - P.delay) / 0.5));
+  for(const w of FX.tornados) if(w.fire) add(w.x, w.y, w.sun ? 220 : 95, 0.85);
+  for(const b of FX.bolts){ const e = b.pts[b.pts.length - 1]; add(e[0], e[1], 80, b.life / b.max); }
+  for(const b of FX.beams) for(let d = 40; d < 420; d += 110) add(b.x + Math.cos(b.a)*d, b.y + Math.sin(b.a)*d, 80, b.life / b.max);
+  for(const r of FX.rings) if(r.r1 > 40) add(r.x, r.y, Math.min(260, r.r1 * 0.8), 0.6 * r.life / r.max);
+  for(const p of FX.parts) if(p.size > 12 && !p.chunk && !p.dust) add(p.x, p.y, p.size * 2.5, p.life / p.max);
+  for(const c of FX.clouds) add(c.x, c.y, c.r * 1.3, 0.35);
+  for(const d of FX.decals) if(d.kind === 'rune') add(d.x, d.y, d.r * 2, 0.8 * d.life / d.max);
+  for(const s of A) add(s.x, s.y, s.giant || s.kind === 'bonedragon' ? 70 : 32, 0.45);
+  for(const L of FX.loot) add(L.x, L.y, 55, 0.85);
+  for(const m of FX.amb) if(m.k === 0 || m.k === 3 || m.k === 4) add(m.x, m.y - m.h * UPR, 24, 0.55);
+  for(const e of E) if(!e.dead && (e.boss || e.type === 'imp' || e.type === 'eye' || e.type === 'hound' || (e.type === 'golem' && e.pal.a === '#ff7a2a'))) add(e.x, e.y, e.boss ? 130 : 42, 0.55);
+  if(R.pet) add(R.pet.x, R.pet.y, 40, 0.4);
+}
+function drawLightmap(zi){
+  const lw = Math.ceil(W / 2), lh = Math.ceil(H / 2);
+  if(LM.width !== lw || LM.height !== lh){ LM.width = lw; LM.height = lh; }
+  LMX.globalCompositeOperation = 'copy'; LMX.globalAlpha = 1; LMX.fillStyle = AMBIENT[zi]; LMX.fillRect(0, 0, lw, lh);
+  LMX.globalCompositeOperation = 'destination-out';
+  const spr = lightSprite();
+  for(let i = 0; i < LIGHTS.length; i += 4){
+    const sx = (W * HERO_SX + LIGHTS[i] * K) / 2, sy = (H * CY + LIGHTS[i + 1] * TILT * K) / 2, r = LIGHTS[i + 2] * K / 2;
+    LMX.globalAlpha = Math.min(1, LIGHTS[i + 3]); LMX.drawImage(spr, sx - r, sy - r * 0.78, r * 2, r * 1.56);
+  }
+  LMX.globalAlpha = 1; LMX.globalCompositeOperation = 'source-over';
+  ctx.drawImage(LM, 0, 0, W, H);
+}
+// ---- bloom: a tiny, blurred copy of the frame raised to a power (only brights survive) added back on top ----
+const BL = document.createElement('canvas'), BLX = BL.getContext('2d');
+const canFilter = 'filter' in BLX;
+function drawBloom(zi){
+  const bw = Math.max(1, Math.ceil(W / 5)), bh = Math.max(1, Math.ceil(H / 5));
+  if(BL.width !== bw || BL.height !== bh){ BL.width = bw; BL.height = bh; }
+  BLX.globalCompositeOperation = 'copy'; BLX.globalAlpha = 1;
+  if(canFilter) BLX.filter = 'blur(1.5px)';
+  BLX.drawImage(cv, 0, 0, bw, bh);
+  if(canFilter) BLX.filter = 'none';
+  BLX.globalCompositeOperation = 'multiply'; BLX.drawImage(BL, 0, 0); BLX.drawImage(BL, 0, 0);
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = zi >= 3 ? 0.75 : 0.45; ctx.drawImage(BL, 0, 0, W, H); ctx.restore();
+}
 const groundCache = new Map();
 function groundPattern(i){
   if(groundCache.has(i)) return groundCache.get(i);
-  const z = ZONES[i], c = document.createElement('canvas'); c.width = c.height = 160;
+  const z = ZONES[i], c = document.createElement('canvas'), T = 320; c.width = c.height = T;
   const g = c.getContext('2d');
-  g.fillStyle = z.base; g.fillRect(0, 0, 160, 160);
+  g.fillStyle = z.base; g.fillRect(0, 0, T, T);
+  { let sd = i * 31 + 5; const rn = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
+    for(let k = 0; k < 14; k++){ const x = rn() * T, y = rn() * T, r = 30 + rn() * 70, light = rn() < 0.5;
+      for(const ox of [-T, 0, T]) for(const oy of [-T, 0, T]){ const gr = g.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, r);
+        gr.addColorStop(0, light ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.14)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x + ox - r, y + oy - r, r * 2, r * 2); } } }
   let seed = i * 999 + 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  for(let k = 0; k < 140; k++){
-    const x = rnd()*160, y = rnd()*160;
+  for(let k = 0; k < 520; k++){
+    const x = rnd()*T, y = rnd()*T;
     g.fillStyle = rnd() < 0.5 ? z.a : z.b;
     if(z.kind === 'grass'){ g.fillRect(x, y, 2, 5); g.fillRect(x+3, y+1, 2, 4); }
     else if(z.kind === 'sand'){ g.globalAlpha = 0.5; g.fillRect(x, y, 6, 1.5); g.globalAlpha = 1; }
@@ -2635,6 +2703,11 @@ function render(now){
   let sx = 0, sy = 0; if(R.shake > 0){ const m = Math.min(R.shake, 0.6) * 22; sx = rand(-m, m); sy = rand(-m, m); }
   const zi = zoneIdx(S.stage);
   ctx.drawImage(backdrop(zi), sx * 0.3, sy * 0.3, W, Math.ceil(H * HORIZON) + 3);
+  if(zi >= 3){ // twinkling stars
+    ctx.globalCompositeOperation = 'lighter';
+    for(let i = 0; i < 18; i++){ const x = (i * 137.5 % 1) * W + (i * 53 % W), y = ((i * 71) % 100) / 100 * H * HORIZON * 0.85, a = 0.5 + 0.5 * Math.sin(t * (1.5 + i % 4) + i);
+      ctx.globalAlpha = a; ctx.drawImage(glow(zi === 3 ? '#ffb070' : '#e0c0ff'), (x % W) - 4, y - 4, 8, 8); }
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; }
   if(zi <= 2){ // drifting clouds
     ctx.fillStyle = zi === 1 ? 'rgba(255,240,220,.45)' : 'rgba(255,255,255,.55)';
     for(let i = 0; i < 4; i++){ const cx = ((t * (6 + i*2) + i * W * 0.37) % (W + 120)) - 60, cy = H * HORIZON * (0.2 + 0.15 * i);
@@ -2680,6 +2753,11 @@ function render(now){
     ctx.strokeStyle = `rgba(255,80,90,${0.5 + 0.5*Math.sin(t*20)})`; ctx.lineWidth = 2; circ(ctx, T.x, T.y, T.r); ctx.stroke();
     ctx.fillStyle = 'rgba(255,60,80,.35)'; circ(ctx, T.x, T.y, T.r * p); ctx.fill();
   }
+  if(zi >= 3){ // drifting ground mist / smoke
+    const mc = zi === 3 ? '#5a1a10' : '#4a2a8a';
+    for(let i = 0; i < 7; i++){ const x = VX0 + ((t * (8 + i * 2) + i * 97) % (VX1 - VX0 + 160)) - 80, y = -HH + ((i * 61) % 100) / 100 * HH * 2, r = 70 + (i % 3) * 30;
+      ctx.globalAlpha = 0.22; ctx.drawImage(glow(mc), x - r * 1.6, y - r, r * 3.2, r * 2); }
+    ctx.globalAlpha = 1; }
   // poison clouds
   for(const c of FX.clouds){
     const a = Math.min(1, c.life, (c.max - c.life) * 4);
@@ -2930,6 +3008,17 @@ function render(now){
   ctx.globalAlpha = 1;
   ctx.restore();
 
+  // ---- lighting + bloom ----
+  if(!S.lowFx){ collectLights(); drawLightmap(zoneIdx(S.stage)); }
+  if(!S.lowFx && zoneIdx(S.stage) <= 2){ // sun god-rays from the top right
+    const zi2 = zoneIdx(S.stage), col = ['#fff3c0', '#ffe0a0', '#e8f4ff'][zi2];
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.translate(W * 0.82, -H * 0.05);
+    for(let i = 0; i < 6; i++){ const a = 1.95 + i * 0.13 + Math.sin(R.time * 0.3 + i) * 0.03, len = H * 1.6, w = 18 + (i % 3) * 14;
+      const g2 = ctx.createLinearGradient(0, 0, Math.cos(a) * len, Math.sin(a) * len); g2.addColorStop(0, col); g2.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.globalAlpha = 0.07 + 0.03 * Math.sin(R.time * 0.7 + i * 1.7); ctx.fillStyle = g2;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a - 0.03) * len, Math.sin(a - 0.03) * len); ctx.lineTo(Math.cos(a + 0.03) * len + w, Math.sin(a + 0.03) * len); ctx.closePath(); ctx.fill(); }
+    ctx.restore(); }
+  if(!S.lowFx) drawBloom(zoneIdx(S.stage));
   // ---- screen-space overlay ----
   const vg = ctx.createRadialGradient(W/2, H/2, Math.min(W, H)*0.35, W/2, H/2, Math.max(W, H)*0.75);
   vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.55)');
@@ -3132,6 +3221,8 @@ function renderPanel(){
       <b>iPhone:</b> open this page in Safari → Share → <i>Add to Home Screen</i>.<br>
       <b>Android:</b> open in Chrome → ⋮ menu → <i>Install app</i> / <i>Add to Home screen</i>.<br>
       It works offline, it's 100% free, and your progress saves on your device.</div>
+      <div class="card"><h3>🎨 Graphics</h3>High adds dynamic lighting, bloom and sun rays. Use Low if your phone gets hot or laggy.
+      <div class="spendrow" style="margin-top:8px"><button data-fx="high" class="${S.lowFx ? '' : 'active'}">High</button><button data-fx="low" class="${S.lowFx ? 'active' : ''}">Low</button></div></div>
       <div class="card"><h3>⚠️ Danger zone</h3>Wipe all progress and start over.
       <button class="btn danger" id="wipeBtn">Reset save</button></div>`;
   }
@@ -3288,7 +3379,9 @@ document.addEventListener('click', ev => {
     const u = UPG.find(x => x.id === t.dataset.buy), {n, cost, maxed} = buyPlan(u);
     if(maxed || S.gold < cost || n === 0) return;
     const hpFrac = R.hp / maxHp();
-    S.gold -= cost; S.up[u.id] = up(u.id) + n;
+    S.gold -= cost;
+    if(u.id === 'mtome'){ S.mtomes = up('mtome') + n; mast().pts += n; toast(`📗 +${n} ${cls().n} Mastery point${n > 1 ? 's' : ''}`); }
+    else { S.up[u.id] = up(u.id) + n; if(u.id === 'tome'){ S.sp += n; toast(`📕 +${n} skill point${n > 1 ? 's' : ''}`); } }
     if(u.id === 'hp') R.hp = hpFrac * maxHp();
     updatePanel(); persist(); return;
   }
@@ -3364,6 +3457,7 @@ document.addEventListener('click', ev => {
     } else { toast(name); burst(R.hx, R.hy, 24, '#5be3d8', 120, 3); }
     renderPanel(); persist(); return;
   }
+  if(t.dataset.fx){ S.lowFx = t.dataset.fx === 'low'; toast(S.lowFx ? '🎨 Graphics: Low' : '🎨 Graphics: High'); renderPanel(); persist(); return; }
   if(t.dataset.smart){ S.smartOff = t.dataset.smart === 'off'; toast(S.smartOff ? '🧠 Smart casting OFF' : '🧠 Smart casting ON: big skills saved for bosses & danger'); renderPanel(); persist(); return; }
   if(t.dataset.spend){ S.spendAmt = t.dataset.spend; renderPanel(); persist(); return; }
   if(t.dataset.paragon){
@@ -3536,6 +3630,7 @@ let lastT = performance.now(), uiT = 0, saveT = 0;
 function frame(now){
   let dt = (now - lastT) / 1000; lastT = now;
   if(dt > 1) dt = 1;          // big gaps are handled by offline progress
+  if(R.hitstop > 0){ R.hitstop -= dt; dt *= 0.15; } // impact freeze on huge hits
   let steps = Math.ceil(dt / 0.02); const h = dt / steps;
   while(steps--) tick(h);
   render(now / 1000);
