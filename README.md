@@ -10,6 +10,8 @@ A free top-down idle RPG for your phone. Your hero fights on their own: you coll
 - **5 zones, each with its own monsters:** Meadow (slimes, wolves, goblins, bats), Desert (scorpions, mummies, skeleton archers, sandstone golems), Frozen Peaks (ice wolves, yetis, ice wraiths, skeletons), Molten Core (hellhounds, fire imps, lava golems, fire bats), The Void (eyeballs, shadow knights, void wraiths, bone guards). Archers, wraiths, imps and eyes shoot at you from range.
 - **Unique bosses every 10th stage** (30s to win): Slime King (summons), Scorpion Queen (poison volleys), Frost Giant (telegraphed ground slams), Inferno Dragon (fire breath), Void Lord (slams + summons).
 - **Tap anywhere in the arena** to blast enemies in that area.
+- **Boss focus:** on boss stages your hero, powers, pets and summons all prioritise the boss (marked with a red reticle).
+- **🧠 Smart casting** (toggle in the Powers tab): big long-cooldown skills (Berserk, Blood Surge, Bone Dragon, Fusion², Fusion³, Ultimates) are saved until a boss appears or you're in danger (under 50% HP or surrounded), then unleashed together.
 - **Upgrades (gold):** Attack, HP, Attack Speed, Crit, Regen, Tap Damage, Greed, **Wisdom** (+XP for hero & class mastery) and **Focus** (-cooldowns). You can buy x1, x10, or Max.
 - **16 Powers (2 skill points per hero level, +3 bonus every 10th level, +2 per boss).** Each levels up to 10 and then **EVOLVES** (new: Blood Surge → Crimson Tide, a life-pouring berserk that hits harder the more HP you have; Summon Spirits → Spirit Legion; Tornado → Hurricane; Solar Flare → Supernova):
   Fireball → Meteor Storm, Chain Lightning → Thunder God, Orbit Blades → Blade Storm, Frost Nova → Absolute Zero,

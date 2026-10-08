@@ -904,7 +904,11 @@ function nearest(x = R.hx, y = R.hy, exclude, maxD = Infinity){
   for(const e of E){ if(e.dead || (exclude && exclude.has(e))) continue; const d = Math.hypot(e.x - x, e.y - y); if(d < bd){ bd = d; best = e; } }
   return best;
 }
-function cluster(){ // the on-screen enemy with the most neighbours (best AoE target)
+// Boss focus: on boss stages everything prioritises the boss once it is on screen.
+const held = big => big && !R.unleash; // smart casting: hold big skills until a boss or danger
+function bossE(){ for(const e of E) if(e.boss && !e.dead && e.x < VX1 + 10) return e; return null; }
+function cluster(){
+  { const b = bossE(); if(b) return b; } // the on-screen enemy with the most neighbours (best AoE target)
   let best = null, bn = -1;
   for(const e of E){ if(e.dead || e.x > VX1 || Math.abs(e.y) > HH) continue;
     let n = 0; for(const o of E) if(!o.dead && Math.hypot(o.x - e.x, o.y - e.y) < 60) n++;
@@ -922,7 +926,7 @@ const clampY = y => Math.max(-HH + 14, Math.min(HH - 14, y));
 
 // ---------- hero: movement + basic attack ----------
 function heroUpdate(dt){
-  const w = wtype(), t = nearest();
+  const w = wtype(), t = bossE() || nearest();
   R.atkT = Math.min(R.atkT + dt * aps(), 3);
   let tx = 0, ty = 0, walk = false;
   if(t){
@@ -1113,7 +1117,7 @@ function castClassSkill(id){
   const live = alive(), hx = R.hx, hy = R.hy, l = sk(id);
   if(!live.length) return false;
   if(id === 'bonespear'){
-    const t = nearest(), a0 = Math.atan2(t.y - hy, t.x - hx), n = 1 + Math.floor(l / 4);
+    const t = bossE() || nearest(), a0 = Math.atan2(t.y - hy, t.x - hx), n = 1 + Math.floor(l / 4);
     for(let i = 0; i < n; i++) FX.projs.push({kind:'bone', x:hx, y:hy, a:a0 + (i - (n - 1)/2) * 0.18, spd:430, dmg:pDmg(2 + 0.5*l), pierce:99, hit:new Set(), life:0.9, c:'#efe6d0'});
     return true;
   }
@@ -1136,7 +1140,7 @@ function castClassSkill(id){
     return true;
   }
   if(id === 'reaper'){
-    const t = nearest(), a = Math.atan2(t.y - hy, t.x - hx), r = 150 * aoeMul(), dmg = pDmg(4 + 1.2*l);
+    const t = bossE() || nearest(), a = Math.atan2(t.y - hy, t.x - hx), r = 150 * aoeMul(), dmg = pDmg(4 + 1.2*l);
     let hits = 0;
     FX.scythes.push({x:hx, y:hy, a, r, life:0.55, max:0.55});
     for(const e of E){ if(e.dead) continue; const d = Math.hypot(e.x - hx, e.y - hy);
@@ -1323,7 +1327,7 @@ function castPower(id){
     return true;
   }
   if(id === 'beam'){
-    const t = nearest(), base = Math.atan2(t.y - hy, t.x - hx), n = ev ? 6 : 1;
+    const t = bossE() || nearest(), base = Math.atan2(t.y - hy, t.x - hx), n = ev ? 6 : 1;
     const w = (10 + 1.2*l) * aoeMul() * (ev ? 1.5 : 1), dmg = pDmg(3 + l);
     for(let i = 0; i < n; i++){
       const a = base + (i - (n - 1) / 2) * 0.32, cx = Math.cos(a), cy = Math.sin(a);
@@ -1383,7 +1387,7 @@ function castPower(id){
 }
 function chainLightning(mult, n, ev, fx = R.hx, fy = R.hy, quiet = false){
   const dmg = pDmg(mult), hit = new Set();
-  let px = fx, py = fy, t = nearest(px, py);
+  let px = fx, py = fy, t = (fx === R.hx && fy === R.hy && bossE()) || nearest(px, py);
   for(let i = 0; i < n && t; i++){
     hit.add(t);
     FX.bolts.push({pts:jag(px, py, t.x, t.y), life:0.3, max:0.3, w: ev ? 4 : 3});
@@ -1458,7 +1462,7 @@ function updatePet(dt){
   const m = petMul(), base = atk() * m, hx = R.hx, hy = R.hy, t = R.time;
   P.atkT += dt; P.lunge = Math.max(0, P.lunge - dt); P.breath = Math.max(0, P.breath - dt);
   const home = () => { const [sx, sy] = petSpot(); const d = moveTo(P, hx + sx, hy + sy + Math.sin(t*3)*3, 140, dt); if(d > 2) P.ph += dt * 10; };
-  const tgt = nearest(P.x, P.y, null, 260);
+  const tgt = bossE() || nearest(P.x, P.y, null, 260);
   if(tgt) P.face = turnTo(P.face, Math.atan2(tgt.y - P.y, tgt.x - P.x), dt * 10);
   if(S.pet === 'wolf'){
     if(tgt && tgt.x < VX1){
@@ -1531,7 +1535,7 @@ function updateAllies(dt){
       if(s.life <= 0) burst(s.x, s.y, 40, '#5aff8a', 120, 4);
       continue;
     }
-    const t = nearest(s.x, s.y);
+    const t = bossE() || nearest(s.x, s.y);
     if(t && t.x < VX1){
       s.face = turnTo(s.face, Math.atan2(t.y - s.y, t.x - s.x), dt * 10);
       const d = Math.hypot(t.x - s.x, t.y - s.y);
@@ -1843,6 +1847,9 @@ function tick(dt){
     }
   }
 
+  // ---- smart casting: big skills are held for bosses or danger ----
+  { let near = 0; for(const e of E) if(!e.dead && Math.hypot(e.x - R.hx, e.y - R.hy) < 110) near++;
+    R.unleash = S.smartOff || !!bossE() || R.hp < maxHp() * 0.5 || near >= 7; }
   // ---- signature + powers auto-cast ----
   { const full = sigCd();
     R.cd.sig = Math.min(R.cd.sig ?? full, full) - dt;
@@ -1851,21 +1858,21 @@ function tick(dt){
     if(!p.cd || !pw(p.id)) continue;
     const full = p.cd(pw(p.id)) * cdMul() * (p.id === 'blood' && mz('crimson') ? 0.5 : 1);
     R.cd[p.id] = Math.min(R.cd[p.id] ?? full, full) - dt;
-    if(R.cd[p.id] <= 0) R.cd[p.id] = castPower(p.id) ? full : 0;
+    if(R.cd[p.id] <= 0) R.cd[p.id] = !held(p.id === 'rage' || p.id === 'blood') && castPower(p.id) ? full : 0;
     if(R.dead > 0) return;
   }
   for(const k of CSK[S.cls]){
     if(!k.cd || !sk(k.id)) continue;
     const key = 'sk_' + k.id, full = k.cd * cdMul();
     R.cd[key] = Math.min(R.cd[key] ?? Math.min(full, 2), full) - dt;
-    if(R.cd[key] <= 0) R.cd[key] = castClassSkill(k.id) ? full : 0;
+    if(R.cd[key] <= 0) R.cd[key] = !held(k.id === 'bonedragon') && castClassSkill(k.id) ? full : 0;
   }
   { const T = ctier();
     for(const [d, L] of [[T.f[0], cfz(T.f[0])], [T.f[1], cfz(T.f[1])], [T.f2, cf2Lv()], [T.ult, cultLv()]]){
       if(!L) continue;
       const key = 'ct_' + d.id, full = d.cd * cdMul();
       R.cd[key] = Math.min(R.cd[key] ?? Math.min(full, 2), full) - dt;
-      if(R.cd[key] <= 0) R.cd[key] = castClassTier(d.id, L) ? full : 0;
+      if(R.cd[key] <= 0) R.cd[key] = !held(d === T.f2 || d === T.ult) && castClassTier(d.id, L) ? full : 0;
     }
     if(R.cbuff && R.cbuff.t > 0) R.cbuff.t -= dt;
     if(R.devour && R.devour.t > 0) R.devour.t -= dt; }
@@ -1879,18 +1886,18 @@ function tick(dt){
     if(!g.cd || !mz(g.id)) continue;
     const key = 'mz_' + g.id, full = g.cd * cdMul();
     R.cd[key] = Math.min(R.cd[key] ?? Math.min(full, 3), full) - dt;
-    if(R.cd[key] <= 0) R.cd[key] = castMega(g.id) ? full : 0;
+    if(R.cd[key] <= 0) R.cd[key] = !held(true) && castMega(g.id) ? full : 0;
   }
   if(ultLv()){
     const full = Math.max(12, 30 - 0.4 * ultLv()) * cdMul();
     R.cd.ult = Math.min(R.cd.ult ?? Math.min(full, 4), full) - dt;
-    if(R.cd.ult <= 0) R.cd.ult = castUltimate() ? full : 0;
+    if(R.cd.ult <= 0) R.cd.ult = !held(true) && castUltimate() ? full : 0;
   }
   if(FX.bigbang) FX.bigbang.t += dt;
   if(omegaLv()){
     const full = OMEGA.cd * cdMul();
     R.cd.omega = Math.min(R.cd.omega ?? Math.min(full, 5), full) - dt;
-    if(R.cd.omega <= 0) R.cd.omega = castOmega() ? full : 0;
+    if(R.cd.omega <= 0) R.cd.omega = !held(true) && castOmega() ? full : 0;
   }
 
   // ---- boss timer ----
@@ -2661,6 +2668,11 @@ function render(now){
       ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = '#ff7a2a'; ctx.lineWidth = 1; ctx.globalAlpha = a * 0.6; ctx.stroke(); ctx.globalCompositeOperation = 'source-over'; }
   }
   ctx.globalAlpha = 1;
+  { const b = bossE(); if(b){ // target reticle on the focused boss
+    ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(t * 1.2); ctx.strokeStyle = 'rgba(255,60,90,.85)'; ctx.lineWidth = 2.5; ctx.setLineDash([10, 7]);
+    circ(ctx, 0, 0, b.r * 1.45); ctx.stroke(); ctx.setLineDash([]);
+    for(let i = 0; i < 4; i++){ const a = i * Math.PI / 2; line(ctx, Math.cos(a) * b.r * 1.25, Math.sin(a) * b.r * 1.25, Math.cos(a) * b.r * 1.75, Math.sin(a) * b.r * 1.75); }
+    ctx.restore(); } }
   // boss slam warnings
   for(const T of FX.tele){
     const p = T.t / T.dur;
@@ -2931,14 +2943,14 @@ function render(now){
   if(R.hurt > 0){ ctx.globalAlpha = R.hurt * 2; ctx.strokeStyle = '#ff2a4a'; ctx.lineWidth = 10; ctx.strokeRect(0, 0, W, H); ctx.globalAlpha = 1; }
 
   ctx.textAlign = 'center';
-  const bossE = E.find(e => e.boss && !e.dead);
+  const bossEnt = E.find(e => e.boss && !e.dead);
   if(isBoss(S.stage) && R.dead <= 0 && !(R.pendingStage > 0)){
     const bw = Math.min(W - 24, 260), bx = (W - bw)/2;
     ctx.fillStyle = '#000b'; rr(bx, 8, bw, 34, 10); ctx.fill();
     ctx.font = '800 12px system-ui'; ctx.fillStyle = R.bossT < 8 ? '#ff5d73' : '#ffcf4a';
     ctx.fillText(`👑 ${BOSSES[zoneIdx(S.stage)].n}  ·  ${Math.max(0, R.bossT).toFixed(1)}s`, W/2, 22);
     ctx.fillStyle = '#3a1020'; ctx.fillRect(bx + 8, 28, bw - 16, 7);
-    if(bossE){ ctx.fillStyle = '#ff3b6b'; ctx.fillRect(bx + 8, 28, (bw - 16) * Math.max(0, bossE.hp / bossE.maxHp), 7); }
+    if(bossEnt){ ctx.fillStyle = '#ff3b6b'; ctx.fillRect(bx + 8, 28, (bw - 16) * Math.max(0, bossEnt.hp / bossEnt.maxHp), 7); }
   }
   if(R.banner > 0){
     const a = Math.min(1, R.banner * 2, (1.8 - R.banner) * 4);
@@ -2953,13 +2965,13 @@ function render(now){
   // signature + power cooldown icons
   let ix = 8, iy;
   const icons = [{icon:cls().icon, full:sigCd(), cd:R.cd.sig, sig:true, ev:sk('sig') >= SK_MAX}];
-  for(const k of CSK[S.cls]) if(k.cd && sk(k.id)) icons.push({icon:k.icon, full:k.cd * cdMul(), cd:R.cd['sk_' + k.id], sig:true});
-  { const T = ctier(); for(const [d, L] of [[T.f[0], cfz(T.f[0])], [T.f[1], cfz(T.f[1])], [T.f2, cf2Lv()], [T.ult, cultLv()]]) if(L) icons.push({icon:d.icon, full:d.cd * cdMul(), cd:R.cd['ct_' + d.id], ult:d === T.ult, mega:d === T.f2, fusion:true}); }
-  for(const p of PW) if(p.cd && pw(p.id)) icons.push({icon:evo(p.id) ? p.eicon : p.icon, full:p.cd(pw(p.id)) * cdMul(), cd:R.cd[p.id], ev:evo(p.id), rage:(p.id === 'rage' && R.rage > 0) || (p.id === 'blood' && R.blood > 0)});
+  for(const k of CSK[S.cls]) if(k.cd && sk(k.id)) icons.push({icon:k.icon, full:k.cd * cdMul(), cd:R.cd['sk_' + k.id], sig:true, hold:k.id === 'bonedragon'});
+  { const T = ctier(); for(const [d, L] of [[T.f[0], cfz(T.f[0])], [T.f[1], cfz(T.f[1])], [T.f2, cf2Lv()], [T.ult, cultLv()]]) if(L) icons.push({icon:d.icon, full:d.cd * cdMul(), cd:R.cd['ct_' + d.id], ult:d === T.ult, mega:d === T.f2, fusion:true, hold:d === T.ult || d === T.f2}); }
+  for(const p of PW) if(p.cd && pw(p.id)) icons.push({icon:evo(p.id) ? p.eicon : p.icon, full:p.cd(pw(p.id)) * cdMul(), cd:R.cd[p.id], ev:evo(p.id), rage:(p.id === 'rage' && R.rage > 0) || (p.id === 'blood' && R.blood > 0), hold:p.id === 'rage' || p.id === 'blood'});
   for(const f of FUSIONS) if(f.cd && fz(f.id)) icons.push({icon:f.icon, full:f.cd * cdMul(), cd:R.cd['fz_' + f.id], fusion:true});
-  for(const g of MEGAS) if(g.cd && mz(g.id)) icons.push({icon:g.icon, full:g.cd * cdMul(), cd:R.cd['mz_' + g.id], mega:true});
-  if(omegaLv()) icons.push({icon:OMEGA.icon, full:OMEGA.cd * cdMul(), cd:R.cd.omega, mega:true});
-  if(ultLv()) icons.unshift({icon:ULT.icon, full:Math.max(12, 30 - 0.4 * ultLv()) * cdMul(), cd:R.cd.ult, ult:true});
+  for(const g of MEGAS) if(g.cd && mz(g.id)) icons.push({icon:g.icon, full:g.cd * cdMul(), cd:R.cd['mz_' + g.id], mega:true, hold:true});
+  if(omegaLv()) icons.push({icon:OMEGA.icon, full:OMEGA.cd * cdMul(), cd:R.cd.omega, mega:true, hold:true});
+  if(ultLv()) icons.unshift({icon:ULT.icon, full:Math.max(12, 30 - 0.4 * ultLv()) * cdMul(), cd:R.cd.ult, ult:true, hold:true});
   const Z = icons.length > 9 ? 22 : 30; iy = H - Z - 8;
   for(const ic of icons){
     const frac = Math.max(0, Math.min(1, (ic.cd ?? ic.full) / ic.full));
@@ -2967,6 +2979,9 @@ function render(now){
     if(ic.ev || ic.sig || ic.fusion || ic.mega || ic.ult){ ctx.strokeStyle = ic.ult ? '#ffffff' : ic.mega ? '#ff6ad5' : ic.fusion ? '#5be3d8' : ic.sig ? '#a77bff' : '#ffcf4a'; ctx.lineWidth = 2; rr(ix, iy, Z, Z, 7); ctx.stroke(); }
     ctx.font = `${Math.round(Z*0.53)}px system-ui`; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff'; ctx.fillText(ic.icon, ix + Z/2, iy + Z/2 + 1);
     if(frac > 0){ ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(ix, iy + Z*(1 - frac), Z, Z*frac); }
+    if(ic.hold && !R.unleash && !((ic.cd ?? ic.full) > 0)){ // ready but held in reserve
+      ctx.globalAlpha = 0.55 + 0.45 * Math.sin(R.time * 5); ctx.strokeStyle = '#ffcf4a'; ctx.lineWidth = 2.5; rr(ix - 1, iy - 1, Z + 2, Z + 2, 8); ctx.stroke(); ctx.globalAlpha = 1;
+      ctx.fillStyle = '#ffcf4a'; ctx.font = `900 ${Math.round(Z * 0.32)}px system-ui`; ctx.fillText('⏸', ix + Z - Z*0.18, iy + Z*0.2); }
     if(ic.rage){ ctx.strokeStyle = '#ff7a45'; ctx.lineWidth = 2; rr(ix, iy, Z, Z, 7); ctx.stroke(); }
     ix += Z + 3;
     if(ix > W - Z - 8){ ix = 8; iy -= Z + 3; }
@@ -3035,7 +3050,7 @@ function renderPanel(){
       <div class="ds" data-desc="${u.id}"></div></div>
       <button class="buy" data-buy="${u.id}"></button></div>`).join('');
   } else if(tab === 'pow'){
-    P.innerHTML = `<div class="spendrow">Spend points: <button data-spend="1" class="${S.spendAmt === 'max' ? '' : 'active'}">x1</button><button data-spend="max" class="${S.spendAmt === 'max' ? 'active' : ''}">Max</button></div><div class="card" style="padding:10px 14px;font-size:13px">Spend <b>Skill Points</b> (from hero levels &amp; bosses) to learn and upgrade powers. At <b style="color:var(--gold)">Lv ${PW_MAX}</b> a power <b style="color:var(--gold)">EVOLVES</b> into something far stronger.</div>` +
+    P.innerHTML = `<div class="spendrow">🧠 Smart casting: <button data-smart="on" class="${S.smartOff ? '' : 'active'}">ON</button><button data-smart="off" class="${S.smartOff ? 'active' : ''}">OFF</button><span style="font-size:11px">${S.smartOff ? 'big skills fire as soon as ready' : 'big skills wait for bosses or danger'}</span></div><div class="spendrow">Spend points: <button data-spend="1" class="${S.spendAmt === 'max' ? '' : 'active'}">x1</button><button data-spend="max" class="${S.spendAmt === 'max' ? 'active' : ''}">Max</button></div><div class="card" style="padding:10px 14px;font-size:13px">Spend <b>Skill Points</b> (from hero levels &amp; bosses) to learn and upgrade powers. At <b style="color:var(--gold)">Lv ${PW_MAX}</b> a power <b style="color:var(--gold)">EVOLVES</b> into something far stronger.</div>` +
       `<div class="sec"><span>⚗️ Fusions</span></div><div class="card" style="padding:10px 14px;font-size:12px;color:var(--dim)">When two linked powers both reach <b style="color:var(--text)">Lv ${FUSE_MIN}</b> they <b style="color:#5be3d8">FUSE</b> into a new power. Keep them at the <b style="color:var(--gold)">same level</b> for a ⚖️ <b style="color:var(--gold)">Parity ×1.5</b> bonus! Once both powers are Lv ${PW_MAX}, upgrade the fusion itself up to <b style="color:var(--text)">Lv ${FZ_MAX}</b>. Each tier fuses again: Fusion² → Fusion³ → <b style="color:#fff">Fusion⁴ Ultimate</b>.</div><div id="fusionList"></div><div class="sec"><span>🌌 Fusion² · Mega</span></div><div class="card" style="padding:10px 14px;font-size:12px;color:var(--dim)">Fusions on top of fusions! When two linked <b style="color:#5be3d8">fusions</b> both reach <b style="color:var(--text)">Lv ${MEGA_MIN}</b> they fuse into a <b style="color:#ff6ad5">Mega Fusion</b> (equal levels = ⚖️ ×1.5). Any <b style="color:var(--text)">${OMEGA.need}</b> Mega Fusions unleash the <b style="color:#ffcf4a">Ω Omega</b>.</div><div id="megaList"></div><div class="sec"><span>✨ Powers</span></div>` +
       PW.map(p => `<div class="item" data-pwrow="${p.id}"><div class="ic">${p.icon}</div>
       <div class="info"><div class="nm"><span data-pwname></span><small data-pwlv></small></div>
@@ -3349,6 +3364,7 @@ document.addEventListener('click', ev => {
     } else { toast(name); burst(R.hx, R.hy, 24, '#5be3d8', 120, 3); }
     renderPanel(); persist(); return;
   }
+  if(t.dataset.smart){ S.smartOff = t.dataset.smart === 'off'; toast(S.smartOff ? '🧠 Smart casting OFF' : '🧠 Smart casting ON: big skills saved for bosses & danger'); renderPanel(); persist(); return; }
   if(t.dataset.spend){ S.spendAmt = t.dataset.spend; renderPanel(); persist(); return; }
   if(t.dataset.paragon){
     const m = mast(); if(!classMaxed() || m.pts < 1) return;
@@ -3454,9 +3470,9 @@ document.addEventListener('click', ev => {
 function updateHud(){
   $('gold').textContent = fmt(S.gold);
   $('souls').textContent = fmt(S.souls);
-  const boss = isBoss(S.stage), bossE = E.find(e => e.boss);
+  const boss = isBoss(S.stage), bossEnt = E.find(e => e.boss);
   $('stageTxt').textContent = `Stage ${S.stage} · ${zoneName(S.stage)}`;
-  $('stageFill').style.width = (boss ? (bossE ? (1 - Math.max(0, bossE.hp)/bossE.maxHp) : 0) : S.kills / ENEMIES_PER_STAGE) * 100 + '%';
+  $('stageFill').style.width = (boss ? (bossEnt ? (1 - Math.max(0, bossEnt.hp)/bossEnt.maxHp) : 0) : S.kills / ENEMIES_PER_STAGE) * 100 + '%';
   $('stageSub').textContent = boss ? `👑 ${BOSSES[zoneIdx(S.stage)].n}: beat it in 30s!` : `${S.kills}/${ENEMIES_PER_STAGE} enemies` + (S.farm ? ' · farming' : '');
   const fb = $('farmBtn');
   fb.className = S.farm ? 'off' : 'on';
