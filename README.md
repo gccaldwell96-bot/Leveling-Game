@@ -6,7 +6,7 @@ A free top-down idle RPG for your phone. Your hero fights on their own: you coll
 
 ## How to play
 
-- **Angled 3D arena** with a themed horizon for every zone, dynamic lighting (every fireball, beam and summon lights up the night zones), bloom, sun rays, drifting mist and hit-stop on huge impacts (Graphics High/Low toggle in Stats). Your hero holds the left side and charges into the waves coming from the right. Every 10 enemies clears a stage.
+- **Angled 3D arena** with a themed horizon for every zone, dynamic lighting (every fireball, beam and summon lights up the night zones), bloom, sun rays, drifting mist and hit-stop on huge impacts (Graphics High/Low toggle in Stats). Your hero holds the left side and charges into the waves coming from the right. Every character is **16-bit pixel art** with walk, idle and attack animations: your hero shows your armor, weapon, headgear, cape and class gear, and every enemy, boss, pet and summon has its own sprite. Every 10 enemies clears a stage.
 - **5 zones, each with its own monsters:** Meadow (slimes, wolves, goblins, bats), Desert (scorpions, mummies, skeleton archers, sandstone golems), Frozen Peaks (ice wolves, yetis, ice wraiths, skeletons), Molten Core (hellhounds, fire imps, lava golems, fire bats), The Void (eyeballs, shadow knights, void wraiths, bone guards). Archers, wraiths, imps and eyes shoot at you from range.
 - **Unique bosses every 10th stage** (30s to win): Slime King (summons), Scorpion Queen (poison volleys), Frost Giant (telegraphed ground slams), Inferno Dragon (fire breath), Void Lord (slams + summons).
 - **Tap anywhere in the arena** to blast enemies in that area.
