@@ -1,0 +1,980 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#16122a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Derby Dynasty">
+<title>Derby Dynasty</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root{
+    --bg:#16122a; --panel:#211c3c; --card:#2b254f; --card2:#363061; --line:#3e3872;
+    --text:#f4f0ff; --dim:#a8a0d0; --cash:#7dff9a; --gold:#ffd24a; --fame:#ff9ad8; --bad:#ff5d73; --good:#5be38a; --accent:#ffb347;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overscroll-behavior:none;user-select:none;-webkit-user-select:none}
+  #app{max-width:520px;margin:0 auto;height:100%;display:flex;flex-direction:column;
+    padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+  button{font:inherit;color:inherit;border:0;cursor:pointer}
+  #top{display:flex;align-items:center;gap:6px;padding:8px 12px 6px;flex-wrap:wrap}
+  .chip{background:var(--panel);padding:5px 9px;border-radius:999px;font-weight:800;font-size:12.5px;white-space:nowrap}
+  #cash{color:var(--cash);font-size:15px}
+  #fame{color:var(--fame)}
+  #date{margin-left:auto;color:var(--gold)}
+  #sceneWrap{position:relative;margin:0 12px;border-radius:14px;overflow:hidden;background:#000;touch-action:manipulation}
+  #scene{display:block;width:100%;image-rendering:pixelated}
+  #sceneBtns{position:absolute;right:8px;bottom:8px;display:flex;gap:6px}
+  #sceneBtns button{background:#000b;color:#fff;font-weight:900;font-size:12px;padding:6px 11px;border-radius:99px}
+  #sceneBtns button.go{background:linear-gradient(135deg,#ffb347,#ff5d8a)}
+  #endRow{display:flex;gap:8px;align-items:center;padding:8px 12px 2px}
+  #endBtn{flex:none;background:linear-gradient(135deg,#ffb347,#ff5d8a);color:#fff;font-weight:900;font-size:15px;padding:11px 16px;border-radius:12px;box-shadow:0 3px 0 #a0305a}
+  #endBtn:disabled{opacity:.45}
+  #planSum{flex:1;font-size:11.5px;color:var(--dim);line-height:1.35;min-width:0}
+  #tabs{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;padding:6px 12px 4px}
+  #tabs button{background:var(--panel);padding:6px 2px;border-radius:10px;font-weight:800;font-size:10px;position:relative;line-height:1.25}
+  #tabs button b{display:block;font-size:17px}
+  #tabs button.active{background:var(--accent);color:#2a1400}
+  #tabs button .dot{position:absolute;top:4px;right:5px;width:8px;height:8px;border-radius:50%;background:var(--bad);display:none}
+  #tabs button.alert .dot{display:block}
+  #panel{flex:1;overflow-y:auto;padding:4px 12px 18px;-webkit-overflow-scrolling:touch}
+  .horse{background:var(--panel);border-radius:14px;padding:9px;margin-bottom:8px;border:1px solid transparent}
+  .horse.mine{border-color:#ffb34755}
+  .hrow{display:flex;gap:9px;align-items:center}
+  .por{width:66px;height:52px;flex:none;border-radius:10px;background:linear-gradient(#3a6a3a,#2a5a2a);display:grid;place-items:center;overflow:hidden;cursor:pointer}
+  .por img{width:62px;image-rendering:pixelated}
+  .hinfo{flex:1;min-width:0}
+  .hname{font-weight:900;font-size:14px;display:flex;align-items:center;gap:5px;white-space:nowrap;overflow:hidden}
+  .hname .st{color:var(--gold);font-size:11px;letter-spacing:-1px}
+  .hsub{font-size:11px;color:var(--dim);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .stats{display:grid;grid-template-columns:auto 1fr auto;gap:2px 6px;align-items:center;font-size:10.5px;font-weight:800;color:var(--dim);margin-top:4px}
+  .sb{position:relative;height:7px;background:#0d0a1e;border-radius:9px;overflow:hidden}
+  .sb i{position:absolute;left:0;top:0;bottom:0;border-radius:9px}
+  .sb i.pot{background:#ffffff22}
+  .sb i.cur{background:linear-gradient(90deg,#4ad6a0,#7dff9a)}
+  .sb i.cur.sta{background:linear-gradient(90deg,#4aa0ff,#8ad0ff)}
+  .sb i.cur.acc{background:linear-gradient(90deg,#ff9a3d,#ffd24a)}
+  .sb i.cur.form{background:linear-gradient(90deg,#ff5d8a,#ffb0d0)}
+  .plans{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
+  .plans button{background:var(--card);padding:5px 8px;border-radius:8px;font-size:11px;font-weight:800;color:var(--dim)}
+  .plans button.on{background:var(--accent);color:#2a1400}
+  .plans .note{font-size:11px;color:var(--dim);font-weight:700;padding:4px 2px}
+  .item{display:flex;align-items:center;gap:10px;background:var(--panel);border-radius:14px;padding:10px;margin-bottom:7px}
+  .item.done{opacity:.5}
+  .item .ic{font-size:24px;width:42px;height:42px;display:grid;place-items:center;background:var(--card);border-radius:10px;flex:none}
+  .item .info{flex:1;min-width:0}
+  .item .nm{font-weight:800;font-size:14px}
+  .item .ds{font-size:12px;color:var(--dim);margin-top:2px;line-height:1.35}
+  .sbtn{flex:none;padding:8px 10px;border-radius:10px;background:var(--card);font-size:12px;font-weight:800;min-width:74px;line-height:1.25;color:var(--dim)}
+  .sbtn.can{background:linear-gradient(135deg,#ffd24a,#ff9a3d);color:#2a1400}
+  .sbtn.on{background:var(--good);color:#06240f}
+  .card{background:var(--panel);border-radius:14px;padding:13px;margin-bottom:8px;font-size:13px;line-height:1.5;color:var(--dim)}
+  .card h3{margin:0 0 6px;color:var(--text);font-size:15px}
+  .card b{color:var(--text)}
+  .sec{font-size:11px;font-weight:900;color:var(--dim);letter-spacing:1px;text-transform:uppercase;margin:12px 2px 6px;display:flex;justify-content:space-between;align-items:center}
+  .stat{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .stat:last-child{border:0}
+  .stat b{color:var(--text)}
+  .race{background:var(--panel);border-radius:12px;padding:9px 10px;margin-bottom:6px;font-size:12px;color:var(--dim)}
+  .race b{color:var(--text);font-size:13px}
+  .race.big{border:1px solid var(--gold);background:linear-gradient(135deg,#3a2a10,#2a1c40)}
+  .tag{display:inline-block;font-size:10px;font-weight:900;padding:1px 6px;border-radius:99px;background:var(--card2);color:var(--text);margin-left:4px}
+  .tag.win{background:var(--gold);color:#2a1400}
+  .tag.bad{background:var(--bad)}
+  #modal{position:fixed;inset:0;background:#000b;display:grid;place-items:center;padding:16px;z-index:20}
+  #modal[hidden]{display:none}
+  #modalBox{background:var(--panel);border-radius:18px;padding:18px;max-width:380px;width:100%;max-height:88vh;overflow-y:auto;text-align:center;border:1px solid var(--line)}
+  #modalBox h2{margin:0 0 8px;font-size:20px}
+  #modalBox p{color:var(--dim);font-size:14px;line-height:1.5;margin:6px 0}
+  .btn{display:block;width:100%;margin-top:9px;padding:12px;border-radius:12px;font-weight:900;font-size:15px;background:linear-gradient(135deg,#ffb347,#ff5d8a);color:#fff}
+  .btn.ghost{background:var(--card);color:var(--text)}
+  .btn.danger{background:#5a2333;color:#ffd0d8}
+  .btn:disabled{opacity:.4}
+  .ledger{text-align:left;font-size:13px;margin:8px 0}
+  .ledger div{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed var(--line)}
+  .pos{color:var(--good)} .neg{color:var(--bad)}
+  .pick{display:flex;flex-direction:column;gap:6px;margin-top:8px;text-align:left}
+  .pick button{background:var(--card);border-radius:10px;padding:9px 10px;font-size:13px;font-weight:700;text-align:left;color:var(--text)}
+  .pick button small{display:block;color:var(--dim);font-weight:600;font-size:11.5px;margin-top:2px}
+  .pick button.on{outline:2px solid var(--accent)}
+  .swatch{width:30px;height:30px;border-radius:50%;border:3px solid transparent;display:inline-block;margin:3px}
+  .swatch.on{border-color:#fff}
+  @media (min-width:900px){ /* desktop: big race view on the left, stable on the right */
+    #app{max-width:1360px;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(400px,1fr);grid-template-rows:auto auto auto auto 1fr;
+      grid-template-areas:"top top" "scene tabs" "scene panel" "end panel" ". panel";column-gap:16px;padding:10px 16px}
+    #top{grid-area:top} #sceneWrap{grid-area:scene;margin:0;align-self:start} #endRow{grid-area:end;padding:10px 0;align-self:start} #tabs{grid-area:tabs;padding:0 0 6px;align-self:start}
+    #panel{grid-area:panel;padding:4px 4px 18px} #endBtn{font-size:17px;padding:13px 22px} #planSum{font-size:13px}
+    .chip{font-size:14px;padding:6px 12px} #cash{font-size:17px}
+  }
+  #toast{position:fixed;left:50%;top:calc(12px + env(safe-area-inset-top));transform:translateX(-50%) translateY(-130%);background:#0c0a1cee;color:#fff;padding:9px 16px;border-radius:999px;font-weight:800;font-size:13px;transition:transform .25s;z-index:30;max-width:92%;text-align:center;pointer-events:none}
+  #toast.show{transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="top">
+    <span class="chip" id="cash">$0</span><span class="chip" id="fame">⭐ 0</span><span class="chip" id="rank">🏆 #6</span><span class="chip" id="date">Jan, Y1</span>
+  </div>
+  <div id="sceneWrap"><canvas id="scene"></canvas><div id="sceneBtns"></div></div>
+  <div id="endRow"><div id="planSum"></div><button id="endBtn">End Month ▶</button></div>
+  <nav id="tabs">
+    <button data-tab="stable"><b>🐎</b>Stable<i class="dot"></i></button>
+    <button data-tab="races"><b>🏁</b>Races<i class="dot"></i></button>
+    <button data-tab="breed"><b>💞</b>Breeding<i class="dot"></i></button>
+    <button data-tab="market"><b>🛒</b>Market<i class="dot"></i></button>
+    <button data-tab="ranch"><b>🏗️</b>Ranch<i class="dot"></i></button>
+    <button data-tab="ranks"><b>🏆</b>Rankings<i class="dot"></i></button>
+  </nav>
+  <div id="panel"></div>
+</div>
+<div id="modal" hidden><div id="modalBox"></div></div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+// =====================================================================
+//  DERBY DYNASTY: a turn-based horse breeding & racing tycoon.
+//  Every turn is one month: give each horse a plan, then End Month.
+// =====================================================================
+const SAVE_KEY = 'derby-dynasty-v1';
+const $ = id => document.getElementById(id);
+const rand = (a, b) => a + Math.random() * (b - a);
+const irand = (a, b) => Math.floor(rand(a, b + 1));
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const gauss = () => { let u = 0, v = 0; while(!u) u = Math.random(); while(!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+const SUF = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi'];
+function fmt(n){ const neg = n < 0; n = Math.abs(n); let s;
+  if(n < 1000) s = String(Math.round(n)); else { let i = 0; while(n >= 1000 && i < SUF.length - 1){ n /= 1000; i++; } s = (n < 10 ? n.toFixed(2) : n < 100 ? n.toFixed(1) : Math.round(n)) + SUF[i]; }
+  return (neg ? '-' : '') + s; }
+const money = n => (n < 0 ? '-$' : '$') + fmt(Math.abs(n));
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const monthName = t => MONTHS[t % 12] + ', Y' + (Math.floor(t / 12) + 1);
+function ageTxt(m){ const y = Math.floor(m / 12), mo = m % 12; return y ? `${y}y${mo ? ' ' + mo + 'm' : ''}` : `${mo}m`; }
+function hash(a){ a = (a ^ 61) ^ (a >>> 16); a = a + (a << 3); a = a ^ (a >>> 4); a = Math.imul(a, 0x27d4eb2d); a = a ^ (a >>> 15); return (a >>> 0) / 4294967296; }
+const ord = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th');
+function shade(hex, k){ const n = parseInt(hex.slice(1), 16); let r = n >> 16, g = n >> 8 & 255, b = n & 255;
+  const f = v => Math.max(0, Math.min(255, Math.round(k > 0 ? v + (255 - v) * k : v * (1 + k))));
+  return '#' + ((1 << 24) + (f(r) << 16) + (f(g) << 8) + f(b)).toString(16).slice(1); }
+function mix(a, b, k){ const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
+  const f = s => Math.round(((pa >> s) & 255) * (1 - k) + ((pb >> s) & 255) * k);
+  return '#' + ((1 << 24) + (f(16) << 16) + (f(8) << 8) + f(0)).toString(16).slice(1); }
+
+// =====================================================================
+//  DATA
+// =====================================================================
+const COATS = [
+  {id:'bay',       n:'Bay',         c:'#8a4a22', m:'#1e1410', pt:'#1e1410', w:28},
+  {id:'chestnut',  n:'Chestnut',    c:'#b0602a', m:'#8a3a18', w:24},
+  {id:'black',     n:'Black',       c:'#2c2832', m:'#141018', w:12},
+  {id:'grey',      n:'Dapple Grey', c:'#a8a8b4', m:'#e8e8f0', w:12, dapple:true},
+  {id:'palomino',  n:'Palomino',    c:'#e0b050', m:'#fff4d8', w:8},
+  {id:'buckskin',  n:'Buckskin',    c:'#d8b070', m:'#1e1410', pt:'#1e1410', w:7},
+  {id:'pinto',     n:'Pinto',       c:'#7a3a1a', m:'#2a1a10', w:5, patches:true},
+  {id:'appaloosa', n:'Appaloosa',   c:'#ece4d4', m:'#3a2a20', w:4, spots:true},
+  {id:'pearl',     n:'Pearl White', c:'#f6f4f0', m:'#ffffff', w:1.2, rare:true},
+  {id:'golden',    n:'Golden',      c:'#f2c23a', m:'#fff2a0', w:0.6, rare:true},
+  {id:'midnight',  n:'Midnight',    c:'#1c2048', m:'#7a8aff', w:0.4, rare:true},
+];
+const COAT = Object.fromEntries(COATS.map(c => [c.id, c]));
+function randCoat(rareOk = true){ const pool = COATS.filter(c => rareOk || !c.rare), tot = pool.reduce((s, c) => s + c.w, 0); let r = Math.random() * tot; for(const c of pool){ r -= c.w; if(r <= 0) return c.id; } return 'bay'; }
+const BREEDS = {
+  mustang:     {n:'Mustang',       pot:[28, 46], bias:[0, 5, 2]},
+  quarter:     {n:'Quarter Horse', pot:[36, 58], bias:[2, -6, 9]},
+  arabian:     {n:'Arabian',       pot:[40, 62], bias:[0, 9, -3]},
+  thoroughbred:{n:'Thoroughbred',  pot:[50, 76], bias:[8, 0, 2]},
+  akhal:       {n:'Akhal-Teke',    pot:[64, 88], bias:[4, 6, 2]},
+};
+const STATS = ['spd', 'sta', 'acc'], STAT_N = {spd:'Speed', sta:'Stamina', acc:'Accel'};
+const ADJ = ['Thunder', 'Silver', 'Midnight', 'Golden', 'Wild', 'Lucky', 'Royal', 'Storm', 'Shadow', 'Crimson', 'Desert', 'Northern', 'Blazing', 'Velvet', 'Iron', 'Majestic', 'Dancing', 'Rapid', 'Secret', 'Winter', 'Starlight', 'Copper', 'Brave', 'Noble', 'Sapphire', 'Mystic', 'Prairie', 'Ocean'];
+const NOUN = ['Comet', 'Arrow', 'Dream', 'Spirit', 'Rose', 'Thunder', 'Prince', 'Lady', 'Runner', 'Storm', 'Legend', 'Flash', 'Echo', 'Fortune', 'Glory', 'Rebel', 'Breeze', 'Knight', 'Dancer', 'Star', 'Blaze', 'Charm', 'Rocket', 'Tide', 'Queen', 'Whisper', 'Outlaw', 'Duchess'];
+const genName = () => pick(ADJ) + ' ' + pick(NOUN);
+const SILKS = ['#e83a3a', '#3a7ae8', '#2fae5a', '#9a4ae0', '#ffcf3a', '#ff6ab8', '#f4f4f4', '#ff8a2a'];
+const DIST = {
+  sprint:{n:'Sprint', d:'6f', w:[0.45, 0.10, 0.45], len:900, dur:9},
+  mile:  {n:'Mile',   d:'1m', w:[0.50, 0.25, 0.25], len:1300, dur:11.5},
+  long:  {n:'Route',  d:'1½m', w:[0.40, 0.45, 0.15], len:1800, dur:14},
+};
+// race classes: lo/hi = rating range of the other runners
+const CLS = [
+  {id:'maiden', n:'Maiden',       lo:20, hi:36, purse:4000,  fame:1,  info:'Horses that have never won'},
+  {id:'claim',  n:'Claiming',     lo:27, hi:44, purse:8000,  fame:2},
+  {id:'allow',  n:'Allowance',    lo:34, hi:52, purse:16000, fame:4},
+  {id:'stakes', n:'Stakes',       lo:43, hi:61, purse:40000, fame:8},
+  {id:'g3',     n:'Grade III',    lo:52, hi:69, purse:90000, fame:15, req:30},
+  {id:'g2',     n:'Grade II',     lo:60, hi:77, purse:180000, fame:30, req:90},
+  {id:'g1',     n:'Grade I',      lo:68, hi:86, purse:450000, fame:60, req:200},
+];
+const BIG = { // feature races by month (0 = Jan)
+  2:{n:'Spring Sprint Classic', dist:'sprint', lo:72, hi:90, purse:800000, fame:80, req:250},
+  4:{n:'Golden Derby',  dist:'mile', lo:66, hi:84, purse:1500000, fame:150, age3:true, crown:1, req:150},
+  5:{n:'Royal Stakes',  dist:'mile', lo:66, hi:84, purse:800000,  fame:90,  age3:true, crown:2, req:150},
+  6:{n:'Crown Classic', dist:'long', lo:66, hi:84, purse:800000,  fame:90,  age3:true, crown:3, req:150},
+  8:{n:'Autumn Gold Cup', dist:'long', lo:76, hi:94, purse:1200000, fame:120, req:400},
+  10:{n:'World Championship', dist:'mile', lo:84, hi:104, purse:3000000, fame:250, req:800},
+};
+const FAC = [
+  {id:'stables', n:'Stables',          icon:'🏠', base:6000,  g:1.9, max:16, info:l => `${4 + l} stalls`},
+  {id:'train',   n:'Training Center',  icon:'🏋️', base:8000,  g:2.0, max:12, info:l => `+${20 * l}% training gains`},
+  {id:'vet',     n:'Vet Clinic',       icon:'🩺', base:5000,  g:1.9, max:10, info:l => `-${8 * l}% injury risk, +${4 * l} form recovery`},
+  {id:'barn',    n:'Breeding Barn',    icon:'💞', base:10000, g:2.0, max:10, info:l => l ? `Fertility ${Math.min(100, 70 + 3 * l)}%, mutation ${8 + 2 * l}%` : 'Unlocks breeding'},
+  {id:'academy', n:'Jockey Academy',   icon:'🏇', base:15000, g:2.1, max:10, info:l => `+${2 * l}% race performance`},
+  {id:'pasture', n:'Lush Pastures',    icon:'🌾', base:7000,  g:1.9, max:10, info:l => `-${5 * l}% horse upkeep, +${3 * l} form`},
+];
+const UPKEEP = 600; // per horse per month
+const RIVAL_NAMES = [['Bluegrass Farms', '#3a7ae8'], ['Silver Spur Stables', '#c8c8d8'], ['Red Oak Racing', '#c03030'], ['Golden Gate Stud', '#ffcf3a'], ['Darkwood Equine', '#4a2a6a']];
+
+// =====================================================================
+//  SAVE
+// =====================================================================
+let S;
+function newHorse(o = {}){
+  const breed = o.breed || 'mustang', B = BREEDS[breed];
+  const pot = o.pot || STATS.map((s, k) => Math.round(clamp(rand(B.pot[0], B.pot[1]) + B.bias[k], 10, 140)));
+  const age = o.age ?? 30, grown = clamp((age - 6) / 30, 0.25, 0.85) * (o.trained ?? 1);
+  return Object.assign({id:S.nextId++, name:genName(), breed, sex:Math.random() < 0.5 ? 'M' : 'F', age, coat:randCoat(), mark:irand(0, 3), socks:Math.random() < 0.3,
+    pot:{spd:pot[0], sta:pot[1], acc:pot[2]}, st:{spd:Math.round(pot[0] * grown * rand(0.8, 1)), sta:Math.round(pot[1] * grown * rand(0.8, 1)), acc:Math.round(pot[2] * grown * rand(0.8, 1))},
+    form:80, inj:0, preg:null, starts:0, wins:0, places:0, earned:0, gw:0, crown:[], plan:{t:'train', f:'spd'}, gen:0, sire:null, dam:null, stud:false}, o.extra || {});
+}
+function freshSave(){
+  S = {v:1, t:0, cash:30000, fame:0, nextId:1, horses:[], fac:{stables:0, train:0, vet:0, barn:0, academy:0, pasture:0}, silk:0,
+    market:[], studs:[], rivals:RIVAL_NAMES.map(([n, c], i) => ({n, silk:c, earn:0, total:0, str:0.9 + i * 0.06})), yearEarn:0, total:0,
+    log:[], goals:{}, hall:[], pending:null, stats:{races:0, wins:0, foals:0, sold:0, bought:0, spent:0}, seen:false, lastYear:null};
+  S.horses.push(newHorse({breed:'mustang', age:40, extra:{name:'Daisy Belle', sex:'F'}}));
+  S.horses.push(newHorse({breed:'quarter', age:30, extra:{name:'Copper Jack', sex:'M'}}));
+  refreshMarket(); refreshStuds(); makeCard();
+  return S;
+}
+function load(){
+  try{ const raw = localStorage.getItem(SAVE_KEY); if(raw){ S = JSON.parse(raw); return; } }catch(e){}
+  freshSave();
+}
+function persist(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){} }
+
+// =====================================================================
+//  HORSE MATH
+// =====================================================================
+const avgPot = h => (h.pot.spd + h.pot.sta + h.pot.acc) / 3;
+const avgSt = h => (h.st.spd + h.st.sta + h.st.acc) / 3;
+function grade(h){ const a = avgPot(h); return a >= 95 ? 5 : a >= 78 ? 4 : a >= 62 ? 3 : a >= 46 ? 2 : 1; }
+const stars = n => '★'.repeat(n) + `<span style="opacity:.22">${'★'.repeat(5 - n)}</span>`;
+const isAdult = h => h.age >= 24;
+const canRace = h => h.age >= 24 && h.age < 144 && !h.inj && !h.preg;
+const canBreedMare = h => h.sex === 'F' && h.age >= 36 && !h.preg && !h.inj;
+const canStud = h => h.sex === 'M' && h.age >= 36 && !h.inj;
+const capacity = () => 4 + S.fac.stables;
+const perfMul = () => 1 + 0.02 * S.fac.academy;
+const formF = f => 0.8 + 0.2 * clamp(f / 75, 0, 1);
+function rating(h, dist){ const w = DIST[dist].w; return (h.st.spd * w[0] + h.st.sta * w[1] + h.st.acc * w[2]) * formF(h.form) * perfMul(); }
+function value(h){
+  const ap = avgPot(h), as = avgSt(h);
+  let v = 350 * Math.pow(ap / 20, 2.6) + 250 * Math.pow(as / 20, 2.6);
+  const y = h.age / 12; v *= y < 2 ? 0.9 : y < 6 ? 1.15 : y < 10 ? 0.75 : 0.4;
+  v *= 1 + 0.12 * Math.min(h.wins, 20) + 0.25 * h.gw; if(COAT[h.coat].rare) v *= 1.6; if(h.inj) v *= 0.7;
+  return Math.round(v / 50) * 50 + 500;
+}
+const studFee = h => Math.round((300 * Math.pow(avgPot(h) / 20, 2.4) * (1 + 0.2 * Math.min(h.wins, 15) + 0.5 * h.gw)) / 50) * 50;
+const netWorth = () => S.cash + S.horses.reduce((s, h) => s + value(h), 0) + FAC.reduce((s, f) => s + facSpent(f, S.fac[f.id]) * 0.5, 0);
+const facCost = (f, l) => Math.round(f.base * Math.pow(f.g, l));
+const facSpent = (f, l) => { let s = 0; for(let k = 0; k < l; k++) s += facCost(f, k); return s; };
+function trainGain(h){ const y = h.age / 12; return (y < 2 ? 1.25 : y < 5 ? 1 : y < 7 ? 0.6 : 0.25) * (1 + 0.2 * S.fac.train); }
+
+// =====================================================================
+//  MONTHLY RACE CARD, MARKET, STUD BOOK
+// =====================================================================
+function makeCard(){
+  const m = S.t % 12, card = [];
+  for(let ci = 0; ci < CLS.length; ci++){
+    const c = CLS[ci]; card.push({id:'r' + S.t + '_' + card.length, cls:ci, n:c.n, dist:pick(Object.keys(DIST)), lo:c.lo, hi:c.hi, purse:c.purse, fame:c.fame, req:c.req || 0, maiden:ci === 0}); }
+  if(BIG[m]){ const b = BIG[m]; card.push({id:'big' + S.t, big:true, n:b.n, dist:b.dist, lo:b.lo, hi:b.hi, purse:b.purse, fame:b.fame, req:b.req, age3:b.age3, crown:b.crown}); }
+  for(const r of card){ r.fee = Math.round(r.purse * 0.02 / 50) * 50; r.lo *= 1 + 0.015 * Math.floor(S.t / 12); r.hi *= 1 + 0.015 * Math.floor(S.t / 12); }
+  S.card = card;
+}
+function refreshMarket(){
+  const tier = clamp(Math.floor(S.fame / 60) + Math.floor(S.t / 12), 0, 4), pool = ['mustang', 'quarter', 'arabian', 'thoroughbred', 'akhal'];
+  S.market = [];
+  for(let k = 0; k < 6; k++){
+    const breed = pool[clamp(irand(0, 2) + Math.floor(tier / 1.4), 0, 4)];
+    const kind = k < 2 ? 'yearling' : k < 5 ? 'racer' : 'broodmare';
+    const age = kind === 'yearling' ? irand(10, 20) : kind === 'racer' ? irand(26, 60) : irand(60, 110);
+    const h = newHorse({breed, age, trained:kind === 'racer' ? rand(0.85, 1.15) : 1, extra:kind === 'broodmare' ? {sex:'F'} : {}});
+    if(kind === 'racer' && Math.random() < 0.5){ h.starts = irand(2, 10); h.wins = irand(0, Math.ceil(h.starts / 3)); }
+    if(Math.random() < 0.04) h.coat = pick(['pearl', 'golden', 'midnight']);
+    h.price = Math.round(value(h) * rand(1.1, 1.35) / 100) * 100; h.kind = kind;
+    S.market.push(h);
+  }
+}
+function refreshStuds(){
+  S.studs = [];
+  const lv = Math.floor(S.t / 12);
+  for(let k = 0; k < 6; k++){
+    const breed = ['mustang', 'quarter', 'arabian', 'thoroughbred', 'thoroughbred', 'akhal'][k];
+    const h = newHorse({breed, age:irand(60, 130), trained:1.1, extra:{sex:'M'}});
+    if(k >= 3) for(const s of STATS){ h.pot[s] = Math.round(h.pot[s] * (1 + 0.05 * lv) + k * 2); h.st[s] = Math.round(h.pot[s] * 0.9); }
+    h.wins = irand(k, k * 4); h.gw = k >= 4 ? irand(1, 4) : 0; h.fee = studFee(h);
+    S.studs.push(h);
+  }
+}
+
+// =====================================================================
+//  RACES
+// =====================================================================
+function runnersFor(race){ return S.horses.filter(h => h.plan.t === 'race' && h.plan.r === race.id && canRace(h)); }
+function eligible(h, race){
+  if(!canRace(h)) return 'Not fit to race';
+  if(race.maiden && h.wins > 0) return 'Maidens only';
+  if(race.age3 && Math.floor(h.age / 12) !== 3) return '3-year-olds only';
+  if(race.req && S.fame < race.req) return `Needs ⭐ ${race.req} fame`;
+  return '';
+}
+function oddsTxt(h, race){ const r = rating(h, race.dist), mid = (race.lo + race.hi) / 2;
+  return r >= race.hi ? ['Favorite', 'pos'] : r >= mid + 3 ? ['Strong chance', 'pos'] : r >= mid - 3 ? ['Contender', ''] : r >= race.lo ? ['Long shot', 'neg'] : ['Outclassed', 'neg']; }
+function runRace(race){
+  const mine = runnersFor(race), field = [];
+  for(const h of mine) field.push({mine:true, h, name:h.name, silk:SILKS[S.silk], coat:h.coat, mark:h.mark, socks:h.socks,
+    perf:rating(h, race.dist) * (1 + gauss() * 0.05), acc:h.st.acc, sta:h.st.sta});
+  while(field.length < 8){ const rv = pick(S.rivals), base = rand(race.lo, race.hi) * (0.95 + rv.str * 0.05);
+    field.push({name:genName(), owner:rv.n, rv, silk:rv.silk, coat:randCoat(false), mark:irand(0, 3), socks:Math.random() < 0.3, perf:base * (1 + gauss() * 0.05), acc:base * rand(0.8, 1.2), sta:base * rand(0.8, 1.2)}); }
+  field.sort((a, b) => b.perf - a.perf);
+  const share = [0.6, 0.2, 0.1, 0.05];
+  field.forEach((f, i) => { f.place = i + 1; f.prize = Math.round(race.purse * (share[i] || 0)); if(f.rv) { f.rv.earn += f.prize; f.rv.total += f.prize; } });
+  return {race, field};
+}
+
+// =====================================================================
+//  END OF MONTH
+// =====================================================================
+let REPORT = null;
+function endMonth(){
+  if(S.pending){ showEvent(); return; }
+  const rep = {lines:[], races:[], births:[], notes:[], income:0, expense:0, month:S.t}, fresh = new Set();
+  const led = (txt, v) => { rep.lines.push([txt, v]); if(v > 0) rep.income += v; else rep.expense -= v; S.cash += v; if(v > 0){ S.yearEarn += v; S.total += v; } };
+  // ---- races ----
+  for(const race of S.card){
+    const mine = runnersFor(race); if(!mine.length) continue;
+    led(`Entry fees: ${race.n}`, -race.fee * mine.length);
+    const res = runRace(race); rep.races.push(res);
+    for(const f of res.field.filter(x => x.mine)){
+      const h = f.h; h.starts++; S.stats.races++; h.form = clamp(h.form - 28, 0, 100);
+      for(const s of STATS) h.st[s] = Math.min(h.pot[s], h.st[s] + 0.6 * trainGain(h));
+      if(f.place === 1){ h.wins++; S.stats.wins++; if(race.cls >= 4 || race.big) h.gw++; if(race.crown) h.crown.push(race.crown + '@' + Math.floor(S.t / 12)); }
+      if(f.place <= 3) h.places++;
+      if(f.prize){ h.earned += f.prize; led(`${f.place === 1 ? '🥇' : f.place === 2 ? '🥈' : f.place === 3 ? '🥉' : '🎗️'} ${h.name}: ${race.n}`, f.prize); }
+      const fm = f.place === 1 ? race.fame : f.place === 2 ? race.fame * 0.4 : f.place === 3 ? race.fame * 0.2 : 0; S.fame += Math.round(fm);
+      if(race.crown === 3){ const yr = Math.floor(S.t / 12); if([1, 2, 3].every(c => h.crown.includes(c + '@' + yr))){ rep.notes.push(`👑 TRIPLE CROWN! ${h.name} won all three classics!`); led('Triple Crown bonus', 5e6); S.fame += 500; goal('crown'); } }
+      if(Math.random() < injuryRisk(h, true)){ h.inj = irand(1, 3); fresh.add(h); rep.notes.push(`🤕 ${h.name} came back sore: out ${h.inj} month${h.inj > 1 ? 's' : ''}.`); }
+      if(f.place === 1){ goal('win1'); if(race.cls >= 3 || race.big) goal('stakes'); if(race.cls >= 4 || race.big) goal('graded'); if(race.big && race.n === 'Golden Derby') goal('derby'); if(race.big && race.n === 'World Championship') goal('world'); }
+    }
+    goal('race1');
+  }
+  // ---- training / rest / stud ----
+  for(const h of S.horses){
+    const p = h.plan;
+    if(h.inj){ if(!fresh.has(h)) h.inj--; h.form = clamp(h.form + 10, 0, 100); continue; }
+    if(p.t === 'train' && h.age >= 6){
+      const g = trainGain(h), foc = p.f;
+      for(const s of STATS){ const k = foc === 'bal' ? 1.4 : s === foc ? 3.2 : 0.4, head = h.pot[s] - h.st[s];
+        h.st[s] = Math.min(h.pot[s], h.st[s] + Math.max(0, Math.min(head, k * g * (0.6 + 0.4 * head / Math.max(1, h.pot[s])) * rand(0.8, 1.2)))); }
+      h.form = clamp(h.form - 8, 0, 100);
+      if(Math.random() < injuryRisk(h, false)){ h.inj = 1; fresh.add(h); rep.notes.push(`🤕 ${h.name} tweaked a leg in training: out 1 month.`); }
+    } else if(p.t === 'rest') h.form = clamp(h.form + 35, 0, 100);
+    if(p.t === 'stud' && canStud(h)){ const fee = studFee(h), n = irand(1, 3); led(`🐎 ${h.name} at stud (${n} mare${n > 1 ? 's' : ''})`, fee * n); }
+    h.form = clamp(h.form + 12 + 4 * S.fac.vet + 3 * S.fac.pasture, 0, 100);
+  }
+  // ---- breeding ----
+  for(const h of S.horses) if(h.plan.t === 'breed' && canBreedMare(h)){
+    const sire = h.plan.own ? S.horses.find(x => x.id === h.plan.s) : S.studs.find(x => x.id === h.plan.s);
+    if(!sire){ continue; }
+    if(!h.plan.own) led(`💞 Stud fee: ${sire.name}`, -sire.fee);
+    if(Math.random() < Math.min(1, 0.7 + 0.03 * S.fac.barn)){ h.preg = {sire:sire.name, s:snapshot(sire), due:5}; rep.notes.push(`💞 ${h.name} is in foal to ${sire.name}! Due in 5 months.`); }
+    else rep.notes.push(`💔 ${h.name} didn't take this time. Try again next month.`);
+    h.plan = {t:'rest'};
+  }
+  for(const h of S.horses.slice()) if(h.preg){ h.preg.due--; if(h.preg.due <= 0){ const f = foal(h, h.preg.s); h.preg = null; rep.births.push(f); } }
+  // ---- aging ----
+  for(const h of S.horses){ h.age++;
+    if(h.age > 96) for(const s of STATS) h.st[s] = Math.max(5, h.st[s] - rand(0.3, 1.2));
+    if(h.age === 144) rep.notes.push(`🎓 ${h.name} is 12 and retires from racing (can still breed or join the Hall of Fame).`); }
+  // ---- costs ----
+  const up = Math.round(UPKEEP * S.horses.length * (1 - 0.05 * S.fac.pasture));
+  led(`Upkeep: ${S.horses.length} horses`, -up);
+  // ---- rivals ----
+  for(const rv of S.rivals){ const g = rand(2000, 22000) * rv.str * Math.pow(1.6, Math.floor(S.t / 12)) * (1 + (S.t % 12) * 0.04); rv.earn += g; rv.total += g; }
+  // ---- advance ----
+  S.t++;
+  const yearEnd = S.t % 12 === 0;
+  if(yearEnd) rep.year = yearSummary();
+  if(S.t % 12 === 0) refreshStuds();
+  refreshMarket(); makeCard();
+  for(const h of S.horses){ if(h.plan.t === 'race' || h.plan.t === 'breed') h.plan = {t:'train', f:h.plan.f || 'spd'}; if(h.plan.t === 'stud' && !canStud(h)) h.plan = {t:'rest'}; if(h.age < 6 && h.plan.t === 'train') h.plan = {t:'rest'}; }
+  // ---- event card ----
+  if(Math.random() < 0.55) S.pending = makeEvent();
+  checkGoals();
+  S.log.unshift(...rep.races.flatMap(r => r.field.filter(f => f.mine).map(f => ({m:rep.month, race:r.race.n, horse:f.name, place:f.place, prize:f.prize})))); S.log.length = Math.min(S.log.length, 40);
+  if(S.cash < 0) rep.notes.push(`⚠️ You're ${money(-S.cash)} in debt! Sell a horse or win some races.`);
+  persist();
+  REPORT = rep;
+  startPlayback(rep);
+}
+function snapshot(h){ return {name:h.name, breed:h.breed, pot:{...h.pot}, coat:h.coat, mark:h.mark, socks:h.socks, id:h.id}; }
+function injuryRisk(h, racing){ const base = racing ? 0.05 : 0.015; return base * (h.form < 40 ? 2.5 : h.form < 60 ? 1.4 : 1) * (h.age > 96 ? 1.6 : 1) * Math.max(0.2, 1 - 0.08 * S.fac.vet); }
+function foal(dam, sire){
+  const mut = 0.08 + 0.02 * S.fac.barn, pot = {};
+  let prodigy = false;
+  for(const s of STATS){ let v = (dam.pot[s] + sire.pot[s]) / 2 * rand(0.95, 1.08) + gauss() * 2.5;
+    if(Math.random() < mut){ v += rand(5, 12); prodigy = true; } pot[s] = Math.round(clamp(v, 10, 150)); }
+  const coat = Math.random() < 0.06 + 0.01 * S.fac.barn ? randCoat(true) : Math.random() < 0.5 ? dam.coat : sire.coat;
+  const better = avgPot(dam) >= avgPot({pot:sire.pot}) ? dam.breed : sire.breed;
+  const h = newHorse({breed:better, age:0, pot:[pot.spd, pot.sta, pot.acc]});
+  Object.assign(h, {coat, mark:Math.random() < 0.5 ? dam.mark : sire.mark, socks:Math.random() < 0.5 ? dam.socks : sire.socks, gen:(dam.gen || 0) + 1, dam:dam.name, sire:sire.name, plan:{t:'rest'}, prodigy});
+  for(const s of STATS) h.st[s] = Math.round(h.pot[s] * 0.18);
+  S.horses.push(h); S.stats.foals++;
+  goal('foal1'); if(grade(h) >= 4) goal('foal4'); if(COAT[h.coat].rare) goal('rare');
+  return h;
+}
+function yearSummary(){
+  const yr = Math.floor((S.t - 1) / 12) + 1, me = {n:'You', earn:S.yearEarn, me:true};
+  const table = [...S.rivals.map(r => ({n:r.n, earn:r.earn})), me].sort((a, b) => b.earn - a.earn);
+  const pos = table.findIndex(x => x.me) + 1, bonus = pos === 1 ? 500000 : pos === 2 ? 150000 : pos === 3 ? 50000 : 0;
+  if(bonus){ S.cash += bonus; } if(pos === 1) goal('champ');
+  const hoty = S.horses.slice().sort((a, b) => (b.earned - (b._ye || 0)) - (a.earned - (a._ye || 0)))[0];
+  for(const h of S.horses) h._ye = h.earned;
+  S.lastYear = {yr, table, pos};
+  for(const r of S.rivals){ r.earn = 0; r.str *= rand(1.0, 1.08); } S.yearEarn = 0;
+  return {yr, table, pos, bonus, hoty: hoty && hoty.name};
+}
+
+// ---- event cards (some ask you to choose) ----
+function makeEvent(){
+  const hs = S.horses.filter(h => isAdult(h)), h = hs.length ? pick(hs) : null, y = Math.pow(1.4, Math.floor(S.t / 12));
+  const E = [
+    () => h && {t:`💼 A buyer wants ${h.name}`, d:`An oil baron offers <b>${money(Math.round(value(h) * 1.5))}</b> for ${h.name} (worth about ${money(value(h))}).`, h:h.id, offer:Math.round(value(h) * 1.5), choices:[['Sell!', 'sell'], ['Not for sale', 'no']]},
+    () => ({t:'📰 Magazine feature', d:'Racing Weekly profiles your stable. Fans love it.', fx:'fame', v:irand(5, 15) + Math.floor(S.fame * 0.05), choices:[['Great', 'ok']]}),
+    () => ({t:'🌧️ Storm damage', d:`A storm wrecked the fences. Repairs cost <b>${money(Math.round(3000 * y))}</b>.`, fx:'cash', v:-Math.round(3000 * y), choices:[['Pay up', 'ok']]}),
+    () => ({t:'🤝 Sponsorship deal', d:`A feed company wants your silks on their ads: <b>${money(Math.round(8000 * y + S.fame * 40))}</b>.`, fx:'cash', v:Math.round(8000 * y + S.fame * 40), choices:[['Sign it', 'ok']]}),
+    () => h && {t:'🍀 Good spirits', d:`${h.name} is full of energy this month (form maxed).`, fx:'form', h:h.id, choices:[['Nice', 'ok']]},
+    () => h && {t:'🧑‍🏫 Famous trainer visits', d:`A legendary trainer offers a private session with ${h.name} for <b>${money(Math.round(5000 * y))}</b>: +4 to every stat (up to potential).`, h:h.id, cost:Math.round(5000 * y), choices:[['Book it', 'train'], ['No thanks', 'no']]},
+    () => ({t:'🎰 Mystery yearling', d:`A shady dealer offers a yearling "with royal blood" for <b>${money(Math.round(12000 * y))}</b>. Could be a gem… or a dud.`, cost:Math.round(12000 * y), choices:[['Gamble', 'mystery'], ['Walk away', 'no']]}),
+    () => ({t:'🌾 Hay shortage', d:`Feed prices spike: <b>${money(Math.round(250 * S.horses.length * y))}</b> extra this month.`, fx:'cash', v:-Math.round(250 * S.horses.length * y), choices:[['Ouch', 'ok']]}),
+    () => h && {t:'🎥 Film crew', d:`A movie studio wants to film ${h.name} for <b>${money(Math.round(4000 * y))}</b>, but filming tires them out (form −30).`, h:h.id, v:Math.round(4000 * y), choices:[['Lights, camera!', 'film'], ['No thanks', 'no']]},
+    () => ({t:'🏆 Charity gala', d:`Donate <b>${money(Math.round(6000 * y))}</b> to the retired racehorse charity for +${irand(15, 30)} fame?`, cost:Math.round(6000 * y), v:irand(15, 30), choices:[['Donate', 'donate'], ['Skip', 'no']]}),
+  ];
+  for(let k = 0; k < 10; k++){ const e = pick(E)(); if(e) return e; }
+  return null;
+}
+function showEvent(){
+  const e = S.pending; if(!e){ return; }
+  showModal(`<h2>${e.t}</h2><p>${e.d}</p>${e.choices.map(([l, a]) => `<button class="btn ${a === 'no' ? 'ghost' : ''}" data-ev="${a}">${l}</button>`).join('')}`);
+}
+function resolveEvent(a){
+  const e = S.pending; if(!e) return; const h = e.h && S.horses.find(x => x.id === e.h);
+  if(e.cost && a !== 'no' && S.cash < e.cost){ toast('💸 Not enough cash'); return; }
+  if(a === 'mystery' && S.horses.length >= capacity()){ toast('🏠 No free stall'); return; }
+  S.pending = null; $('modal').hidden = true;
+  if(a === 'ok'){ if(e.fx === 'cash') S.cash += e.v; if(e.fx === 'fame') S.fame += e.v; if(e.fx === 'form' && h) h.form = 100; }
+  if(a === 'sell' && h){ S.cash += e.offer; S.horses = S.horses.filter(x => x !== h); S.stats.sold++; toast(`💰 Sold ${h.name} for ${money(e.offer)}`); }
+  if(a === 'train' && h){ S.cash -= e.cost; for(const s of STATS) h.st[s] = Math.min(h.pot[s], h.st[s] + 4); toast(`📈 ${h.name} +4 all stats`); }
+  if(a === 'mystery'){ S.cash -= e.cost;
+    const gem = Math.random() < 0.35, b = gem ? (Math.random() < 0.4 ? 'akhal' : 'thoroughbred') : pick(['mustang', 'quarter']);
+    const nh = newHorse({breed:b, age:irand(12, 18)}); if(gem) for(const s of STATS) nh.pot[s] = Math.round(nh.pot[s] * 1.12); S.horses.push(nh);
+    showModal(`<h2>${gem ? '💎 A gem!' : '🥔 A dud…'}</h2><p>You got <b>${nh.name}</b>, a ${BREEDS[b].n} (${stars(grade(nh))}).</p><button class="btn" data-close>OK</button>`); }
+  if(a === 'film' && h){ S.cash += e.v; h.form = clamp(h.form - 30, 0, 100); }
+  if(a === 'donate'){ S.cash -= e.cost; S.fame += e.v; }
+  persist(); renderPanel();
+}
+
+// ---- goals ----
+const GOALS = [
+  {id:'race1',  n:'Enter your first race',            r:2000},
+  {id:'win1',   n:'Win a race',                        r:5000},
+  {id:'foal1',  n:'Breed your first foal',             r:8000},
+  {id:'stable6',n:'Own 6 horses',                      r:10000, chk:() => S.horses.length >= 6},
+  {id:'stakes', n:'Win a Stakes race',                 r:25000},
+  {id:'graded', n:'Win a Graded race',                 r:75000},
+  {id:'foal4',  n:'Breed a ★★★★ foal',                 r:60000},
+  {id:'rare',   n:'Breed a rare coat (Pearl, Golden, Midnight)', r:40000},
+  {id:'nw1m',   n:'Net worth $1M',                      r:100000, chk:() => netWorth() >= 1e6},
+  {id:'derby',  n:'Win the Golden Derby',               r:300000},
+  {id:'champ',  n:'Finish a year as #1 stable',         r:250000},
+  {id:'crown',  n:'Win the Triple Crown',               r:1000000},
+  {id:'world',  n:'Win the World Championship',         r:1500000},
+  {id:'nw10m',  n:'Net worth $10M',                     r:500000, chk:() => netWorth() >= 1e7},
+  {id:'nw100m', n:'Net worth $100M',                    r:3000000, chk:() => netWorth() >= 1e8},
+];
+function goal(id){ if(S.goals[id]) return; const g = GOALS.find(x => x.id === id); if(!g) return; S.goals[id] = true; S.cash += g.r; setTimeout(() => toast(`🎯 Goal: ${g.n}! +${money(g.r)}`), 400); }
+function checkGoals(){ for(const g of GOALS) if(g.chk && !S.goals[g.id] && g.chk()) goal(g.id); }
+
+// =====================================================================
+//  PIXEL SPRITES (horses drawn once per pose, cached, upscaled crisp)
+// =====================================================================
+const SPR = new Map(), OLS = '#1a1028', PO = [26, 16, 40];
+function sprite(key, sc, box, draw){
+  let s = SPR.get(key); if(s) return s;
+  if(SPR.size > 900) SPR.clear();
+  const [x0, y0, x1, y1] = box, ox = Math.round(2 - x0 * sc), oy = Math.round(2 - y0 * sc);
+  const w = Math.ceil((x1 - x0) * sc) + 4, h = Math.ceil((y1 - y0) * sc) + 4;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d', {willReadFrequently:true});
+  g.setTransform(sc, 0, 0, sc, ox, oy); g.lineJoin = 'round'; g.lineCap = 'round'; g.lineWidth = 0.95 / sc; g.strokeStyle = OLS;
+  draw(g);
+  const d = g.getImageData(0, 0, w, h), a = d.data;
+  for(let i = 0; i < a.length; i += 4){ if(a[i+3] > 100){ a[i+3] = 255; for(let k = 0; k < 3; k++) a[i+k] = Math.min(255, Math.round(a[i+k] / 16) * 16); } else a[i+3] = 0; }
+  const o = new Uint8Array(w * h);
+  for(let y = 0; y < h; y++) for(let x = 0; x < w; x++){ const i = y * w + x; if(a[i*4+3]) continue;
+    if((x > 0 && a[i*4-1]) || (x < w-1 && a[i*4+7]) || (y > 0 && a[(i-w)*4+3]) || (y < h-1 && a[(i+w)*4+3])) o[i] = 1; }
+  for(let i = 0; i < w * h; i++) if(o[i]){ a[i*4] = PO[0]; a[i*4+1] = PO[1]; a[i*4+2] = PO[2]; a[i*4+3] = 255; }
+  g.putImageData(d, 0, 0);
+  s = {c, w, h, ox, oy}; SPR.set(key, s); return s;
+}
+function blit(g, s, x, y, flip){ g.save(); g.translate(Math.round(x), Math.round(y)); if(flip) g.scale(-1, 1); g.drawImage(s.c, -s.ox, -s.oy); g.restore(); }
+const pC = (x, y, r) => g => { g.beginPath(); g.arc(x, y, r, 0, 7); };
+const pE = (x, y, rx, ry, rot = 0) => g => { g.beginPath(); g.ellipse(x, y, rx, ry, rot, 0, 7); };
+const pP = (...p) => g => { g.beginPath(); g.moveTo(p[0], p[1]); for(let i = 2; i < p.length; i += 2) g.lineTo(p[i], p[i+1]); g.closePath(); };
+function F(g, col, path, stroke = true){ path(g); g.fillStyle = col; g.fill(); if(stroke) g.stroke(); }
+function SH(g, col, path, r, stroke = true){ g.save(); path(g); g.fillStyle = shade(col, -0.3); g.fill(); g.clip(); g.translate(-r * 0.22, -r * 0.3); path(g); g.fillStyle = col; g.fill(); g.restore(); if(stroke){ path(g); g.stroke(); } }
+function BAR(g, col, w, x0, y0, x1, y1){ const m = g.getTransform(); g.save(); g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1);
+  g.lineWidth = w + 2 / Math.hypot(m.a, m.b); g.strokeStyle = OLS; g.stroke(); g.lineWidth = w; g.strokeStyle = col; g.stroke(); g.restore(); }
+// gallop: [hindFar, frontFar, hindNear, frontNear], each [upper angle, knee bend]
+const GAL = [
+  [[-0.7, 0.2], [0.75, -0.15], [-0.9, 0.3], [0.95, -0.3]],
+  [[0.05, 0.15], [0.35, -1.3], [-0.25, 0.4], [0.6, -1.5]],
+  [[0.5, -0.2], [-0.15, 0.05], [0.35, 0.05], [-0.35, 0.15]],
+  [[-0.2, 1.0], [0.2, -0.3], [-0.4, 0.9], [0.4, -0.1]],
+];
+const STAND = [[-0.06, 0.04], [-0.05, 0], [0.06, 0], [0.05, 0]];
+function legD(g, x0, y0, [a1, a2], col, low, sock){
+  const L1 = 12, L2 = 12.5, kx = x0 + Math.sin(a1) * L1, ky = y0 + Math.cos(a1) * L1, hx = kx + Math.sin(a1 + a2) * L2, hy = ky + Math.cos(a1 + a2) * L2;
+  BAR(g, col, 6, x0, y0, kx, ky);
+  BAR(g, low, 3.6, kx, ky, hx, hy);
+  if(sock){ const mx = kx + (hx - kx) * 0.45, my = ky + (hy - ky) * 0.45; g.save(); g.beginPath(); g.moveTo(mx, my); g.lineTo(hx, hy); g.lineWidth = 3.6; g.strokeStyle = '#f4f4f0'; g.stroke(); g.restore(); }
+  F(g, '#2a2420', pE(hx + 0.6, hy - 0.6, 2.6, 1.8));
+}
+// pose: 'stand' | 'graze' | 'gal' (frame 0-3) | 'walk' (frame 0-3)
+function horseD(g, coat, mark, socks, pose, fr, silk, foalish){
+  const C = COAT[coat] || COAT.bay, body = C.c, dark = shade(body, -0.35), low = C.pt || shade(body, -0.15), mane = C.m;
+  let legs = STAND;
+  if(pose === 'gal') legs = GAL[fr];
+  if(pose === 'walk') legs = GAL[fr].map(([a, b]) => [a * 0.38, b * 0.38]);
+  const bob = pose === 'gal' ? [0, 1.5, -2, 0.5][fr] : pose === 'walk' ? [0, 0.6, 0, 0.6][fr] : 0;
+  g.save(); g.translate(0, bob);
+  legD(g, -14, -24, legs[0], dark, shade(low, -0.25), socks && false);
+  legD(g, 13, -24, legs[1], dark, shade(low, -0.25), socks && false);
+  // tail
+  const tw = pose === 'gal' ? [0, 2, -1, 1][fr] : pose === 'walk' ? [0, 1, 0, -1][fr] : 0;
+  if(pose === 'gal') F(g, mane, pP(-19, -36, -30, -39 + tw, -40, -33 + tw, -38, -28 + tw, -27, -30, -21, -29));
+  else F(g, mane, pP(-19, -36, -26, -37 + tw, -31, -25 + tw, -31, -13 + tw, -27, -15, -25, -27, -21, -29));
+  // body (union of barrel, chest and rump)
+  const bodyP = g2 => { g2.beginPath(); g2.ellipse(0, -30, 19.5, 10.5, 0, 0, 7); g2.moveTo(21.5, -31); g2.arc(13, -31, 8.5, 0, 7); g2.moveTo(-3.5, -32); g2.arc(-13, -32, 9.5, 0, 7); };
+  SH(g, body, bodyP, 16, false);
+  g.save(); bodyP(g); g.clip();
+  if(C.patches){ g.fillStyle = '#f4f2ec'; for(const [x, y, r] of [[-8, -26, 7], [6, -34, 5], [14, -24, 4]]){ g.beginPath(); g.ellipse(x, y, r * 1.3, r, 0.3, 0, 7); g.fill(); } }
+  if(C.spots){ g.fillStyle = '#3a2a20'; for(let k = 0; k < 12; k++){ g.beginPath(); g.arc(-22 + hash(k * 7) * 18, -38 + hash(k * 3) * 14, 1.4, 0, 7); g.fill(); } }
+  if(C.dapple){ g.fillStyle = shade(body, 0.25); for(let k = 0; k < 9; k++){ g.beginPath(); g.arc(-16 + hash(k * 5) * 30, -37 + hash(k * 11) * 12, 2, 0, 7); g.fill(); } }
+  if(C.rare){ g.fillStyle = 'rgba(255,255,255,.45)'; g.fillRect(-14, -39, 26, 2); }
+  g.restore();
+  // saddle / jockey
+  if(silk){ F(g, '#f4f4f4', pP(-6, -40, 7, -40, 6, -33, -5, -33)); g.fillStyle = silk; g.fillRect(-5, -39, 10, 2); }
+  // neck + head (graze tips them down)
+  g.save();
+  if(pose === 'graze'){ g.translate(12, -36); g.rotate(1.05); g.translate(-12, 36); }
+  const neck = pP(5, -37, 15, -58, 24, -55, 23, -42, 19, -28);
+  SH(g, body, neck, 9, false);
+  F(g, mane, pP(4, -38, 14, -60, 19, -61, 17, -56, 8, -38), false);
+  F(g, body, pP(19, -58, 20, -66, 24, -60), false); F(g, body, pP(22, -59, 24, -66, 26, -60), false);
+  const head = pP(17, -57, 21, -62, 28, -60, 38, -46, 37, -41, 31, -40, 21, -47);
+  SH(g, body, head, 8, false);
+  if(mark === 1){ g.fillStyle = '#f4f4f0'; g.beginPath(); g.arc(25, -56, 1.8, 0, 7); g.fill(); }
+  if(mark >= 2){ F(g, '#f4f4f0', pP(24, -58, 27, -58, 37, -44, 34, -42), false); }
+  g.fillStyle = '#120a10'; g.fillRect(25.5, -54, 2.6, 2.6); g.fillRect(34, -43.5, 2, 1.6);
+  F(g, mane, pP(19, -61, 23, -60, 22, -56), false);
+  g.restore();
+  // jockey
+  if(silk){
+    F(g, '#f0f0f0', pP(-1, -44, 5, -45, 9, -36, 5, -35));
+    F(g, '#2a1a10', pP(5, -37, 10, -37, 10, -33, 5, -33));
+    SH(g, silk, pE(1, -50, 9, 5.6, -0.3), 8);
+    BAR(g, silk, 3.6, 6, -51, 17, -47);
+    F(g, '#ffd9b3', pC(17.5, -47, 2));
+    SH(g, silk, pC(9, -59, 4.8), 5);
+    F(g, '#ffd9b3', pP(11, -58, 14.5, -58, 14, -54, 10.5, -54));
+    g.fillStyle = shade(silk, -0.45); g.fillRect(7.5, -63, 9, 2);
+  }
+  // near legs
+  legD(g, -14, -24, legs[2], body, low, socks);
+  legD(g, 13, -24, legs[3], body, low, socks);
+  g.restore();
+}
+const HBOX = [-44, -72, 42, 4];
+function horseSpr(f, pose, fr, silk, sc = 0.4){ return sprite(`H${f.coat}|${f.mark}|${f.socks ? 1 : 0}|${pose}|${fr}|${silk || ''}|${sc}`, sc, HBOX, g => horseD(g, f.coat, f.mark, f.socks, pose, fr, silk)); }
+const PORT = new Map();
+function portrait(h){ const k = h.coat + h.mark + (h.socks ? 1 : 0) + (h.age < 24 ? 'f' : ''); let u = PORT.get(k);
+  if(!u){ u = horseSpr(h, 'stand', 0, null, h.age < 24 ? 0.32 : 0.4).c.toDataURL(); PORT.set(k, u); } return u; }
+
+// =====================================================================
+//  SCENE: ranch (default) and race playback
+// =====================================================================
+const LW = 240, LH = 128;
+const low = document.createElement('canvas'); low.width = LW; low.height = LH;
+const lg = low.getContext('2d');
+const cv = $('scene'), cg = cv.getContext('2d');
+let CW = 0, CH = 0, PS = 1, DPR = 1;
+function resize(){ DPR = Math.min(2, window.devicePixelRatio || 1); CW = cv.clientWidth; CH = Math.round(CW * LH / LW);
+  cv.style.height = CH + 'px'; cv.width = Math.round(CW * DPR); cv.height = Math.round(CH * DPR); PS = CW / LW; }
+const px = (x, y, w, h, c) => { lg.fillStyle = c; lg.fillRect(Math.round(x), Math.round(y), w, h); };
+const R = {time:0, walkers:[], play:null, queue:[], dust:[]};
+function skyBands(top, bot, h){ for(let y = 0; y < h; y += 4) px(0, y, LW, 4, mix(top, bot, y / h)); }
+function hills(y0, col, seed, amp, per){ lg.fillStyle = col; lg.beginPath(); lg.moveTo(0, LH); for(let x = 0; x <= LW; x += 4) lg.lineTo(x, Math.round(y0 - Math.abs(Math.sin(x / per + seed)) * amp - Math.sin(x / 13 + seed) * 2)); lg.lineTo(LW, LH); lg.fill(); }
+function clouds(t){ for(let k = 0; k < 4; k++){ const cx = ((t * (1.5 + k * 0.7) + k * 70) % (LW + 40)) - 20, cy = 8 + k * 7; px(cx, cy, 16, 3, '#fff'); px(cx + 3, cy - 2, 9, 2, '#fff'); } }
+// ---- ranch ----
+function drawRanch(){
+  const t = R.time, season = S.t % 12, winter = season === 11 || season <= 1, autumn = season >= 8 && season <= 10;
+  skyBands(winter ? '#8ab0d8' : '#4aa8ff', winter ? '#e0ecf8' : '#c8ecff', 70); clouds(t);
+  hills(60, winter ? '#c8d8e8' : '#6aa86a', 1, 10, 30); hills(70, winter ? '#e8f0f8' : autumn ? '#9a9a40' : '#4a9a4a', 3, 6, 18);
+  const grass = winter ? '#e8eef4' : autumn ? '#a0a040' : '#5aaa4a';
+  px(0, 72, LW, LH - 72, grass);
+  for(let k = 0; k < 40; k++) px(hash(k * 7) * LW, 76 + hash(k * 13) * 50, 1, 2, shade(grass, -0.2));
+  // buildings appear as the ranch grows
+  const F_ = S.fac;
+  // barn (stables) grows wider with stalls
+  const bw = 34 + Math.min(40, F_.stables * 4);
+  px(6, 44, bw, 28, '#b03a2a'); for(let k = 0; k < bw; k += 3) px(6 + k, 44, 1, 28, '#8a2a20');
+  lg.fillStyle = '#6a2018'; lg.beginPath(); lg.moveTo(3, 45); lg.lineTo(6 + bw / 2, 32); lg.lineTo(9 + bw, 45); lg.fill();
+  for(let k = 0; k < Math.floor(bw / 12); k++){ px(10 + k * 12, 58, 8, 14, '#3a1a10'); px(10 + k * 12, 58, 8, 1, '#fff'); px(10 + k * 12, 58, 1, 14, '#fff'); px(17 + k * 12, 58, 1, 14, '#fff'); }
+  px(6 + bw / 2 - 3, 37, 6, 5, '#fff'); px(6 + bw / 2 - 2, 38, 4, 3, '#3a1a10');
+  let x = 14 + bw;
+  if(F_.train){ px(x, 64, 46, 8, '#c8a070'); px(x + 4, 66, 38, 4, grass); px(x, 63, 46, 1, '#fff'); x += 50; }
+  if(F_.vet){ px(x, 52, 20, 20, '#f0f0f4'); px(x, 50, 20, 3, '#9aa0b0'); px(x + 8, 56, 4, 10, '#e03a3a'); px(x + 5, 59, 10, 4, '#e03a3a'); x += 24; }
+  if(F_.barn){ px(x, 50, 22, 22, '#f0a0c0'); lg.fillStyle = '#c06090'; lg.beginPath(); lg.moveTo(x - 2, 51); lg.lineTo(x + 11, 42); lg.lineTo(x + 24, 51); lg.fill(); px(x + 8, 56, 6, 5, '#ff4a7a'); px(x + 7, 55, 3, 2, '#ff4a7a'); px(x + 12, 55, 3, 2, '#ff4a7a'); px(x + 9, 62, 4, 10, '#6a2a40'); x += 26; }
+  if(F_.academy){ px(x, 48, 20, 24, '#6a7ad0'); px(x + 2, 52, 4, 4, '#ffe08a'); px(x + 14, 52, 4, 4, '#ffe08a'); px(x + 9, 30, 1, 18, '#555'); px(x + 10, 30, 7, 5, SILKS[S.silk]); x += 24; }
+  if(F_.pasture){ px(x, 44, 8, 28, '#c8c8c0'); px(x - 1, 42, 10, 3, '#a0a098'); px(x + 10, 64, 8, 8, '#e8c860'); px(x + 18, 66, 8, 6, '#e8c860'); }
+  // fence
+  for(let fx = 0; fx < LW; fx += 10){ px(fx, 80, 2, 10, '#f4f0e8'); } px(0, 82, LW, 2, '#f4f0e8'); px(0, 86, LW, 2, '#f4f0e8');
+  // horses in the paddock
+  syncWalkers();
+  const ws = R.walkers.slice().sort((a, b) => a.y - b.y);
+  for(const w of ws){ const h = S.horses.find(x => x.id === w.id); if(!h) continue;
+    const pose = w.state === 'graze' ? 'graze' : w.state === 'stand' ? 'stand' : w.state === 'run' ? 'gal' : 'walk';
+    const fr = pose === 'gal' ? Math.floor(t * 10 + w.ph) & 3 : pose === 'walk' ? Math.floor(t * 5 + w.ph) & 3 : 0;
+    const sp = horseSpr(h, pose, fr, null, h.age < 24 ? 0.26 : 0.36);
+    px(w.x - 9, w.y, 18, 2, shade(grass, -0.3));
+    blit(lg, sp, w.x, w.y, w.vx < 0); }
+}
+function syncWalkers(){
+  const ids = new Set(S.horses.map(h => h.id));
+  R.walkers = R.walkers.filter(w => ids.has(w.id));
+  for(const h of S.horses) if(!R.walkers.find(w => w.id === h.id)) R.walkers.push({id:h.id, x:rand(20, LW - 20), y:rand(96, 124), vx:0, state:'graze', tt:rand(1, 4), ph:rand(0, 4)});
+}
+function updateWalkers(dt){
+  for(const w of R.walkers){ w.tt -= dt;
+    if(w.tt <= 0){ const h = S.horses.find(x => x.id === w.id), r = Math.random();
+      w.state = h && h.plan.t === 'train' && r < 0.35 ? 'run' : r < 0.45 ? 'graze' : r < 0.7 ? 'walk' : 'stand';
+      w.vx = w.state === 'run' ? (Math.random() < 0.5 ? -1 : 1) * rand(35, 50) : w.state === 'walk' ? (Math.random() < 0.5 ? -1 : 1) * rand(6, 10) : 0; w.vy = w.state === 'walk' ? rand(-2, 2) : 0;
+      w.tt = w.state === 'run' ? rand(1.2, 2.5) : rand(2, 5); }
+    w.x += w.vx * dt; w.y += (w.vy || 0) * dt;
+    if(w.x < 16 || w.x > LW - 16){ w.vx = -w.vx; w.x = clamp(w.x, 16, LW - 16); }
+    w.y = clamp(w.y, 96, 124); }
+}
+// ---- race playback ----
+function startPlayback(rep){
+  R.queue = rep.races.map(r => r);
+  if(R.queue.length) nextRace(); else monthReport();
+}
+function nextRace(){
+  const res = R.queue.shift(); if(!res){ R.play = null; monthReport(); return; }
+  const D = DIST[res.race.dist], wDur = D.dur;
+  const field = res.field.map((f, i) => ({...f, lane:0, D:wDur * (1 + 0.022 * i + 0.004 * Math.max(0, res.field[0].perf - f.perf)), b:clamp(((f.acc || 50) - (f.sta || 50)) / 30 + rand(-0.5, 0.5), -1.2, 1.2), ph:rand(0, 4)}));
+  const lanes = field.map((f, i) => i).sort(() => Math.random() - 0.5); field.forEach((f, i) => f.lane = lanes[i]);
+  R.play = {res, field, len:D.len, t:-1.6, done:false, doneT:0};
+  setSceneBtns();
+}
+const shape = (s, b) => s + b * 0.09 * Math.sin(Math.PI * s);
+function posOf(f, t){ const s = t / f.D; return s <= 0 ? 0 : s >= 1 ? 1 + (s - 1) * 0.6 : shape(s, f.b); }
+function drawRace(){
+  const P = R.play, t = Math.max(0, P.t), L = P.len;
+  const lead = Math.max(...P.field.map(f => posOf(f, t))) * L;
+  const cam = clamp(lead - LW * 0.62, -30, L + 60 - LW * 0.5);
+  skyBands('#4aa8ff', '#c8ecff', 50); clouds(R.time);
+  hills(46, '#6aa86a', 2, 8, 26);
+  // grandstand (parallax)
+  const sp = cam * 0.5;
+  for(let k = -1; k < 6; k++){ const sx = k * 90 - (sp % 90);
+    px(sx, 30, 80, 24, '#d8d0c0'); px(sx - 2, 26, 84, 5, '#a03030'); for(let j = 0; j < 80; j += 10) px(sx + j, 26, 5, 5, '#f0f0f0');
+    for(let r = 0; r < 4; r++) for(let c = 0; c < 38; c++){ const ph = Math.floor(R.time * (P.done ? 8 : 2) + c * 3 + r * 7 + k * 11) % 5; px(sx + 2 + c * 2, 33 + r * 5 - (ph === 0 && P.done ? 1 : 0), 1, 2, ['#e83a3a', '#3a7ae8', '#ffcf3a', '#f4f4f4', '#2fae5a'][(c * 7 + r * 3 + k) % 5]); } }
+  px(0, 54, LW, 6, '#4a9a4a');
+  // rails + track
+  px(0, 60, LW, 2, '#f4f4f4'); for(let x = -(cam % 12); x < LW; x += 12) px(x, 60, 2, 6, '#f4f4f4');
+  px(0, 66, LW, 46, '#b07a4a'); for(let k = 0; k < 70; k++){ const x = ((hash(k * 7) * 600 - cam) % 240 + 240) % 240; px(x, 67 + hash(k * 3) * 44, 2, 1, '#9a6a3a'); }
+  px(0, 112, LW, 2, '#f4f4f4'); for(let x = -(cam % 12); x < LW; x += 12) px(x, 112, 2, 6, '#f4f4f4');
+  px(0, 118, LW, 10, '#4a9a4a'); for(let x = -((cam * 1.2) % 30); x < LW; x += 30) { px(x, 118, 8, 4, '#3a8a3a'); px(x + 2, 116, 4, 2, '#3a8a3a'); }
+  // furlong posts + finish
+  for(let d = 200; d < L; d += 200){ const x = d - cam; if(x > -10 && x < LW + 10){ px(x, 54, 2, 12, '#f4f4f4'); px(x - 2, 52, 6, 4, '#e83a3a'); } }
+  { const x = L - cam; if(x > -20 && x < LW + 20){ px(x, 40, 3, 26, '#f4f4f4'); for(let k = 0; k < 10; k++) px(x + (k % 2) * 3, 40 + k * 2, 3, 2, '#111'); px(x - 1, 66, 2, 46, '#f4f4f4'); px(x - 1, 112, 3, 6, '#f4f4f4'); } }
+  // starting gate
+  { const x = -cam - 6; if(x > -40){ px(x, 64, 4, 50, '#c8c8d0'); for(let k = 0; k < 8; k++) px(x - 3, 66 + k * 6, 10, 1, '#888'); } }
+  // dust
+  for(const d of R.dust){ lg.globalAlpha = Math.max(0, d.life); px(d.x - cam, d.y, 2, 2, '#d8b088'); } lg.globalAlpha = 1;
+  // horses back to front
+  const order = P.field.slice().sort((a, b) => a.lane - b.lane);
+  for(const f of order){ const x = posOf(f, t) * L - cam, y = 72 + f.lane * 5.2 + 26;
+    const running = P.t > 0 && posOf(f, t) < 1.25, fr = running ? Math.floor(t * (11 + f.ph) + f.ph) & 3 : 0;
+    blit(lg, horseSpr(f, running ? 'gal' : 'stand', fr, f.silk, 0.34), x, y, false);
+    if(running && Math.random() < 0.3) R.dust.push({x:x + cam - 14, y:y - 2, life:0.6}); }
+}
+function updatePlay(dt){
+  const P = R.play; if(!P) return;
+  P.t += dt;
+  for(const d of R.dust){ d.life -= dt * 1.5; d.y -= dt * 4; } R.dust = R.dust.filter(d => d.life > 0);
+  const winner = P.field[0];
+  if(!P.done && P.t >= winner.D){ P.done = true; setSceneBtns(); }
+  if(P.done) P.doneT += dt;
+}
+function setSceneBtns(){
+  const b = $('sceneBtns');
+  if(R.play) b.innerHTML = R.play.done ? `<button class="go" id="contBtn">${R.queue.length ? 'Next race ▶' : 'Continue ▶'}</button>` : `<button id="skipBtn">Skip ⏩</button>`;
+  else b.innerHTML = '';
+}
+function render(){
+  if(R.play) drawRace(); else drawRanch();
+  cg.setTransform(1, 0, 0, 1, 0, 0); cg.imageSmoothingEnabled = false; cg.drawImage(low, 0, 0, cv.width, cv.height);
+  cg.setTransform(DPR, 0, 0, DPR, 0, 0);
+  if(R.play) drawRaceOverlay();
+  else { cg.font = '900 11px system-ui'; cg.textAlign = 'left'; cg.lineWidth = 3; cg.strokeStyle = 'rgba(0,0,0,.6)'; cg.fillStyle = '#fff';
+    const txt = `🏡 Your ranch · ${S.horses.length}/${capacity()} horses`; cg.strokeText(txt, 8, 15); cg.fillText(txt, 8, 15); }
+}
+function drawRaceOverlay(){
+  const P = R.play, t = Math.max(0, P.t), L = P.len, race = P.res.race;
+  const lead = Math.max(...P.field.map(f => posOf(f, t))) * L, cam = clamp(lead - LW * 0.62, -30, L + 60 - LW * 0.5);
+  cg.textAlign = 'center'; cg.lineWidth = 3; cg.strokeStyle = 'rgba(0,0,0,.75)';
+  for(const f of P.field) if(f.mine){ const x = (posOf(f, t) * L - cam) * PS, y = (72 + f.lane * 5.2 + 26 - 32) * PS;
+    cg.font = '900 11px system-ui'; cg.strokeText('▼ ' + f.name, x, y); cg.fillStyle = '#ffd24a'; cg.fillText('▼ ' + f.name, x, y); }
+  // title + progress strip
+  cg.font = '900 11px system-ui'; cg.textAlign = 'left'; cg.fillStyle = '#fff';
+  const title = `${race.big ? '👑 ' : ''}${race.n} · ${DIST[race.dist].n} ${DIST[race.dist].d} · ${money(race.purse)}`;
+  cg.strokeText(title, 8, 14); cg.fillText(title, 8, 14);
+  const bw = CW - 16; cg.fillStyle = 'rgba(0,0,0,.45)'; cg.fillRect(8, 20, bw, 6);
+  for(const f of P.field){ const p = Math.min(1, posOf(f, t)); cg.fillStyle = f.mine ? '#ffd24a' : f.silk; cg.fillRect(8 + p * (bw - 6), 19, 6, 8); }
+  if(P.t < 0){ cg.textAlign = 'center'; cg.font = '900 22px system-ui'; const s = P.t < -0.8 ? 'Ready…' : 'And they\'re off!'; cg.strokeText(s, CW / 2, CH * 0.45); cg.fillStyle = '#fff'; cg.fillText(s, CW / 2, CH * 0.45); }
+  else if(!P.done){ // commentary
+    const ord = P.field.slice().sort((a, b) => posOf(b, t) - posOf(a, t)), my = ord.findIndex(f => f.mine);
+    const s = t / P.field[0].D;
+    const line = s < 0.25 ? `${ord[0].name} breaks on top!` : s < 0.7 ? `${ord[0].name} leads${my >= 0 ? `, ${ord[my].name} in ${['1st', '2nd', '3rd'][my] || (my + 1) + 'th'}` : ''}` : `Down the stretch… ${ord[0].name}${ord[1] ? ' and ' + ord[1].name : ''}!`;
+    cg.font = '800 11px system-ui'; cg.textAlign = 'left'; cg.strokeText(line, 8, CH - 10); cg.fillStyle = '#fff'; cg.fillText(line, 8, CH - 10);
+  } else { // results board
+    const bx = CW * 0.12, by = CH * 0.16, bw2 = CW * 0.76, bh = CH * 0.7;
+    cg.fillStyle = 'rgba(10,8,24,.88)'; cg.fillRect(bx, by, bw2, bh); cg.strokeStyle = '#ffd24a'; cg.lineWidth = 2; cg.strokeRect(bx, by, bw2, bh);
+    cg.textAlign = 'center'; cg.font = '900 13px system-ui'; cg.fillStyle = '#ffd24a'; cg.fillText('🏁 RESULTS', CW / 2, by + 17);
+    cg.textAlign = 'left'; cg.font = '800 11px system-ui';
+    const rows = Math.min(8, Math.floor((bh - 26) / 13));
+    P.field.slice(0, rows).forEach((f, i) => { const y = by + 32 + i * 13; cg.fillStyle = f.mine ? '#ffd24a' : '#e8e4ff';
+      cg.fillText(`${i + 1}. ${f.name}${f.mine ? ' ★' : ''}`, bx + 10, y); cg.textAlign = 'right'; cg.fillText(f.prize ? money(f.prize) : '', bx + bw2 - 10, y); cg.textAlign = 'left'; });
+  }
+}
+
+// ---- month report ----
+function monthReport(){
+  const rep = REPORT; R.play = null; setSceneBtns(); if(!rep) return;
+  const net = rep.income - rep.expense;
+  let h = `<h2>📅 ${monthName(rep.month)} report</h2>`;
+  if(rep.births.length) h += rep.births.map(f => `<div class="card" style="text-align:center;margin:6px 0"><img src="${portrait(f)}" style="width:70px;image-rendering:pixelated"><br>🍼 <b>${f.name}</b> is born! ${f.sex === 'M' ? '♂ colt' : '♀ filly'}, ${COAT[f.coat].n}<br><span style="color:var(--gold)">${stars(grade(f))}</span>${f.prodigy ? ' <span class="tag win">PRODIGY</span>' : ''}</div>`).join('');
+  if(rep.notes.length) h += `<p style="text-align:left">${rep.notes.join('<br>')}</p>`;
+  h += `<div class="ledger">${rep.lines.map(([t, v]) => `<div><span>${t}</span><b class="${v >= 0 ? 'pos' : 'neg'}">${v >= 0 ? '+' : ''}${money(v)}</b></div>`).join('')}<div><span><b>Net</b></span><b class="${net >= 0 ? 'pos' : 'neg'}">${net >= 0 ? '+' : ''}${money(net)}</b></div></div>`;
+  if(rep.year){ const Y = rep.year;
+    h += `<div class="card" style="text-align:left"><h3>🏆 Year ${Y.yr} final standings</h3>${Y.table.map((r, i) => `<div class="stat"><span>${i + 1}. ${r.me ? '<b style="color:var(--gold)">You</b>' : r.n}</span><b>${money(r.earn)}</b></div>`).join('')}
+      ${Y.bonus ? `<p>Year-end bonus for finishing #${Y.pos}: <b class="pos">+${money(Y.bonus)}</b></p>` : ''}${Y.hoty ? `<p>🐎 Your horse of the year: <b>${Y.hoty}</b></p>` : ''}</div>`; }
+  h += `<button class="btn" id="repOk">${S.pending ? 'Next: event card ▶' : 'Continue'}</button>`;
+  showModal(h);
+  REPORT = null;
+}
+
+// =====================================================================
+//  UI
+// =====================================================================
+let tab = 'stable', planFor = null;
+function toast(msg){ const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('show'), 2400); }
+function showModal(html){ $('modalBox').innerHTML = html; $('modal').hidden = false; $('modalBox').scrollTop = 0; }
+const bar = (cur, pot, cls) => `<div class="sb"><i class="pot" style="width:${clamp(pot, 0, 150) / 1.5}%"></i><i class="cur ${cls}" style="width:${clamp(cur, 0, 150) / 1.5}%"></i></div>`;
+function statusTxt(h){
+  if(h.age < 24) return `🍼 Foal: races at 2y (${24 - h.age} months)`;
+  if(h.inj) return `🤕 Injured: ${h.inj} month${h.inj > 1 ? 's' : ''}`;
+  if(h.preg) return `🤰 In foal to ${h.preg.sire}: due in ${h.preg.due} months`;
+  if(h.age >= 144) return '🎓 Retired from racing';
+  return '';
+}
+function planLabel(h){ const p = h.plan;
+  if(p.t === 'train') return `🏋️ Train ${p.f === 'bal' ? 'all-round' : STAT_N[p.f]}`;
+  if(p.t === 'rest') return '😴 Rest';
+  if(p.t === 'race'){ const r = S.card.find(x => x.id === p.r); return r ? `🏁 ${r.n}` : '🏁 Race'; }
+  if(p.t === 'breed') return `💞 Breed with ${p.sn}`;
+  if(p.t === 'stud') return `🐎 At stud (${money(studFee(h))}/mare)`;
+  return ''; }
+function horseCard(h){
+  const st = statusTxt(h), p = h.plan, busy = h.preg || h.inj;
+  const plans = busy ? `<span class="note">${st}</span>` : `
+    ${h.age >= 6 ? STATS.concat(['bal']).map(f => `<button class="${p.t === 'train' && p.f === f ? 'on' : ''}" data-plan="${h.id}" data-p="train" data-f="${f}">🏋️ ${f === 'bal' ? 'All' : STAT_N[f]}</button>`).join('') : ''}
+    <button class="${p.t === 'rest' ? 'on' : ''}" data-plan="${h.id}" data-p="rest">😴 Rest</button>
+    ${canRace(h) ? `<button class="${p.t === 'race' ? 'on' : ''}" data-plan="${h.id}" data-p="race">🏁 ${p.t === 'race' ? planLabel(h).slice(3) : 'Race…'}</button>` : ''}
+    ${canBreedMare(h) && S.fac.barn ? `<button class="${p.t === 'breed' ? 'on' : ''}" data-plan="${h.id}" data-p="breed">💞 ${p.t === 'breed' ? p.sn : 'Breed…'}</button>` : ''}
+    ${canStud(h) && S.fac.barn ? `<button class="${p.t === 'stud' ? 'on' : ''}" data-plan="${h.id}" data-p="stud">🐎 Stud ${money(studFee(h))}</button>` : ''}`;
+  return `<div class="horse mine"><div class="hrow"><div class="por" data-detail="${h.id}"><img src="${portrait(h)}"></div>
+    <div class="hinfo"><div class="hname">${h.sex === 'M' ? '♂' : '♀'} ${h.name} <span class="st">${stars(grade(h))}</span></div>
+    <div class="hsub">${ageTxt(h.age)} · ${BREEDS[h.breed].n} · ${COAT[h.coat].n} · ${h.wins}W/${h.starts}R${h.gw ? ` · ${h.gw} graded` : ''}</div>
+    <div class="stats"><span>SPD</span>${bar(h.st.spd, h.pot.spd, '')}<span>${Math.round(h.st.spd)}/${h.pot.spd}</span>
+      <span>STA</span>${bar(h.st.sta, h.pot.sta, 'sta')}<span>${Math.round(h.st.sta)}/${h.pot.sta}</span>
+      <span>ACC</span>${bar(h.st.acc, h.pot.acc, 'acc')}<span>${Math.round(h.st.acc)}/${h.pot.acc}</span>
+      <span>FORM</span>${bar(h.form * 1.5, 150, 'form')}<span>${Math.round(h.form)}%</span></div></div></div>
+    ${st && !busy ? `<div class="hsub" style="margin-top:4px">${st}</div>` : ''}
+    <div class="plans">${plans}</div></div>`;
+}
+function marketCard(h, i){
+  const can = S.cash >= h.price;
+  return `<div class="horse"><div class="hrow"><div class="por" data-mdetail="${i}"><img src="${portrait(h)}"></div>
+    <div class="hinfo"><div class="hname">${h.sex === 'M' ? '♂' : '♀'} ${h.name} <span class="st">${stars(grade(h))}</span></div>
+    <div class="hsub">${h.kind} · ${ageTxt(h.age)} · ${BREEDS[h.breed].n} · ${COAT[h.coat].n}${COAT[h.coat].rare ? ' ✨' : ''}${h.starts ? ` · ${h.wins}W/${h.starts}R` : ''}</div>
+    <div class="stats"><span>SPD</span>${bar(h.st.spd, h.pot.spd, '')}<span>${Math.round(h.st.spd)}/${h.pot.spd}</span>
+      <span>STA</span>${bar(h.st.sta, h.pot.sta, 'sta')}<span>${Math.round(h.st.sta)}/${h.pot.sta}</span>
+      <span>ACC</span>${bar(h.st.acc, h.pot.acc, 'acc')}<span>${Math.round(h.st.acc)}/${h.pot.acc}</span></div></div>
+    <button class="sbtn ${can ? 'can' : ''}" data-buy="${i}">Buy<br>${money(h.price)}</button></div></div>`;
+}
+function renderPanel(){
+  const P = $('panel');
+  for(const b of document.querySelectorAll('#tabs button')) b.classList.toggle('active', b.dataset.tab === tab);
+  if(tab === 'stable'){
+    P.innerHTML = `<div class="sec"><span>Your horses ${S.horses.length}/${capacity()}</span><span style="text-transform:none;letter-spacing:0">Upkeep ${money(UPKEEP * (1 - 0.05 * S.fac.pasture))}/horse/mo</span></div>` +
+      S.horses.map(horseCard).join('') + (S.horses.length ? '' : '<div class="card">No horses! Buy one in the Market.</div>');
+  } else if(tab === 'races'){
+    const m = S.t % 12;
+    P.innerHTML = `<div class="card"><h3>🏁 This month: ${monthName(S.t)}</h3>Pick a race for each horse on the Stable tab (🏁 Race…). Each horse can run once a month; racing costs form, so rest them between big races. Prize split: 60% / 20% / 10% / 5%.</div>` +
+      S.card.map(r => { const ins = runnersFor(r); return `<div class="race ${r.big ? 'big' : ''}"><b>${r.big ? '👑 ' : ''}${r.n}</b> <span class="tag">${DIST[r.dist].n} ${DIST[r.dist].d}</span>${r.maiden ? '<span class="tag">Maidens</span>' : ''}${r.age3 ? '<span class="tag">3yo</span>' : ''}${r.req ? `<span class="tag ${S.fame >= r.req ? '' : 'bad'}">⭐ ${r.req}</span>` : ''}
+        <br>Purse <b>${money(r.purse)}</b> · entry ${money(r.fee)} · field rated ${Math.round(r.lo)}–${Math.round(r.hi)} · +${r.fame}⭐ for a win${ins.length ? `<br>Entered: <b style="color:var(--gold)">${ins.map(h => h.name).join(', ')}</b>` : ''}</div>`; }).join('') +
+      `<div class="sec">Big races calendar</div>` + Object.entries(BIG).map(([mm, b]) => `<div class="race ${+mm === m ? 'big' : ''}"><b>${MONTHS[mm]}: ${b.n}</b>${b.age3 ? '<span class="tag">3yo</span>' : ''}${b.crown ? `<span class="tag">Triple Crown ${b.crown}/3</span>` : ''} · ${money(b.purse)} · ⭐ ${b.req}</div>`).join('') +
+      `<div class="sec">Recent results</div>` + (S.log.length ? S.log.slice(0, 15).map(l => `<div class="race">${monthName(l.m)} · ${l.race}: <b>${l.horse}</b> <span class="tag ${l.place === 1 ? 'win' : ''}">${l.place === 1 ? '🥇 1st' : ord(l.place)}</span> ${l.prize ? money(l.prize) : ''}</div>`).join('') : '<div class="card">No races yet.</div>');
+  } else if(tab === 'breed'){
+    if(!S.fac.barn){ P.innerHTML = `<div class="card"><h3>💞 Breeding</h3>Build a <b>Breeding Barn</b> on the Ranch tab to start breeding. Foals inherit their parents' potential, with a chance to mutate into something better, or a rare coat!</div>`; return; }
+    const mares = S.horses.filter(h => h.sex === 'F'), stallions = S.horses.filter(h => h.sex === 'M');
+    P.innerHTML = `<div class="card"><h3>💞 Breeding</h3>Choose a mare (3y+) and a stallion. She's in foal for 5 months (no racing). Foals get the <b>average potential</b> of both parents ±, with a <b>${8 + 2 * S.fac.barn}%</b> chance per stat to mutate higher, and may get a rare coat. Your own stallions can also earn stud fees.</div>
+      <div class="sec">Your mares</div>${mares.map(h => `<div class="item"><img src="${portrait(h)}" style="width:52px;image-rendering:pixelated"><div class="info"><div class="nm">${h.name} <span style="color:var(--gold);font-size:11px">${stars(grade(h))}</span></div><div class="ds">${statusTxt(h) || (canBreedMare(h) ? 'Ready to breed' : 'Too young (3y+)')}${h.plan.t === 'breed' ? ` · 💞 with ${h.plan.sn}` : ''}</div></div>${canBreedMare(h) ? `<button class="sbtn ${h.plan.t === 'breed' ? 'on' : 'can'}" data-plan="${h.id}" data-p="breed">${h.plan.t === 'breed' ? 'Change' : 'Breed…'}</button>` : ''}</div>`).join('') || '<div class="card">No mares yet.</div>'}
+      <div class="sec">Stud book (outside stallions)</div>${S.studs.map(st => `<div class="item"><img src="${portrait(st)}" style="width:52px;image-rendering:pixelated"><div class="info"><div class="nm">${st.name} <span style="color:var(--gold);font-size:11px">${stars(grade(st))}</span></div><div class="ds">${BREEDS[st.breed].n} · ${COAT[st.coat].n} · ${st.wins} wins · pot ${st.pot.spd}/${st.pot.sta}/${st.pot.acc}</div></div><span class="sbtn">${money(st.fee)}</span></div>`).join('')}
+      <div class="sec">Your stallions</div>${stallions.map(h => `<div class="item"><img src="${portrait(h)}" style="width:52px;image-rendering:pixelated"><div class="info"><div class="nm">${h.name} <span style="color:var(--gold);font-size:11px">${stars(grade(h))}</span></div><div class="ds">pot ${h.pot.spd}/${h.pot.sta}/${h.pot.acc} · stud fee ${money(studFee(h))}</div></div></div>`).join('') || '<div class="card">No stallions yet.</div>'}`;
+  } else if(tab === 'market'){
+    P.innerHTML = `<div class="card"><h3>🛒 Horse market</h3>New horses every month. ★ = potential grade. Bars show current stats vs. potential (faint).</div>` + S.market.map(marketCard).join('') +
+      `<div class="sec">Sell your horses</div>` + S.horses.map(h => `<div class="item"><img src="${portrait(h)}" style="width:52px;image-rendering:pixelated"><div class="info"><div class="nm">${h.name}</div><div class="ds">${stars(grade(h))} · ${ageTxt(h.age)} · ${h.wins}W</div></div><button class="sbtn" data-sell="${h.id}">Sell<br>${money(Math.round(value(h) * 0.9))}</button></div>`).join('');
+  } else if(tab === 'ranch'){
+    P.innerHTML = `<div class="card"><h3>🏗️ Your ranch</h3>Upgrades are permanent. Net worth: <b>${money(netWorth())}</b>.</div>` + FAC.map(f => { const l = S.fac[f.id], c = facCost(f, l), max = l >= f.max;
+      return `<div class="item"><div class="ic">${f.icon}</div><div class="info"><div class="nm">${f.n} <span style="color:var(--dim);font-size:12px">Lv ${l}</span></div><div class="ds">${f.info(l)}${max ? '' : `<br><span style="color:var(--good)">Next: ${f.info(l + 1)}</span>`}</div></div>${max ? '<span class="sbtn">MAX</span>' : `<button class="sbtn ${S.cash >= c ? 'can' : ''}" data-fac="${f.id}">${money(c)}</button>`}</div>`; }).join('') +
+      `<div class="sec">Your racing silks</div><div class="card">${SILKS.map((c, i) => `<button class="swatch ${S.silk === i ? 'on' : ''}" style="background:${c}" data-silk="${i}"></button>`).join('')}</div>`;
+  } else {
+    const table = [...S.rivals.map(r => ({n:r.n, earn:r.earn, silk:r.silk})), {n:'You', earn:S.yearEarn, me:true, silk:SILKS[S.silk]}].sort((a, b) => b.earn - a.earn);
+    P.innerHTML = `<div class="card"><h3>🏆 Year ${Math.floor(S.t / 12) + 1} standings</h3>${table.map((r, i) => `<div class="stat"><span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${r.silk};margin-right:6px"></span>${i + 1}. ${r.me ? '<b style="color:var(--gold)">You</b>' : r.n}</span><b>${money(r.earn)}</b></div>`).join('')}
+      <p style="margin:6px 0 0">Year-end bonus: #1 ${money(500000)}, #2 ${money(150000)}, #3 ${money(50000)}.</p></div>
+      <div class="sec">Goals</div>${GOALS.map(g => `<div class="item ${S.goals[g.id] ? 'done' : ''}"><div class="ic">${S.goals[g.id] ? '✅' : '🎯'}</div><div class="info"><div class="nm">${g.n}</div><div class="ds">Reward ${money(g.r)}</div></div></div>`).join('')}
+      <div class="sec">Hall of Fame</div>${S.hall.length ? S.hall.map(x => `<div class="item"><img src="${portrait(x)}" style="width:52px;image-rendering:pixelated"><div class="info"><div class="nm">🏅 ${x.name}</div><div class="ds">${x.wins} wins · ${money(x.earned)} earned${x.gw ? ` · ${x.gw} graded` : ''}</div></div></div>`).join('') : '<div class="card">Retire a champion (from its detail card) to honor it here.</div>'}
+      <div class="sec">Stats</div><div class="card">${[['Net worth', money(netWorth())], ['Career earnings', money(S.total)], ['Races run', S.stats.races], ['Wins', S.stats.wins], ['Foals bred', S.stats.foals], ['Fame', '⭐ ' + fmt(S.fame)]].map(([a, b]) => `<div class="stat"><span>${a}</span><b>${b}</b></div>`).join('')}</div>
+      <div class="card"><h3>📱 Install</h3><b>iPhone:</b> Safari → Share → Add to Home Screen. <b>Android:</b> Chrome → ⋮ → Install app.</div>
+      <div class="card"><button class="btn danger" id="wipeBtn">Start a new game</button></div>`;
+  }
+  updateTop();
+}
+function updateTop(){
+  $('cash').textContent = money(S.cash); $('cash').style.color = S.cash < 0 ? 'var(--bad)' : '';
+  $('fame').textContent = '⭐ ' + fmt(S.fame); $('date').textContent = monthName(S.t);
+  const table = [...S.rivals.map(r => r.earn), S.yearEarn].sort((a, b) => b - a); $('rank').textContent = '🏆 #' + (table.indexOf(S.yearEarn) + 1);
+  const n = k => S.horses.filter(h => h.plan.t === k && !h.inj && !h.preg).length;
+  const fees = S.card.reduce((s, r) => s + r.fee * runnersFor(r).length, 0);
+  $('planSum').innerHTML = `This month: 🏋️ ${n('train')} train · 🏁 ${n('race')} race · 😴 ${n('rest')} rest${n('breed') ? ` · 💞 ${n('breed')} breed` : ''}<br>Bills: upkeep ${money(Math.round(UPKEEP * S.horses.length * (1 - 0.05 * S.fac.pasture)))}${fees ? ` + fees ${money(fees)}` : ''}`;
+  $('endBtn').disabled = !!R.play;
+  const tabs = document.querySelectorAll('#tabs button');
+  tabs[1].classList.toggle('alert', S.card.some(r => r.big) && !S.card.some(r => r.big && runnersFor(r).length));
+  tabs[4].classList.toggle('alert', FAC.some(f => S.fac[f.id] < f.max && S.cash >= facCost(f, S.fac[f.id]) && S.cash > 20000));
+}
+function racePicker(h){
+  const opts = S.card.map(r => { const why = eligible(h, r), [o, cls] = why ? ['', ''] : oddsTxt(h, r);
+    return `<button ${why ? 'disabled style="opacity:.45"' : ''} data-pickrace="${r.id}" data-h="${h.id}" class="${h.plan.r === r.id ? 'on' : ''}">${r.big ? '👑 ' : ''}${r.n} · ${DIST[r.dist].n} · ${money(r.purse)}
+      <small>${why || `Your rating ${Math.round(rating(h, r.dist))} vs field ${Math.round(r.lo)}–${Math.round(r.hi)} · <span class="${cls}">${o}</span> · entry ${money(r.fee)}`}</small></button>`; }).join('');
+  showModal(`<h2>🏁 Race ${h.name}</h2><p>Form ${Math.round(h.form)}%${h.form < 60 ? ' (tired: will run below best)' : ''}</p><div class="pick">${opts}</div><button class="btn ghost" data-close>Cancel</button>`);
+}
+function breedPicker(h){
+  const own = S.horses.filter(x => x !== h && canStud(x) && x.plan.t !== 'race');
+  const opt = (x, isOwn) => { const exp = STATS.map(s => Math.round((h.pot[s] + x.pot[s]) / 2)).join('/');
+    return `<button data-pickstud="${x.id}" data-own="${isOwn ? 1 : 0}" data-h="${h.id}">${x.name} ${stars(grade(x))} · ${isOwn ? 'your stallion (free)' : money(x.fee)}<small>Expected foal potential ≈ ${exp} (SPD/STA/ACC) · ${COAT[x.coat].n}</small></button>`; };
+  showModal(`<h2>💞 Breed ${h.name}</h2><p>Her potential: ${h.pot.spd}/${h.pot.sta}/${h.pot.acc}</p><div class="pick">${own.map(x => opt(x, true)).join('')}${S.studs.map(x => opt(x, false)).join('')}</div><button class="btn ghost" data-close>Cancel</button>`);
+}
+function detail(h, market){
+  const ped = h.sire ? `<p>By <b>${h.sire}</b> out of <b>${h.dam}</b> · generation ${h.gen}</p>` : '';
+  showModal(`<img src="${portrait(h)}" style="width:150px;image-rendering:pixelated"><h2>${h.sex === 'M' ? '♂' : '♀'} ${h.name}</h2>
+    <p><span style="color:var(--gold)">${stars(grade(h))}</span> · ${BREEDS[h.breed].n} · ${COAT[h.coat].n} · ${ageTxt(h.age)}</p>${ped}
+    <p>Potential ${h.pot.spd}/${h.pot.sta}/${h.pot.acc} · Record ${h.wins}W ${h.places}P ${h.starts}R · Earned ${money(h.earned)}${h.crown && h.crown.length ? ' · 👑 ' + h.crown.length + ' classics' : ''}</p>
+    <p>Value ≈ <b>${money(value(h))}</b></p>
+    ${market ? '' : `<button class="btn ghost" data-rename="${h.id}">✏️ Rename</button>${h.wins >= 3 ? `<button class="btn ghost" data-retire="${h.id}">🏅 Retire to Hall of Fame</button>` : ''}<button class="btn ghost" data-sell="${h.id}">💰 Sell for ${money(Math.round(value(h) * 0.9))}</button>`}
+    <button class="btn" data-close>Close</button>`);
+}
+
+document.addEventListener('click', ev => {
+  const t = ev.target.closest('button,.por'); if(!t || t.disabled) return;
+  const d = t.dataset;
+  if(d.tab){ tab = d.tab; renderPanel(); $('panel').scrollTop = 0; return; }
+  if(t.id === 'endBtn'){ if(R.play) return; endMonth(); renderPanel(); return; }
+  if(t.id === 'skipBtn'){ if(R.play){ R.play.t = R.play.field[0].D + 0.01; R.play.done = true; setSceneBtns(); } return; }
+  if(t.id === 'contBtn'){ nextRace(); return; }
+  if(t.id === 'repOk'){ $('modal').hidden = true; if(S.pending) showEvent(); renderPanel(); return; }
+  if(d.ev){ resolveEvent(d.ev); return; }
+  if(d.plan){ const h = S.horses.find(x => x.id === +d.plan); if(!h) return;
+    if(d.p === 'race'){ racePicker(h); return; }
+    if(d.p === 'breed'){ breedPicker(h); return; }
+    if(d.p === 'stud'){ h.plan = h.plan.t === 'stud' ? {t:'rest'} : {t:'stud'}; }
+    else h.plan = d.p === 'train' ? {t:'train', f:d.f} : {t:d.p};
+    persist(); renderPanel(); return; }
+  if(d.pickrace){ const h = S.horses.find(x => x.id === +d.h); h.plan = {t:'race', r:d.pickrace, f:h.plan.f}; $('modal').hidden = true; persist(); renderPanel(); return; }
+  if(d.pickstud){ const h = S.horses.find(x => x.id === +d.h), own = d.own === '1', s = own ? S.horses.find(x => x.id === +d.pickstud) : S.studs.find(x => x.id === +d.pickstud);
+    if(!own && S.cash < s.fee){ toast('💸 Need ' + money(s.fee)); return; }
+    if(S.horses.length >= capacity()){ toast('🏠 Stables full: build more stalls first (the foal needs a stall)'); return; }
+    h.plan = {t:'breed', s:s.id, own, sn:s.name}; $('modal').hidden = true; persist(); renderPanel(); return; }
+  if(d.detail){ detail(S.horses.find(x => x.id === +d.detail)); return; }
+  if(d.mdetail){ detail(S.market[+d.mdetail], true); return; }
+  if(d.buy){ const i = +d.buy, h = S.market[i]; if(!h) return;
+    if(S.cash < h.price){ toast('💸 Need ' + money(h.price)); return; }
+    if(S.horses.length >= capacity()){ toast('🏠 Stables full: upgrade Stables on the Ranch tab'); return; }
+    S.cash -= h.price; S.stats.bought++; delete h.kind; const pr = h.price; delete h.price; h.plan = canRace(h) ? {t:'train', f:'spd'} : {t:'rest'}; h.id = S.nextId++;
+    S.horses.push(h); S.market.splice(i, 1); toast(`🐎 ${h.name} joins your stable (${money(pr)})`); checkGoals(); persist(); renderPanel(); return; }
+  if(d.sell){ const h = S.horses.find(x => x.id === +d.sell); if(!h) return;
+    showModal(`<h2>Sell ${h.name}?</h2><p>You'll get <b>${money(Math.round(value(h) * 0.9))}</b>.</p><button class="btn" data-sellyes="${h.id}">Sell</button><button class="btn ghost" data-close>Keep</button>`); return; }
+  if(d.sellyes){ const h = S.horses.find(x => x.id === +d.sellyes); if(!h) return; const v = Math.round(value(h) * 0.9); S.cash += v; S.horses = S.horses.filter(x => x !== h); S.stats.sold++;
+    $('modal').hidden = true; toast(`💰 Sold ${h.name} for ${money(v)}`); persist(); renderPanel(); return; }
+  if(d.retire){ const h = S.horses.find(x => x.id === +d.retire); if(!h) return; S.hall.push({name:h.name, coat:h.coat, mark:h.mark, socks:h.socks, age:h.age, wins:h.wins, earned:h.earned, gw:h.gw});
+    S.horses = S.horses.filter(x => x !== h); S.fame += 10 + h.wins * 2; $('modal').hidden = true; toast(`🏅 ${h.name} enters the Hall of Fame! +${10 + h.wins * 2} ⭐`); persist(); renderPanel(); return; }
+  if(d.rename){ const h = S.horses.find(x => x.id === +d.rename); const n = prompt('New name', h.name); if(n && n.trim()){ h.name = n.trim().slice(0, 22); persist(); detail(h); renderPanel(); } return; }
+  if(d.fac){ const f = FAC.find(x => x.id === d.fac), l = S.fac[f.id], c = facCost(f, l); if(S.cash < c){ toast('💸 Need ' + money(c)); return; }
+    S.cash -= c; S.fac[f.id]++; toast(`${f.icon} ${f.n} upgraded to Lv ${S.fac[f.id]}!`); persist(); renderPanel(); return; }
+  if(d.silk){ S.silk = +d.silk; SPR.clear(); persist(); renderPanel(); return; }
+  if(t.id === 'wipeBtn'){ showModal(`<h2>Start over?</h2><p>This deletes your whole stable.</p><button class="btn danger" id="wipeYes">Yes, new game</button><button class="btn ghost" data-close>Cancel</button>`); return; }
+  if(t.id === 'wipeYes'){ localStorage.removeItem(SAVE_KEY); freshSave(); persist(); $('modal').hidden = true; R.walkers = []; tab = 'stable'; renderPanel(); return; }
+  if(t.hasAttribute('data-close')){ $('modal').hidden = true; return; }
+});
+
+// =====================================================================
+//  MAIN LOOP
+// =====================================================================
+let lastT = performance.now();
+function frame(now){
+  const dt = Math.min(0.1, (now - lastT) / 1000); lastT = now; R.time += dt;
+  if(!CW) resize();
+  updateWalkers(dt); updatePlay(dt); render();
+  requestAnimationFrame(frame);
+}
+window.addEventListener('resize', resize);
+load(); resize(); renderPanel();
+if(S.pending) showEvent();
+if(!S.seen){ S.seen = true; persist();
+  showModal(`<h2>🐎 Derby Dynasty</h2><p>Build a racing dynasty, one month at a time.</p>
+    <p style="text-align:left">🏋️ Give each horse a <b>plan</b>: train a stat, rest, race or breed.<br>▶ Press <b>End Month</b> to see what happens: races, foals, bills and surprises.<br>💞 Build a <b>Breeding Barn</b> to breed better and better horses.<br>🏆 Beat the rival stables and win the <b>Triple Crown</b>!</p>
+    <p>You start with $30K and two horses. Watch your bills!</p><button class="btn" data-close>Let's ride</button>`); }
+requestAnimationFrame(frame);
+if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>

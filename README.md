@@ -55,15 +55,18 @@ Once installed it works offline.
 | `index.html` | The whole game (HTML + CSS + JS, no dependencies) |
 | `manifest.webmanifest`, `sw.js` | Make it installable and playable offline |
 | `icon.svg`, `icon-*.png` | App icons |
-| `business/` | **Empire Tycoon**, a second game (see below) |
+| `horse/` | **Derby Dynasty**, a second game (see below) |
 
-# 🏙️ Empire Tycoon
+# 🐎 Derby Dynasty
 
-A free idle business tycoon in `business/`. Grow one lemonade stand into a galactic empire. Your businesses earn automatically (no tapping), even while you're away.
+A free **turn-based horse breeding and racing tycoon** in `horse/`. It plays on a phone or a computer (two-column layout on wide screens). Every turn is one month:
 
-- **10 businesses** from Lemonade Stand to Space Agency, each a pixel-art building in a living city with day/night, traffic and pedestrians. Buildings grow as you buy more.
-- **Milestones:** owning 25, 50, 100, 200… of a business doubles its speed. When every business reaches 25, 50, 100… all profit ×3.
-- **Managers** triple a business's profit. **Upgrades** triple one business or all of them.
-- **Hot Deals** float by on a balloon and pay out by themselves (cash, ×7 profit Boom, or 3× speed Rush). **Market news** gives one business ×3 for a minute.
-- **Investors (prestige):** IPO to turn lifetime earnings into investors (+2% profit each), and spend them on permanent perks. Each IPO moves you to a new city: Hometown → Metro City → Neon Bay → Mars Colony.
-- Buy ×1 / ×10 / ×100 / Next milestone / Max. Installable and works offline, like Power Surge.
+1. **Plan:** give each horse a job: train Speed, Stamina or Accel, rest, race in a specific race, breed, or stand at stud.
+2. **End Month:** watch your races as pixel-art animations (or skip), then read the month report: prizes, bills, foals, injuries.
+3. **Event cards:** surprises, some with choices (a buyer's offer, a mystery yearling, a famous trainer, storms, sponsors).
+
+- **Horses** have Speed, Stamina and Accel (current vs. potential), form, age and coats including rare Pearl, Golden and Midnight. They peak at 3–6 and decline after 8.
+- **Breeding:** foals inherit their parents' potential with a chance to mutate higher (Prodigy!) or get a rare coat. Use your own stallions or the stud book.
+- **Racing:** Maiden → Claiming → Allowance → Stakes → Grade III/II/I, plus big races: the **Golden Derby, Royal Stakes and Crown Classic (Triple Crown)** and the **World Championship**. Distance matters: Sprint, Mile, Route.
+- **Ranch:** Stables, Training Center, Vet Clinic, Breeding Barn, Jockey Academy, Lush Pastures. They appear on your ranch as you build them.
+- **Rivals, goals and Hall of Fame:** beat 5 rival stables in the yearly standings, chase 15 goals, retire champions to the Hall of Fame.
