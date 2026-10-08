@@ -386,7 +386,7 @@ function makeCard(){
   for(const sp of SPECIALS.slice().sort(() => Math.random() - 0.5).slice(0, 2)) add({...sp, cls:2, cn:'Special', dist:pick(dists), req:0});
   const feats = FEATURES.filter(f => f.m === m);
   for(const f of feats) add({...f, big:true, cn:'Feature'});
-  for(const d of dists) // a High Stakes race at every distance, every month, open to all ($450K+, growing each year)
+  for(const d of dists.filter(d => !feats.some(f => f.dist === d))) // a High Stakes race at each distance without a named big race this month ($450K+, growing each year)
     add({n:`High Stakes ${DIST[d].n}`, dist:d, lo:54, hi:72, purse:Math.round(450000 * (1 + 0.08 * yr) / 25000) * 25000, fame:50, req:0, big:true, cn:'Feature'});
   S.card = card;
 }
@@ -1118,7 +1118,7 @@ function renderPanel(){
         return `${w.length ? '✅' : S.t % 12 > c.m ? '❌' : '⬜'} ${c.crown}. <b>${c.n}</b> · ${MONTHS[c.m]} · ${DIST[c.dist].n} · ${money(c.purse)}${w.length ? ` · won by <b style="color:var(--gold)">${w.map(h => h.name).join(', ')}</b>` : ''}`; }).join('<br>')}${crownWatch().map(x => `<br>${x}`).join('')}</div>`; })() +
       `<div class="sec">Feature & special races</div>` + S.card.filter(r => r.big || r.cn === 'Special').map(row).join('') +
       CLS.map((c, ci) => `<div class="sec">${c.n}</div>` + S.card.filter(r => r.cls === ci && !r.big && r.cn !== 'Special').map(row).join('')).join('') +
-      `<div class="sec">Big races calendar</div><div class="card" style="padding:8px 12px">👑 Every month: <b>High Stakes Sprint</b>, <b>High Stakes Mile</b> and <b>High Stakes Route</b> (${money(Math.round(450000 * (1 + 0.08 * Math.floor(S.t / 12)) / 25000) * 25000)} each, open to every horse, growing every year), plus these named races:</div>` + FEATURES.map(b => `<div class="race ${b.m === m ? 'big' : ''}"><b>${MONTHS[b.m]}: ${b.n}</b> <span class="tag">${DIST[b.dist].n}</span>${b.age3 ? '<span class="tag">3yo</span>' : ''}${b.age2 ? '<span class="tag">2yo</span>' : ''}${b.sex ? '<span class="tag">Fillies & mares</span>' : ''}${b.vet ? '<span class="tag">7+</span>' : ''}${b.crown ? `<span class="tag">Triple Crown ${b.crown}/3</span>` : ''} · ${money(b.purse)} · ⭐ ${b.req}</div>`).join('') +
+      `<div class="sec">Big races calendar</div><div class="card" style="padding:8px 12px">👑 Every month there's a big race at each distance: the named races below, and a <b>High Stakes Sprint / Mile / Route</b> for any distance without one (${money(Math.round(450000 * (1 + 0.08 * Math.floor(S.t / 12)) / 25000) * 25000)} each, open to every horse, growing every year).</div>` + FEATURES.map(b => `<div class="race ${b.m === m ? 'big' : ''}"><b>${MONTHS[b.m]}: ${b.n}</b> <span class="tag">${DIST[b.dist].n}</span>${b.age3 ? '<span class="tag">3yo</span>' : ''}${b.age2 ? '<span class="tag">2yo</span>' : ''}${b.sex ? '<span class="tag">Fillies & mares</span>' : ''}${b.vet ? '<span class="tag">7+</span>' : ''}${b.crown ? `<span class="tag">Triple Crown ${b.crown}/3</span>` : ''} · ${money(b.purse)} · ⭐ ${b.req}</div>`).join('') +
       `<div class="sec">Recent results</div>` + (S.log.length ? S.log.slice(0, 15).map(l => `<div class="race">${monthName(l.m)} · ${l.race}: <b>${l.horse}</b> <span class="tag ${l.place === 1 ? 'win' : ''}">${l.place === 1 ? '🥇 1st' : ord(l.place)}</span> ${l.prize ? money(l.prize) : ''}</div>`).join('') : '<div class="card">No races yet.</div>');
   } else if(tab === 'bets'){
     R.open = R.open || new Set();
