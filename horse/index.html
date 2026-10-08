@@ -28,6 +28,7 @@
   #cash{color:var(--cash);font-size:15px}
   #fame{color:var(--fame)}
   #date{margin-left:auto;color:var(--gold)}
+  #menuBtn{cursor:pointer}
   #sceneWrap{position:relative;margin:0 12px;border-radius:14px;overflow:hidden;background:#000;touch-action:manipulation}
   #scene{display:block;width:100%;image-rendering:pixelated}
   #sceneBtns{position:absolute;right:8px;bottom:8px;display:flex;gap:6px}
@@ -119,7 +120,7 @@
 <body>
 <div id="app">
   <div id="top">
-    <span class="chip" id="cash">$0</span><span class="chip" id="fame">⭐ 0</span><span class="chip" id="rank">🏆 #6</span><span class="chip" id="date">Jan, Y1</span>
+    <span class="chip" id="cash">$0</span><span class="chip" id="fame">⭐ 0</span><span class="chip" id="rank">🏆 #6</span><span class="chip" id="date">Jan, Y1</span><button class="chip" id="menuBtn" title="Menu">⚙️</button>
   </div>
   <div id="sceneWrap"><canvas id="scene"></canvas><div id="sceneBtns"></div></div>
   <div id="endRow"><div id="planSum"></div><button id="endBtn">End Month ▶</button></div>
@@ -951,11 +952,17 @@ document.addEventListener('click', ev => {
   if(d.fac){ const f = FAC.find(x => x.id === d.fac), l = S.fac[f.id], c = facCost(f, l); if(S.cash < c){ toast('💸 Need ' + money(c)); return; }
     S.cash -= c; S.fac[f.id]++; toast(`${f.icon} ${f.n} upgraded to Lv ${S.fac[f.id]}!`); persist(); renderPanel(); return; }
   if(d.silk){ S.silk = +d.silk; SPR.clear(); persist(); renderPanel(); return; }
-  if(t.id === 'wipeBtn'){ showModal(`<h2>Start over?</h2><p>This deletes your whole stable.</p><button class="btn danger" id="wipeYes">Yes, new game</button><button class="btn ghost" data-close>Cancel</button>`); return; }
-  if(t.id === 'wipeYes'){ localStorage.removeItem(SAVE_KEY); freshSave(); persist(); $('modal').hidden = true; R.walkers = []; tab = 'stable'; renderPanel(); return; }
+  if(t.id === 'menuBtn'){ showModal(`<h2>⚙️ Menu</h2><p>${monthName(S.t)} · net worth ${money(netWorth())}</p>
+    <button class="btn ghost" id="howBtn">❓ How to play</button><button class="btn danger" id="wipeBtn">🔄 New game (reset)</button><button class="btn" data-close>Back to the ranch</button>`); return; }
+  if(t.id === 'howBtn'){ showModal(HOWTO); return; }
+  if(t.id === 'wipeBtn'){ showModal(`<h2>Start over?</h2><p>This deletes your whole stable, money and progress. It can't be undone.</p><button class="btn danger" id="wipeYes">Yes, new game</button><button class="btn ghost" data-close>Cancel</button>`); return; }
+  if(t.id === 'wipeYes'){ localStorage.removeItem(SAVE_KEY); freshSave(); S.seen = true; persist(); R.walkers = []; R.play = null; R.queue = []; REPORT = null; setSceneBtns(); tab = 'stable'; renderPanel(); showModal(HOWTO); toast('🔄 New game started'); return; }
   if(t.hasAttribute('data-close')){ $('modal').hidden = true; return; }
 });
 
+const HOWTO = `<h2>🐎 Derby Dynasty</h2><p>Build a racing dynasty, one month at a time.</p>
+    <p style="text-align:left">🏋️ Give each horse a <b>plan</b>: train a stat, rest, race or breed.<br>▶ Press <b>End Month</b> to see what happens: races, foals, bills and surprises.<br>💞 Build a <b>Breeding Barn</b> to breed better and better horses.<br>🏆 Beat the rival stables and win the <b>Triple Crown</b>!</p>
+    <p>You start with $30K and two horses. Watch your bills!</p><button class="btn" data-close>Let's ride</button>`;
 // =====================================================================
 //  MAIN LOOP
 // =====================================================================
@@ -970,9 +977,7 @@ window.addEventListener('resize', resize);
 load(); resize(); renderPanel();
 if(S.pending) showEvent();
 if(!S.seen){ S.seen = true; persist();
-  showModal(`<h2>🐎 Derby Dynasty</h2><p>Build a racing dynasty, one month at a time.</p>
-    <p style="text-align:left">🏋️ Give each horse a <b>plan</b>: train a stat, rest, race or breed.<br>▶ Press <b>End Month</b> to see what happens: races, foals, bills and surprises.<br>💞 Build a <b>Breeding Barn</b> to breed better and better horses.<br>🏆 Beat the rival stables and win the <b>Triple Crown</b>!</p>
-    <p>You start with $30K and two horses. Watch your bills!</p><button class="btn" data-close>Let's ride</button>`); }
+  showModal(HOWTO); }
 requestAnimationFrame(frame);
 if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
