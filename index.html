@@ -195,7 +195,7 @@ function freshSave(){
   return {v:4, gold:0, souls:0, stage:1, maxStage:1, bestStage:1, kills:0, farm:false,
     heroLvl:1, xp:0, sp:0, up:{}, pw:{}, last:Date.now(), giftAt:0,
     totalKills:0, totalGold:0, bossKills:0, ascensions:0, played:0, buyAmt:'1', spendAmt:'1',
-    inv:[], eq:{weapon:null, armor:null}, uid:1, autoSalvage:-1, itemsFound:0,
+    inv:[], eq:{weapon:null, armor:null, helm:null, gloves:null, boots:null, ring:null, amulet:null}, uid:1, autoSalvage:-1, itemsFound:0,
     look:{skin:0, head:0, cape:0, aura:0, dye:-1}, loadouts:[null, null, null],
     cls:'knight', pet:'wolf', petLv:{}, mastery:{}};
 }
@@ -209,6 +209,7 @@ if(S.v < 4 && S.totalKills > 0){
   S.catchup = true;
 }
 S.v = 4;
+for(const sl of ['helm', 'gloves', 'boots', 'ring', 'amulet']) if(!(sl in S.eq)) S.eq[sl] = null; // new gear slots
 function persist(){ S.last = Date.now(); try{ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){} }
 
 // =====================================================================
@@ -435,13 +436,39 @@ const BUILDS = [
     info:'+20% power damage, hits can trigger mini lightning', apply:g=>{ g.power += 0.2; g.spellblade = 1; }},
 ];
 
+// Extra gear slots (weapon and armor have their own type tables above)
+const XT = {
+  helm:  {n:'Helm',   icon:'⛑️', stat:'hp',    k:0.5, names:['Helm', 'Hood', 'Circlet', 'Visor']},
+  gloves:{n:'Gloves', icon:'🧤', stat:'atk',   k:0.4, names:['Gauntlets', 'Gloves', 'Grips', 'Bracers']},
+  boots: {n:'Boots',  icon:'👢', stat:'hp',    k:0.4, names:['Boots', 'Greaves', 'Treads', 'Sabatons']},
+  ring:  {n:'Ring',   icon:'💍', stat:'atk',   k:0.3, names:['Ring', 'Band', 'Signet', 'Loop']},
+  amulet:{n:'Amulet', icon:'📿', stat:'power', k:0.4, names:['Amulet', 'Pendant', 'Talisman', 'Charm']},
+};
+const SLOTS = ['weapon', 'armor', 'helm', 'gloves', 'boots', 'ring', 'amulet'];
+const STAT_N = {atk:'Attack', hp:'Max HP', power:'Power damage'};
+const slotStat = sl => sl === 'weapon' ? 'atk' : sl === 'armor' ? 'hp' : XT[sl].stat;
+const slotK = sl => XT[sl] ? XT[sl].k : 1;
+const statOf = it => Math.round(mainOf(it) * slotK(it.slot)); // the % main stat it gives
+// Gear sets: Epic+ drops can belong to a set. Wear 2 / 4 / 6 pieces for bonuses.
+const SETS = {
+  dragon:{n:"Dragonlord's", icon:'🐉', c:'#ff8a4a', b:[[2, '+20% damage', g => { g.atk += 0.2; }], [4, '+30% power damage', g => { g.power += 0.3; }], [6, '+15% attack speed, +60% crit damage', g => { g.aps += 0.15; g.critDmg += 0.6; }]]},
+  bone:  {n:"Bonelord's",   icon:'💀', c:'#7dff9a', b:[[2, '+25% power damage', g => { g.power += 0.25; }], [4, 'Kills heal 2% HP', g => { g.killHeal += 0.02; }], [6, '-12% cooldowns, +40% power damage', g => { g.cdr += 0.12; g.power += 0.4; }]]},
+  titan: {n:"Titan's",      icon:'🗿', c:'#e0b878', b:[[2, '+30% max HP', g => { g.hp += 0.3; }], [4, '+10% damage reduction', g => { g.dr += 0.1; }], [6, '+40% max HP, attackers take 3× ATK thorns', g => { g.hp += 0.4; g.thorns += 3; }]]},
+  shadow:{n:'Shadowstep',   icon:'🌑', c:'#b07bff', b:[[2, '+8% crit chance', g => { g.crit += 0.08; }], [4, '+10% dodge', g => { g.dodge += 0.1; }], [6, '+80% crit damage, +3% lifesteal', g => { g.critDmg += 0.8; g.ls += 0.03; }]]},
+  storm: {n:'Stormcaller',  icon:'⚡', c:'#6fd0ff', b:[[2, '+15% attack speed', g => { g.aps += 0.15; }], [4, '+25% area size', g => { g.aoe += 0.25; }], [6, '+30% power damage, hits can trigger lightning', g => { g.power += 0.3; g.spellblade = 1; }]]},
+  midas: {n:"Midas'",       icon:'👑', c:'#ffd84a', b:[[2, '+40% gold', g => { g.gold += 0.4; }], [4, '+25% damage', g => { g.atk += 0.25; }], [6, '+80% gold, +10% crit chance', g => { g.gold += 0.8; g.crit += 0.1; }]]},
+};
+const SET_CH = [0, 0, 0.12, 0.3, 0.5]; // chance a drop of each rarity belongs to a set
+function setCounts(){ const n = {}; for(const sl of SLOTS){ const it = S.eq[sl]; if(it && it.set) n[it.set] = (n[it.set] || 0) + 1; } return n; }
+function lowestEqR(){ let r = 9; for(const sl of SLOTS) if(S.eq[sl]) r = Math.min(r, S.eq[sl].r); return r === 9 ? 0 : r; }
 function makeItem(slot, type, r, lvl){
   const it = {uid:S.uid++, slot, type, r, lvl,
     main: Math.round(RAR_MAIN[r] * rand(0.85, 1.15) * (1 + lvl * 0.03)), afx:[]};
   const keys = Object.keys(AFX).sort(() => Math.random() - 0.5).slice(0, r);
   for(const k of keys){ const [a, b] = AFX[k].r; it.afx.push([k, +(rand(a, b) * (1 + 0.35 * r)).toFixed(4)]); }
-  const base = slot === 'weapon' ? WT[type].n : AT[type].n;
-  it.name = ADJ[r] + ' ' + base + (r >= 3 ? ' ' + pick(EPITHET) : '');
+  const base = slot === 'weapon' ? WT[type].n : slot === 'armor' ? AT[type].n : pick(XT[slot].names);
+  if(Math.random() < SET_CH[r]){ it.set = pick(Object.keys(SETS)); it.name = SETS[it.set].n + ' ' + base; }
+  else it.name = ADJ[r] + ' ' + base + (r >= 3 ? ' ' + pick(EPITHET) : '');
   return it;
 }
 // Forge: items upgrade with gold up to +20. Every 5 levels adds a bonus stat.
@@ -456,11 +483,11 @@ function addBonusAffix(it){
   const a = pick(it.afx); a[1] = +(a[1] * 1.3).toFixed(4); return a;
 }
 function rollDrop(boss){
-  const w = boss ? [0, 50, 35, 12, 3] : [70, 22, 6, 1.6, 0.4];
+  const w = boss ? [0, 44, 34, 14, 8] : [68, 22, 6.5, 2.3, 1.2];
   let roll = Math.random() * w.reduce((a, b) => a + b), r = 0;
   while(roll >= w[r]){ roll -= w[r]; r++; }
-  const slot = Math.random() < 0.5 ? 'weapon' : 'armor';
-  return makeItem(slot, pick(Object.keys(slot === 'weapon' ? WT : AT)), r, S.stage);
+  const q = Math.random(), slot = q < 0.2 ? 'weapon' : q < 0.4 ? 'armor' : SLOTS[2 + Math.floor((q - 0.4) / 0.12)] || 'amulet';
+  return makeItem(slot, slot === 'weapon' ? pick(Object.keys(WT)) : slot === 'armor' ? pick(Object.keys(AT)) : slot, r, S.stage);
 }
 if(!S.eq.weapon){ S.eq.weapon = makeItem('weapon', 'sword', 0, 1); S.eq.weapon.name = 'Rusty Sword'; S.eq.weapon.main = 10; }
 if(!S.eq.armor){ S.eq.armor = makeItem('armor', 'leather', 0, 1); S.eq.armor.name = "Traveler's Tunic"; S.eq.armor.main = 10; }
@@ -472,9 +499,10 @@ let GS = null; // cached bonus stats from gear + build + class
 function gear(){
   if(GS) return GS;
   const g = {atk:0, hp:0, crit:0, critDmg:0, aps:0, power:0, cdr:0, ls:0, gold:0, aoe:0, dr:0, thorns:0, killHeal:0, pierce:0, spellblade:0, regen:0, dodge:0};
-  g.atk += mainOf(S.eq.weapon) / 100;
-  g.hp += mainOf(S.eq.armor) / 100;
-  for(const it of [S.eq.weapon, S.eq.armor]) for(const [k, v] of it.afx) g[k] += v * afxMul(it);
+  for(const sl of SLOTS){ const it = S.eq[sl]; if(!it) continue;
+    g[slotStat(sl)] += statOf(it) / 100;
+    for(const [k, v] of it.afx) g[k] += v * afxMul(it); }
+  for(const [id, n] of Object.entries(setCounts())) for(const [need, , fn] of SETS[id].b) if(n >= need) fn(g);
   const a = S.eq.armor.type;
   if(a === 'plate') g.dr += 0.10;
   if(a === 'leather'){ g.aps += 0.08; g.crit += 0.03; }
@@ -836,7 +864,7 @@ function killE(e){
   for(let i = 0; i < (e.boss ? 12 : 2); i++) FX.parts.push({x:e.x, y:e.y, vx:rand(-60,60), vy:rand(-80,-20), life:0.9, max:0.9, size:3.5, color:'#ffcf4a', coin:true});
   if(evo('vamp')) R.hp = Math.min(maxHp(), R.hp + maxHp() * 0.02);
   if(gear().killHeal) R.hp = Math.min(maxHp(), R.hp + maxHp() * gear().killHeal);
-  if(e.boss || Math.random() < 0.035) FX.loot.push({x:e.x, y:e.y, t:0, it:rollDrop(e.boss)});
+  if(e.boss || Math.random() < 0.05) FX.loot.push({x:e.x, y:e.y, t:0, it:rollDrop(e.boss)});
   if(e.boss){
     S.bossKills++; S.sp += 2; R.hitstop = 0.14;
     R.shake = 0.5; flash('#ffffff', 0.5);
@@ -850,13 +878,15 @@ function killE(e){
 }
 function collectLoot(it){
   S.itemsFound++;
-  if(it.r <= S.autoSalvage || S.inv.length >= BAG_SIZE){
+  const lim = S.autoSalvage >= 4 ? lowestEqR() : S.autoSalvage;
+  if((it.r <= lim && S.eq[it.slot] && !it.set) || S.inv.length >= BAG_SIZE){
     const g = salvageValue(it); S.gold += g; S.totalGold += g;
     if(it.r >= 2) toast(`🎒 Bag full: salvaged ${RAR[it.r].n} for ${fmt(g)} 🪙`);
     return;
   }
   S.inv.push(it); invVer++;
-  if(it.r >= 2) toast(`${RAR[it.r].n.toUpperCase()}! ${it.name}`);
+  if(it.set) toast(`${SETS[it.set].icon} SET ITEM! ${it.name}`);
+  else if(it.r >= 2) toast(`${RAR[it.r].n.toUpperCase()}! ${it.name}`);
 }
 function salvageValue(it){ return enemyStats(it.lvl, false).gold * 4 * Math.pow(3, it.r) * (1 + 0.5 * plusOf(it)); }
 function stageClear(){
@@ -2870,7 +2900,7 @@ function render(now){
     dglow(c, 0, -8, 14 + Math.sin(t*10)*2, 1);
     ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
     ctx.font = '12px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(L.it.slot === 'weapon' ? WT[L.it.type].icon : AT[L.it.type].icon, 0, -8 + Math.sin(t*4)*2);
+    ctx.fillText(itemIcon(L.it), 0, -8 + Math.sin(t*4)*2);
     ctx.restore();
   }
 
@@ -3173,14 +3203,19 @@ function buyPlan(u){
   return {n, cost, maxed: lvl >= cap};
 }
 
-function itemIcon(it){ return it.slot === 'weapon' ? WT[it.type].icon : AT[it.type].icon; }
+function itemIcon(it){ return it.slot === 'weapon' ? WT[it.type].icon : it.slot === 'armor' ? AT[it.type].icon : XT[it.slot].icon; }
+function setHTML_(id){
+  const st = SETS[id], n = setCounts()[id] || 0;
+  return `<span style="color:${st.c}">${st.icon} ${st.n} set (${n}/6 worn)</span><br>` + st.b.map(([need, txt]) => `<span style="color:${n >= need ? st.c : 'var(--dim)'}">${n >= need ? '✔' : '·'} ${need}: ${txt}</span>`).join('<br>');
+}
 function itemHTML(it, equipped){
-  const cur = S.eq[it.slot];
-  const delta = equipped ? '' : (() => { const d = mainOf(it) - mainOf(cur); return ` <span class="${d >= 0 ? 'up' : 'dn'}">(${d >= 0 ? '▲' : '▼'}${Math.abs(d)}%)</span>`; })();
-  const base = it.slot === 'weapon' ? WT[it.type].info : AT[it.type].info;
-  const lines = [`<b style="color:var(--text)">+${mainOf(it)}% ${it.slot === 'weapon' ? 'Attack' : 'Max HP'}</b>${delta}`, base, ...it.afx.map(([k, v]) => AFX[k].f(v * afxMul(it)))];
+  const cur = S.eq[it.slot], sn = STAT_N[slotStat(it.slot)];
+  const delta = equipped ? '' : !cur ? ' <span class="up">(empty slot!)</span>' : (() => { const d = statOf(it) - statOf(cur); return ` <span class="${d >= 0 ? 'up' : 'dn'}">(${d >= 0 ? '▲' : '▼'}${Math.abs(d)}%)</span>`; })();
+  const base = it.slot === 'weapon' ? WT[it.type].info : it.slot === 'armor' ? AT[it.type].info : XT[it.slot].n;
+  const lines = [`<b style="color:var(--text)">+${statOf(it)}% ${sn}</b>${delta}`, base, ...it.afx.map(([k, v]) => AFX[k].f(v * afxMul(it)))];
+  if(it.set) lines.push(equipped ? `<span style="color:${SETS[it.set].c}">${SETS[it.set].icon} ${SETS[it.set].n} set piece</span>` : setHTML_(it.set));
   const pl = plusOf(it), nextBonus = Math.ceil((pl + 1) / 5) * 5;
-  if(equipped && pl < FORGE_MAX) lines.push(`<span class="evo">⚒️ Forge: +12% ${it.slot === 'weapon' ? 'Attack' : 'HP'} & +4% stats per level · bonus stat at +${nextBonus}</span>`);
+  if(equipped && pl < FORGE_MAX) lines.push(`<span class="evo">⚒️ Forge: +12% ${sn} & +4% stats per level · bonus stat at +${nextBonus}</span>`);
   const c = RAR[it.r].c;
   return `<div class="item" style="border-color:${c}55"><div class="ic" style="border-color:${c}">${itemIcon(it)}</div>
     <div class="info"><div class="nm" style="color:${c}">${pl ? `<span style="color:var(--gold)">+${pl}</span> ` : ''}${it.name}<small>iLv ${it.lvl}</small></div><div class="ds">${lines.join('<br>')}</div></div>
@@ -3248,18 +3283,20 @@ function renderPanel(){
   } else if(tab === 'gear'){
     const b = activeBuild();
     const inv = S.inv.slice().sort((a, b) => b.r - a.r || b.main - a.main);
-    const salvNames = ['Off', 'Common', 'Common + Rare', 'Up to Epic'];
+    const salvNames = ['Off', 'Common', 'Up to Rare', 'Up to Epic', 'Up to Legendary', 'Up to my lowest equipped'];
+    const low = lowestEqR(), sc = Object.entries(setCounts());
     P.innerHTML = `
       <div class="card buildcard ${b ? '' : 'none'}">${b ? `<h3>${b.icon} Build: ${b.n}</h3>${b.info}` : `<h3>No build bonus</h3>Pair the right weapon and armor to activate a build (see list below).`}</div>
       <div class="sec">Equipped</div>
-      ${itemHTML(S.eq.weapon, true)}${itemHTML(S.eq.armor, true)}
+      ${SLOTS.map(sl => S.eq[sl] ? itemHTML(S.eq[sl], true) : `<div class="item locked"><div class="ic">${XT[sl].icon}</div><div class="info"><div class="nm">${XT[sl].n}<small>empty</small></div><div class="ds">Gives ${STAT_N[XT[sl].stat]}. Enemies and bosses drop these.</div></div></div>`).join('')}
+      ${sc.length ? `<div class="sec">Set bonuses</div><div class="card" style="font-size:12px;line-height:1.5">${sc.map(([id]) => setHTML_(id)).join('<br>')}</div>` : ''}
       <div class="sec">Saved loadouts</div>
       <div class="loadouts">${S.loadouts.map((lo, i) => {
         const w = lo && findItem(lo.w), a = lo && findItem(lo.a);
         return `<div class="lo"><b>Build ${i + 1}</b><div class="lic">${lo ? (w ? itemIcon(w) : '❔') + (a ? itemIcon(a) : '❔') + (lo.cls ? CLM[lo.cls].icon : '') : '—'}</div>
           <div class="row"><button class="sbtn" data-losave="${i}">Save</button><button class="sbtn go" data-loload="${i}" ${lo ? '' : 'disabled'}>Use</button></div></div>`; }).join('')}</div>
       <div class="sec"><span>Bag ${S.inv.length}/${BAG_SIZE}</span><button class="sbtn" id="autoSalv">Auto-salvage: ${salvNames[S.autoSalvage + 1]}</button></div>
-      ${inv.length ? `<button class="sbtn warn" id="salvAll" style="width:100%;margin-bottom:8px;padding:9px">Salvage all items worse than equipped</button>` : ''}
+      ${inv.length ? `<button class="sbtn warn" id="salvAll" style="width:100%;margin-bottom:8px;padding:9px">Salvage all up to ${RAR[low].n} (your lowest equipped) + anything worse than equipped</button>` : ''}
       ${inv.map(it => itemHTML(it, false)).join('') || '<div class="card" style="color:var(--dim);font-size:13px">No items yet. Enemies drop gear (bosses always do). Beat stages to find better loot!</div>'}
       <div class="sec">Builds</div>
       ${BUILDS.map(bd => `<div class="build ${b && b.id === bd.id ? 'active' : ''}"><span class="bi">${bd.icon}</span><div><b>${bd.n}</b><br>
@@ -3286,7 +3323,12 @@ function renderPanel(){
   }
   updatePanel();
 }
-function findItem(uid){ return S.eq.weapon.uid === uid ? S.eq.weapon : S.eq.armor.uid === uid ? S.eq.armor : S.inv.find(i => i.uid === uid); }
+function findItem(uid){ for(const sl of SLOTS) if(S.eq[sl] && S.eq[sl].uid === uid) return S.eq[sl]; return S.inv.find(i => i.uid === uid); }
+function salvageable(it){ // what "Salvage all" removes: never forged items, items for empty slots, or set pieces you could use
+  const cur = S.eq[it.slot]; if(plusOf(it) || !cur) return false;
+  if(it.set) return it.r < lowestEqR() || (it.r <= cur.r && statOf(it) <= statOf(cur) && cur.set === it.set);
+  return it.r <= lowestEqR() || (it.r <= cur.r && statOf(it) <= statOf(cur));
+}
 
 function updatePanel(){
   if(tab === 'upg'){
@@ -3409,7 +3451,8 @@ function farmRate(){
 function equip(uid){
   const i = S.inv.findIndex(x => x.uid === uid); if(i < 0) return;
   const it = S.inv[i], old = S.eq[it.slot], hpFrac = R.hp / maxHp();
-  S.inv.splice(i, 1, old); S.eq[it.slot] = it;
+  if(old) S.inv.splice(i, 1, old); else S.inv.splice(i, 1);
+  S.eq[it.slot] = it;
   gearChanged(); R.hp = hpFrac * maxHp(); invVer++;
 }
 function setClass(id){
@@ -3557,15 +3600,15 @@ document.addEventListener('click', ev => {
   }
   if(t.id === 'salvAll'){
     let g = 0;
-    S.inv = S.inv.filter(it => { const worse = !plusOf(it) && it.r <= S.eq[it.slot].r && mainOf(it) <= mainOf(S.eq[it.slot]); if(worse) g += salvageValue(it); return !worse; });
+    S.inv = S.inv.filter(it => { const sv = salvageable(it); if(sv) g += salvageValue(it); return !sv; });
     S.gold += g; S.totalGold += g; invVer++;
     toast('🪙 Salvaged for ' + fmt(g)); renderPanel(); persist(); return;
   }
-  if(t.id === 'autoSalv'){ S.autoSalvage = S.autoSalvage >= 2 ? -1 : S.autoSalvage + 1; renderPanel(); persist(); return; }
-  if(t.dataset.losave){ S.loadouts[+t.dataset.losave] = {w:S.eq.weapon.uid, a:S.eq.armor.uid, cls:S.cls, pet:S.pet}; toast('💾 Saved build ' + (+t.dataset.losave + 1)); renderPanel(); persist(); return; }
+  if(t.id === 'autoSalv'){ S.autoSalvage = S.autoSalvage >= 4 ? -1 : S.autoSalvage + 1; renderPanel(); persist(); return; }
+  if(t.dataset.losave){ S.loadouts[+t.dataset.losave] = {w:S.eq.weapon.uid, a:S.eq.armor.uid, eq:Object.fromEntries(SLOTS.filter(sl => S.eq[sl]).map(sl => [sl, S.eq[sl].uid])), cls:S.cls, pet:S.pet}; toast('💾 Saved build ' + (+t.dataset.losave + 1)); renderPanel(); persist(); return; }
   if(t.dataset.loload){
     const lo = S.loadouts[+t.dataset.loload]; if(!lo) return;
-    for(const uid of [lo.w, lo.a]) if(S.inv.some(x => x.uid === uid)) equip(uid);
+    for(const uid of lo.eq ? Object.values(lo.eq) : [lo.w, lo.a]) if(S.inv.some(x => x.uid === uid)) equip(uid);
     if(lo.cls) setClass(lo.cls);
     if(lo.pet && unlocked(PTM[lo.pet].req)){ S.pet = lo.pet; R.pet = null; }
     toast('⚔️ Loaded build ' + (+t.dataset.loload + 1) + (activeBuild() ? ': ' + activeBuild().n : ''));
@@ -3644,7 +3687,7 @@ function updateHud(){
   tabs[0].classList.toggle('alert', UPG.some(u => !buyPlan(u).maxed && S.gold >= upCost(u, up(u.id))));
   tabs[1].classList.toggle('alert', S.sp > 0 && (PW.some(p => S.heroLvl >= p.req && pw(p.id) < PW_MAX) || powersMaxed()));
   tabs[2].classList.toggle('alert', mast().pts > 0);
-  tabs[3].classList.toggle('alert', S.inv.some(it => it.r > S.eq[it.slot].r || mainOf(it) > mainOf(S.eq[it.slot])));
+  tabs[3].classList.toggle('alert', S.inv.some(it => !S.eq[it.slot] || it.r > S.eq[it.slot].r || statOf(it) > statOf(S.eq[it.slot])));
   tabs[4].classList.toggle('alert', soulGain() > 0 && soulGain() >= Math.max(1, S.souls * 0.5));
 }
 

@@ -23,7 +23,9 @@ A free top-down idle RPG for your phone. Your hero fights on their own: you coll
 - **Fusion ladder to an Ultimate:** once both parent powers are Lv 10, upgrade a fusion to Lv 20; Fusion² (Mega) upgrades to Lv 30 once its fusions are maxed; Fusion³ (Omega) to Lv 40; and at Omega Lv 40 you unlock **Fusion⁴: ✴️ Big Bang** (time stops, the arena detonates, every cooldown resets) with no level cap.
 - **Class ladder (every class):** class skills go to Lv 20 → 2 **Class Fusions** (to Lv 30) → **Class Fusion²** (to Lv 40) → a **Class Ultimate** with no cap: Excalibur (Knight), Starfall (Mage), Celestial Bow (Ranger), Thousand Cuts (Rogue), Heaven's Wrath (Paladin), Death Incarnate (Necromancer).
 - **♾️ No wasted points:** once every power is maxed, extra skill points go into **Power Overdrive** (+3% power damage each); once a class is maxed, extra Mastery points go into **Paragon** (+2% damage & HP each). If new upgrades open up later, those catch-all points are refunded automatically.
-- **Gear:** enemies drop weapons and armor in 5 rarities (Common → Mythic). Bosses always drop gear.
+- **Gear:** 7 slots (weapon, armor, helm, gloves, boots, ring, amulet) in 5 rarities (Common → Mythic). Bosses always drop gear, and Mythic drops are about 3× more common than before.
+  - **Sets:** Epic and better drops can belong to a set (Dragonlord's, Bonelord's, Titan's, Shadowstep, Stormcaller, Midas'). Wear 2 / 4 / 6 pieces for bonuses.
+  - **Salvage all** clears everything up to your lowest equipped rarity, plus anything worse than what you wear. It never touches forged items, items for an empty slot, or set pieces you could still use. Auto-salvage can also be set to "Up to my lowest equipped".
   - Weapons fight differently: Sword (arc slash), Battle Axe (360° spin), Spear (long thrust), Twin Daggers (fast + crit), Longbow (piercing arrows), Staff (exploding orbs).
   - Armor types: Plate (tanky), Leather (fast), Mage Robe (powers), Shadow Garb (crits).
 - **⚒️ Forge:** upgrade your equipped weapon and armor with gold up to **+20**. Each level boosts its stats, every 5 levels adds a bonus stat, and forged weapons glow brighter.
