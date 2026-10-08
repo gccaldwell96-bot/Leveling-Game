@@ -69,4 +69,5 @@ A free **turn-based horse breeding and racing tycoon** in `horse/`. It plays on 
 - **Breeding:** foals inherit their parents' potential with a chance to mutate higher (Prodigy!) or get a rare coat. Use your own stallions or the stud book.
 - **Racing:** Maiden → Claiming → Allowance → Stakes → Grade III/II/I, plus big races: the **Golden Derby, Royal Stakes and Crown Classic (Triple Crown)** and the **World Championship**. Distance matters: Sprint, Mile, Route.
 - **Ranch:** Stables, Training Center, Vet Clinic, Breeding Barn, Jockey Academy, Lush Pastures. They appear on your ranch as you build them.
+- **Betting (play money):** bet on your own horses to Win, Place (top 2) or Show (top 3). Odds come from simulating the race with your horse's real rating, form and field, minus a 15% bookmaker's cut. Long shots pay big.
 - **Rivals, goals and Hall of Fame:** beat 5 rival stables in the yearly standings, chase 15 goals, retire champions to the Hall of Fame.
