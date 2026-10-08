@@ -70,6 +70,6 @@ A free **turn-based horse breeding and racing tycoon** in `horse/`. It plays on 
 - **Breeding:** foals inherit their parents' potential with a chance to mutate higher (Prodigy!) or get a rare coat. Use your own stallions or the stud book.
 - **Racing:** about 16 races a month: Maiden → Claiming → Allowance → Stakes → Grade III/II/I at different distances, named stakes, races for 2-year-olds, fillies & mares and veterans, and a feature race every month, including the **Golden Derby, Royal Stakes and Crown Classic (Triple Crown)** and the **World Championship**.
 - **Distance preference:** every horse is a Sprint, Mile or Route specialist (+6% at its favorite distance, −8% at the opposite one). Breeds lean different ways and foals inherit it.
-- **Ranch:** Stables, Training Center, Vet Clinic, Breeding Barn, Jockey Academy, Lush Pastures. They appear on your ranch as you build them.
+- **Ranch:** Stables, Training Center, Vet Clinic, Breeding Barn, Jockey Academy, Lush Pastures, Equine Pool (more training, less fatigue) and Head Trainer (flat bonus points each month). They appear on your ranch as you build them.
 - **Betting (play money):** a 🎟️ Bets tab shows every race's field in advance. Bet Win, Place (top 2) or Show (top 3) on any runner, yours or a rival's. Odds come from simulating each race 1,000 times, minus a 15% bookmaker's cut. A "last call for bets" window pops up before your races (can be turned off).
 - **Rivals, goals and Hall of Fame:** beat 5 rival stables in the yearly standings, chase 15 goals, retire champions to the Hall of Fame.

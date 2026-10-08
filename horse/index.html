@@ -269,6 +269,8 @@ const FAC = [
   {id:'barn',    n:'Breeding Barn',    icon:'💞', base:10000, g:2.0, max:10, info:l => l ? `Fertility ${Math.min(100, 70 + 3 * l)}%, mutation ${8 + 2 * l}%` : 'Unlocks breeding'},
   {id:'academy', n:'Jockey Academy',   icon:'🏇', base:15000, g:2.1, max:10, info:l => `+${2 * l}% race performance`},
   {id:'pasture', n:'Lush Pastures',    icon:'🌾', base:7000,  g:1.9, max:10, info:l => `-${5 * l}% horse upkeep, +${3 * l} form`},
+  {id:'pool',    n:'Equine Pool',      icon:'🏊', base:12000, g:2.0, max:8,  info:l => `+${15 * l}% training gains, training costs ${Math.max(0, 8 - 2 * l)} form`},
+  {id:'coach',   n:'Head Trainer',     icon:'👨‍🏫', base:18000, g:2.1, max:8,  info:l => l ? `+${l} extra point${l > 1 ? 's' : ''} a month to the stat you focus on` : 'Hire a head trainer: flat bonus points every month'},
 ];
 const UPKEEP = 600; // per horse per month
 const RIVAL_NAMES = [['Bluegrass Farms', '#3a7ae8'], ['Silver Spur Stables', '#c8c8d8'], ['Red Oak Racing', '#c03030'], ['Golden Gate Stud', '#ffcf3a'], ['Darkwood Equine', '#4a2a6a']];
@@ -286,7 +288,7 @@ function newHorse(o = {}){
     form:80, inj:0, preg:null, starts:0, wins:0, places:0, earned:0, gw:0, crown:[], plan:{t:'train', f:'spd'}, gen:0, sire:null, dam:null, stud:false, pref:o.pref || rollPref(breed)}, o.extra || {});
 }
 function freshSave(){
-  S = {v:1, t:0, cash:30000, fame:0, nextId:1, horses:[], fac:{stables:0, train:0, vet:0, barn:0, academy:0, pasture:0}, silk:0,
+  S = {v:1, t:0, cash:30000, fame:0, nextId:1, horses:[], fac:{stables:0, train:0, vet:0, barn:0, academy:0, pasture:0, pool:0, coach:0}, silk:0,
     market:[], studs:[], rivals:RIVAL_NAMES.map(([n, c], i) => ({n, silk:c, earn:0, total:0, str:0.9 + i * 0.06})), yearEarn:0, total:0,
     log:[], goals:{}, hall:[], pending:null, stats:{races:0, wins:0, foals:0, sold:0, bought:0, spent:0, bets:0, betsWon:0, betProfit:0}, bets:[], seen:false, lastYear:null};
   S.horses.push(newHorse({breed:'mustang', age:40, extra:{name:'Daisy Belle', sex:'F'}}));
@@ -297,6 +299,7 @@ function freshSave(){
 function load(){
   try{ const raw = localStorage.getItem(SAVE_KEY); if(raw){ S = JSON.parse(raw); S.bets = S.bets || [];
     for(const h of [...S.horses, ...(S.market || []), ...(S.studs || [])]) if(!h.pref) h.pref = prefFromStats(h);
+    for(const f of FAC) if(S.fac[f.id] == null) S.fac[f.id] = 0;
     if(!S.card || S.card.some(r => !r.field0)){ for(const b of S.bets) S.cash += b.amt; S.bets = []; makeCard(); for(const h of S.horses) if(h.plan.t === 'race') h.plan = {t:'train', f:'spd'}; }
     return; } }catch(e){}
   freshSave();
@@ -334,7 +337,7 @@ const studFee = h => Math.round((300 * Math.pow(avgPot(h) / 20, 2.4) * (1 + 0.2 
 const netWorth = () => S.cash + S.horses.reduce((s, h) => s + value(h), 0) + FAC.reduce((s, f) => s + facSpent(f, S.fac[f.id]) * 0.5, 0);
 const facCost = (f, l) => Math.round(f.base * Math.pow(f.g, l));
 const facSpent = (f, l) => { let s = 0; for(let k = 0; k < l; k++) s += facCost(f, k); return s; };
-function trainGain(h){ const y = h.age / 12; return (y < 2 ? 1.25 : y < 5 ? 1 : y < 7 ? 0.6 : 0.25) * (1 + 0.2 * S.fac.train); }
+function trainGain(h){ const y = h.age / 12; return (y < 2 ? 1.25 : y < 5 ? 1 : y < 7 ? 0.65 : 0.3) * (1 + 0.2 * S.fac.train + 0.15 * (S.fac.pool || 0)); }
 
 // =====================================================================
 //  MONTHLY RACE CARD, MARKET, STUD BOOK
@@ -521,10 +524,10 @@ function endMonth(){
     const p = h.plan;
     if(h.inj){ if(!fresh.has(h)) h.inj--; h.form = clamp(h.form + 10, 0, 100); continue; }
     if(p.t === 'train' && h.age >= 6){
-      const g = trainGain(h), foc = p.f;
-      for(const s of STATS){ const k = foc === 'bal' ? 1.4 : s === foc ? 3.2 : 0.4, head = h.pot[s] - h.st[s];
-        h.st[s] = Math.min(h.pot[s], h.st[s] + Math.max(0, Math.min(head, k * g * (0.6 + 0.4 * head / Math.max(1, h.pot[s])) * rand(0.8, 1.2)))); }
-      h.form = clamp(h.form - 8, 0, 100);
+      const g = trainGain(h), foc = p.f, coach = S.fac.coach || 0;
+      for(const s of STATS){ const k = foc === 'bal' ? 2.6 : s === foc ? 6 : 0.8, head = h.pot[s] - h.st[s], extra = foc === 'bal' ? coach / 3 : s === foc ? coach : 0;
+        h.st[s] = Math.min(h.pot[s], h.st[s] + Math.max(0, Math.min(head, (k * g * (0.75 + 0.25 * head / Math.max(1, h.pot[s])) + extra) * rand(0.85, 1.15)))); }
+      h.form = clamp(h.form - Math.max(0, 8 - 2 * (S.fac.pool || 0)), 0, 100);
       if(Math.random() < injuryRisk(h, false)){ h.inj = 1; fresh.add(h); rep.notes.push(`🤕 ${h.name} tweaked a leg in training: out 1 month.`); }
     } else if(p.t === 'rest') h.form = clamp(h.form + 35, 0, 100);
     if(p.t === 'stud' && canStud(h)){ const fee = studFee(h), n = irand(1, 3); led(`🐎 ${h.name} at stud (${n} mare${n > 1 ? 's' : ''})`, fee * n); }
@@ -804,7 +807,9 @@ function drawRanch(){
   if(F_.vet){ px(x, 52, 20, 20, '#f0f0f4'); px(x, 50, 20, 3, '#9aa0b0'); px(x + 8, 56, 4, 10, '#e03a3a'); px(x + 5, 59, 10, 4, '#e03a3a'); x += 24; }
   if(F_.barn){ px(x, 50, 22, 22, '#f0a0c0'); lg.fillStyle = '#c06090'; lg.beginPath(); lg.moveTo(x - 2, 51); lg.lineTo(x + 11, 42); lg.lineTo(x + 24, 51); lg.fill(); px(x + 8, 56, 6, 5, '#ff4a7a'); px(x + 7, 55, 3, 2, '#ff4a7a'); px(x + 12, 55, 3, 2, '#ff4a7a'); px(x + 9, 62, 4, 10, '#6a2a40'); x += 26; }
   if(F_.academy){ px(x, 48, 20, 24, '#6a7ad0'); px(x + 2, 52, 4, 4, '#ffe08a'); px(x + 14, 52, 4, 4, '#ffe08a'); px(x + 9, 30, 1, 18, '#555'); px(x + 10, 30, 7, 5, SILKS[S.silk]); x += 24; }
-  if(F_.pasture){ px(x, 44, 8, 28, '#c8c8c0'); px(x - 1, 42, 10, 3, '#a0a098'); px(x + 10, 64, 8, 8, '#e8c860'); px(x + 18, 66, 8, 6, '#e8c860'); }
+  if(F_.pasture){ px(x, 44, 8, 28, '#c8c8c0'); px(x - 1, 42, 10, 3, '#a0a098'); px(x + 10, 64, 8, 8, '#e8c860'); px(x + 18, 66, 8, 6, '#e8c860'); x += 30; }
+  if(F_.pool){ px(x, 64, 26, 8, '#e8e8f0'); px(x + 2, 66, 22, 5, '#4ab0f0'); px(x + 4 + (Math.floor(R.time * 2) % 16), 67, 3, 1, '#c8f0ff'); x += 30; }
+  if(F_.coach){ px(x, 52, 16, 20, '#c8a070'); px(x - 1, 50, 18, 3, '#8a5a3a'); px(x + 5, 58, 6, 6, '#ffe08a'); px(x + 7, 64, 3, 8, '#5a3a20'); px(x + 13, 40, 1, 12, '#555'); px(x + 14, 40, 5, 4, '#ffd24a'); }
   // fence
   for(let fx = 0; fx < LW; fx += 10){ px(fx, 80, 2, 10, '#f4f0e8'); } px(0, 82, LW, 2, '#f4f0e8'); px(0, 86, LW, 2, '#f4f0e8');
   // horses in the paddock
