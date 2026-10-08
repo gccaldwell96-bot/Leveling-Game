@@ -55,3 +55,15 @@ Once installed it works offline.
 | `index.html` | The whole game (HTML + CSS + JS, no dependencies) |
 | `manifest.webmanifest`, `sw.js` | Make it installable and playable offline |
 | `icon.svg`, `icon-*.png` | App icons |
+| `business/` | **Empire Tycoon**, a second game (see below) |
+
+# 🏙️ Empire Tycoon
+
+A free idle business tycoon in `business/`. Grow one lemonade stand into a galactic empire. Your businesses earn automatically (no tapping), even while you're away.
+
+- **10 businesses** from Lemonade Stand to Space Agency, each a pixel-art building in a living city with day/night, traffic and pedestrians. Buildings grow as you buy more.
+- **Milestones:** owning 25, 50, 100, 200… of a business doubles its speed. When every business reaches 25, 50, 100… all profit ×3.
+- **Managers** triple a business's profit. **Upgrades** triple one business or all of them.
+- **Hot Deals** float by on a balloon and pay out by themselves (cash, ×7 profit Boom, or 3× speed Rush). **Market news** gives one business ×3 for a minute.
+- **Investors (prestige):** IPO to turn lifetime earnings into investors (+2% profit each), and spend them on permanent perks. Each IPO moves you to a new city: Hometown → Metro City → Neon Bay → Mars Colony.
+- Buy ×1 / ×10 / ×100 / Next milestone / Max. Installable and works offline, like Power Surge.

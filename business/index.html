@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#14122a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Empire Tycoon">
+<title>Empire Tycoon</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root{
+    --bg:#14122a; --panel:#1e1b3a; --card:#28244c; --card2:#332e5e; --line:#3d3770;
+    --text:#f3f0ff; --dim:#a69fcf; --cash:#7dff9a; --gold:#ffd24a; --inv:#ffa94a; --bad:#ff5d73; --accent:#4ad6a0;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overscroll-behavior:none;user-select:none;-webkit-user-select:none}
+  #app{max-width:520px;margin:0 auto;height:100%;display:flex;flex-direction:column;
+    padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+  button{font:inherit;color:inherit;border:0;cursor:pointer}
+  #top{display:flex;align-items:flex-end;gap:10px;padding:10px 14px 6px}
+  #cashBox{flex:1;min-width:0}
+  #cash{font-size:28px;font-weight:900;color:var(--cash);letter-spacing:-.5px;line-height:1.05;white-space:nowrap}
+  #rate{font-size:12px;color:var(--dim);font-weight:700}
+  .chip{background:var(--panel);padding:5px 10px;border-radius:999px;font-weight:800;font-size:13px;white-space:nowrap}
+  #invChip{color:var(--inv)}
+  #cityWrap{position:relative;margin:0 12px;border-radius:14px;overflow:hidden;background:#000;touch-action:manipulation}
+  #city{display:block;width:100%;image-rendering:pixelated}
+  #cityName{position:absolute;left:8px;top:6px;font-size:11px;font-weight:800;color:#fff;text-shadow:0 1px 2px #000a;pointer-events:none;opacity:.85}
+  #boosts{position:absolute;right:8px;top:6px;display:flex;flex-direction:column;align-items:flex-end;gap:3px;pointer-events:none}
+  #boosts span{font-size:10.5px;font-weight:800;background:#000a;color:#fff;padding:2px 7px;border-radius:99px}
+  #ticker{margin:6px 12px 0;background:var(--panel);border-radius:10px;padding:6px 10px;font-size:12px;font-weight:700;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #ticker.hot{color:#fff;background:linear-gradient(90deg,#7a2a8a,#2a4a9a)}
+  #buyRow{display:flex;gap:5px;align-items:center;padding:6px 12px 0;font-size:12px;color:var(--dim)}
+  #buyRow button{background:var(--panel);padding:5px 9px;border-radius:8px;font-weight:800;font-size:12px}
+  #buyRow button.active{background:var(--card2);color:var(--gold)}
+  #tabs{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;padding:6px 12px 4px}
+  #tabs button{background:var(--panel);padding:6px 2px;border-radius:10px;font-weight:800;font-size:10.5px;position:relative;line-height:1.25}
+  #tabs button b{display:block;font-size:17px}
+  #tabs button.active{background:var(--accent);color:#0c2a1e}
+  #tabs button .dot{position:absolute;top:4px;right:5px;width:8px;height:8px;border-radius:50%;background:var(--bad);display:none}
+  #tabs button.alert .dot{display:block}
+  #panel{flex:1;overflow-y:auto;padding:4px 12px 16px;-webkit-overflow-scrolling:touch}
+  .biz{display:flex;align-items:center;gap:8px;background:var(--panel);border-radius:14px;padding:8px;margin-bottom:7px;border:1px solid transparent}
+  .biz.none{opacity:.55}
+  .biz.hot{border-color:#c06aff;box-shadow:0 0 12px #c06aff55}
+  .bic{width:52px;height:52px;flex:none;border-radius:12px;background:var(--card);font-size:27px;position:relative;display:grid;place-items:center}
+  .bic.can{background:linear-gradient(135deg,#2f6a4a,#2a4a6a);animation:pop 1.2s infinite}
+  @keyframes pop{50%{transform:scale(1.05)}}
+  .bic .cnt{position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);background:#0c0a1c;color:#fff;font-size:10.5px;font-weight:900;padding:1px 6px;border-radius:99px;white-space:nowrap}
+  .bic .mg{position:absolute;top:-5px;right:-5px;font-size:14px}
+  .bmid{flex:1;min-width:0}
+  .bname{font-weight:800;font-size:13.5px;display:flex;justify-content:space-between;gap:6px}
+  .bname small{color:var(--dim);font-weight:700;font-size:10.5px;white-space:nowrap}
+  .pbar{position:relative;height:20px;background:#0c0a1c;border-radius:7px;overflow:hidden;margin-top:4px}
+  .pbar i{position:absolute;left:0;top:0;bottom:0;width:0;background:linear-gradient(90deg,#2fbf7a,#7dff9a);border-radius:7px}
+  .pbar i.fast{background:repeating-linear-gradient(45deg,#2fbf7a 0 8px,#5fe89a 8px 16px);width:100%!important;animation:slide .5s linear infinite;background-size:22px 22px}
+  @keyframes slide{to{background-position:22px 0}}
+  .pbar span{position:relative;display:block;text-align:center;font-size:12px;font-weight:900;line-height:20px;color:#fff;text-shadow:0 1px 2px #000}
+  .bsub{display:flex;justify-content:space-between;font-size:10.5px;color:var(--dim);margin-top:3px;font-weight:700}
+  .bbuy{flex:none;width:84px;padding:7px 4px;border-radius:11px;background:var(--card);font-size:11px;font-weight:800;line-height:1.3;color:var(--dim)}
+  .bbuy.can{background:linear-gradient(135deg,#ffd24a,#ff9a3d);color:#2a1a00}
+  .bbuy b{display:block;font-size:12.5px}
+  .item{display:flex;align-items:center;gap:10px;background:var(--panel);border-radius:14px;padding:10px;margin-bottom:7px}
+  .item.done{opacity:.5}
+  .item .ic{font-size:24px;width:42px;height:42px;display:grid;place-items:center;background:var(--card);border-radius:10px;flex:none}
+  .item .info{flex:1;min-width:0}
+  .item .nm{font-weight:800;font-size:14px}
+  .item .ds{font-size:12px;color:var(--dim);margin-top:2px;line-height:1.35}
+  .sbtn{flex:none;padding:8px 10px;border-radius:10px;background:var(--card);font-size:12px;font-weight:800;min-width:78px;line-height:1.25;color:var(--dim)}
+  .sbtn.can{background:linear-gradient(135deg,#ffd24a,#ff9a3d);color:#2a1a00}
+  .sbtn.inv.can{background:linear-gradient(135deg,#ffa94a,#ff5d8a);color:#fff}
+  .card{background:var(--panel);border-radius:14px;padding:14px;margin-bottom:8px;font-size:13px;line-height:1.5;color:var(--dim)}
+  .card h3{margin:0 0 6px;color:var(--text);font-size:16px}
+  .card b{color:var(--text)}
+  .big{font-size:30px;font-weight:900;color:var(--inv);margin:4px 0}
+  .btn{display:block;width:100%;margin-top:10px;padding:12px;border-radius:12px;font-weight:900;font-size:15px;background:linear-gradient(135deg,#ffa94a,#ff5d8a);color:#fff}
+  .btn:disabled{opacity:.4}
+  .btn.ghost{background:var(--card);color:var(--text)}
+  .btn.danger{background:#5a2333;color:#ffd0d8}
+  .sec{font-size:11px;font-weight:900;color:var(--dim);letter-spacing:1px;text-transform:uppercase;margin:12px 2px 6px;display:flex;justify-content:space-between;align-items:center}
+  .stat{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .stat:last-child{border:0}
+  .stat b{color:var(--text)}
+  #modal{position:fixed;inset:0;background:#000a;display:grid;place-items:center;padding:20px;z-index:20}
+  #modal[hidden]{display:none}
+  #modalBox{background:var(--panel);border-radius:18px;padding:22px;max-width:360px;width:100%;text-align:center;border:1px solid var(--line)}
+  #modalBox h2{margin:0 0 8px}
+  #modalBox p{color:var(--dim);font-size:14px;line-height:1.5;margin:6px 0}
+  .reward{font-size:30px;font-weight:900;color:var(--cash);margin:8px 0}
+  #toast{position:fixed;left:50%;top:calc(12px + env(safe-area-inset-top));transform:translateX(-50%) translateY(-120%);background:#0c0a1cee;color:#fff;padding:9px 16px;border-radius:999px;font-weight:800;font-size:13px;transition:transform .25s;z-index:30;max-width:92%;text-align:center;pointer-events:none}
+  #toast.show{transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="top">
+    <div id="cashBox"><div id="cash">$0</div><div id="rate">$0 / sec</div></div>
+    <div class="chip" id="invChip" title="Investors">💼 0</div>
+  </div>
+  <div id="cityWrap"><canvas id="city"></canvas><div id="cityName"></div><div id="boosts"></div></div>
+  <div id="ticker">📰 Welcome to your empire! Your lemonade stand is already open.</div>
+  <div id="buyRow">Buy: <button data-amt="1">×1</button><button data-amt="10">×10</button><button data-amt="100">×100</button><button data-amt="next">🎯 Next</button><button data-amt="max">Max</button></div>
+  <nav id="tabs">
+    <button data-tab="biz"><b>🏪</b>Business<i class="dot"></i></button>
+    <button data-tab="mgr"><b>👔</b>Managers<i class="dot"></i></button>
+    <button data-tab="upg"><b>📈</b>Upgrades<i class="dot"></i></button>
+    <button data-tab="inv"><b>💼</b>Investors<i class="dot"></i></button>
+    <button data-tab="stats"><b>📊</b>Stats<i class="dot"></i></button>
+  </nav>
+  <div id="panel"></div>
+</div>
+<div id="modal" hidden><div id="modalBox"></div></div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+// =====================================================================
+//  EMPIRE TYCOON: an idle business game. Buy businesses, hire managers
+//  to run them, stack upgrades, then IPO for investors and do it bigger.
+// =====================================================================
+const SAVE_KEY = 'empire-tycoon-v1';
+const $ = id => document.getElementById(id);
+const rand = (a, b) => a + Math.random() * (b - a);
+const pick = a => a[Math.floor(Math.random() * a.length)];
+
+const SUF = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc', 'No', 'Dc'];
+for(let i = 0; i < 676 && SUF.length < 110; i++) SUF.push(String.fromCharCode(97 + Math.floor(i / 26), 97 + i % 26));
+function fmt(n){
+  if(!isFinite(n)) return '∞';
+  if(n < 1000) return n < 100 && n % 1 ? n.toFixed(n < 10 ? 2 : 1) : String(Math.floor(n));
+  let i = 0; while(n >= 1000 && i < SUF.length - 1){ n /= 1000; i++; }
+  return (n < 10 ? n.toFixed(2) : n < 100 ? n.toFixed(1) : Math.floor(n)) + SUF[i];
+}
+const money = n => '$' + fmt(n);
+function dur(s){
+  if(s < 1) return s.toFixed(2) + 's';
+  if(s < 60) return s.toFixed(s < 10 ? 1 : 0) + 's';
+  const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), sec = Math.floor(s % 60);
+  return h ? `${h}h ${m}m` : `${m}:${String(sec).padStart(2, '0')}`;
+}
+
+// =====================================================================
+//  DATA
+// =====================================================================
+// cost = first unit, g = price growth, rev = cash per cycle per unit, t = seconds per cycle
+const BIZ = [
+  {id:'lemon',  n:'Lemonade Stand', icon:'🍋', cost:4,       g:1.07, rev:1,       t:0.6,   mgr:{n:'Lemmy Squeeze',   cost:1e3}},
+  {id:'truck',  n:'Taco Truck',     icon:'🌮', cost:60,      g:1.15, rev:60,      t:3,     mgr:{n:'Rosa Salsa',      cost:1.5e4}},
+  {id:'coffee', n:'Coffee Shop',    icon:'☕', cost:720,     g:1.14, rev:540,     t:6,     mgr:{n:'Bea Barista',     cost:1e5}},
+  {id:'wash',   n:'Car Wash',       icon:'🚗', cost:8640,    g:1.13, rev:4320,    t:12,    mgr:{n:'Sudsy Sam',       cost:5e5}},
+  {id:'pizza',  n:'Pizza Place',    icon:'🍕', cost:103680,  g:1.12, rev:51840,   t:24,    mgr:{n:'Tony Pepperoni',  cost:1.2e6}},
+  {id:'gym',    n:'Gym',            icon:'🏋️', cost:1.244e6, g:1.11, rev:622080,  t:96,    mgr:{n:'Max Gains',       cost:1e7}},
+  {id:'hotel',  n:'Hotel',          icon:'🏨', cost:1.493e7, g:1.10, rev:7.465e6, t:384,   mgr:{n:'Concierge Claude',cost:1.111e8}},
+  {id:'tech',   n:'Tech Startup',   icon:'💻', cost:1.792e8, g:1.09, rev:8.958e7, t:1536,  mgr:{n:'Ada Byte',        cost:5.555e8}},
+  {id:'studio', n:'Movie Studio',   icon:'🎬', cost:2.15e9,  g:1.08, rev:1.075e9, t:6144,  mgr:{n:'Steve Spotlight', cost:1e10}},
+  {id:'space',  n:'Space Agency',   icon:'🚀', cost:2.58e10, g:1.07, rev:2.97e10, t:36864, mgr:{n:'Major Tom',       cost:1e11}},
+];
+const NB = BIZ.length;
+// Milestones: owning this many of one business doubles its speed
+const MS = [25, 50, 100, 200, 300, 400, 500];
+function msCount(n){ let c = 0; for(const m of MS) if(n >= m) c++; if(n >= 600) c += Math.floor((n - 500) / 100); return c; }
+function nextMs(n){ for(const m of MS) if(n < m) return m; return Math.floor(n / 100) * 100 + 100; }
+// Empire milestones: when EVERY business reaches this count, all profit ×3
+const EMS = [25, 50, 100, 200, 300, 400, 500];
+function minOwned(){ return Math.min(...S.biz.map(b => b.n)); }
+function emsCount(){ const m = minOwned(); let c = 0; for(const x of EMS) if(m >= x) c++; if(m >= 600) c += Math.floor((m - 500) / 100); return c; }
+function nextEms(){ const m = minOwned(); for(const x of EMS) if(m < x) return x; return Math.floor(m / 100) * 100 + 100; }
+
+let UPG_C = 1e4, UPG_G = 1e4, ALL_C = 1e8, ALL_G = 1e6, INV_D = 1e12, INV_P = 0.18;
+// Cash upgrades: ×3 profit for one business (4 tiers each) or for everything
+const UPGS = [];
+function buildUpgs(){
+  UPGS.length = 0;
+  BIZ.forEach((b, i) => { const names = ['Better Recipe', 'Marketing Push', 'Premium Line', 'Franchise Deal', 'Global Brand', 'Legendary Status'];
+    for(let k = 0; k < 6; k++) UPGS.push({id:`u${i}_${k}`, biz:i, mul:3, n:`${b.icon} ${names[k]}`, cost:b.cost * UPG_C * Math.pow(UPG_G, k)}); });
+  ['Business School', 'Stock Options', 'Corporate Synergy', 'Hostile Takeover', 'World Domination', 'Galactic Monopoly', 'Universal Currency', 'Infinite Money Glitch']
+    .forEach((n, k) => UPGS.push({id:`all_${k}`, biz:-1, mul:3, n:'🌐 ' + n, cost:ALL_C * Math.pow(ALL_G, k)}));
+  UPGS.sort((a, b) => a.cost - b.cost);
+}
+buildUpgs();
+
+// Investor perks: spend investors (each one also gives profit while you keep it)
+const PERKS = [
+  {id:'hire',  n:'Headhunters',         icon:'🤝', cost:5,      info:'Managers cost 90% less'},
+  {id:'seed',  n:'Seed Money',          icon:'🌱', cost:15,     info:'Start every run with $50K and 10 Lemonade Stands'},
+  {id:'p1',    n:'Brand Power',         icon:'✨', cost:40,     info:'All profit ×3', profit:3},
+  {id:'deal',  n:'Deal Hunter',         icon:'💰', cost:75,     info:'Hot Deals show up twice as often and pay double'},
+  {id:'s1',    n:'Lean Operations',     icon:'⚙️', cost:150,    info:'All businesses run 2× faster', speed:2},
+  {id:'night', n:'Night Shift',         icon:'🌙', cost:300,    info:'Offline earnings ×2 and up to 48h'},
+  {id:'p2',    n:'Global Franchise',    icon:'🌍', cost:1000,   info:'All profit ×5', profit:5},
+  {id:'i1',    n:'Investor Relations',  icon:'📣', cost:2500,   info:'Each investor gives +3% instead of +2%'},
+  {id:'s2',    n:'Full Automation',     icon:'🤖', cost:10000,  info:'All businesses run 2× faster', speed:2},
+  {id:'p3',    n:'Monopoly',            icon:'🎩', cost:50000,  info:'All profit ×9', profit:9},
+  {id:'i2',    n:'Wall Street Darling', icon:'🏦', cost:250000, info:'Each investor gives +4%'},
+  {id:'p4',    n:'Megacorp',            icon:'🏢', cost:2e6,    info:'All profit ×25', profit:25},
+  {id:'s3',    n:'Time Machine',        icon:'⏳', cost:2e7,    info:'All businesses run 3× faster', speed:3},
+  {id:'p5',    n:'Planet Owner',        icon:'🪐', cost:5e8,    info:'All profit ×100', profit:100},
+];
+const CITIES = ['Hometown', 'Metro City', 'Neon Bay', 'Mars Colony'];
+const ROMAN = ['', ' II', ' III', ' IV', ' V', ' VI', ' VII', ' VIII', ' IX', ' X'];
+const cityName = () => { const k = Math.floor(S.ipos / 4); return CITIES[S.ipos % 4] + (ROMAN[k] ?? ' ' + (k + 1)); };
+
+// =====================================================================
+//  SAVE
+// =====================================================================
+function freshRun(){ return {cash:0, runEarned:0, biz:BIZ.map((b, i) => ({n:i ? 0 : 1, p:0, run:false})), mgr:BIZ.map(() => false), upg:{}}; }
+function freshSave(){ return Object.assign({v:1, allTime:0, inv:0, invEarned:0, perks:{}, ipos:0, buyAmt:'1', last:Date.now(), played:0, taps:0, deals:0, started:Date.now(), seenHelp:false}, freshRun()); }
+let S = freshSave();
+try{ const raw = localStorage.getItem(SAVE_KEY); if(raw) S = Object.assign(freshSave(), JSON.parse(raw)); }catch(e){}
+while(S.biz.length < NB){ S.biz.push({n:0, p:0, run:false}); S.mgr.push(false); }
+function persist(){ S.last = Date.now(); try{ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){} }
+
+// =====================================================================
+//  ECONOMY
+// =====================================================================
+const R = {boom:0, rush:0, news:null, newsT:rand(40, 70), dealT:rand(20, 35), deal:null, time:0, tod:0.3, fx:[], peds:[], cars:[], rocket:0, lastFx:new Array(NB).fill(0)};
+const perk = id => !!S.perks[id];
+const invRate = () => perk('i2') ? 0.04 : perk('i1') ? 0.03 : 0.02;
+const invMul = () => 1 + S.inv * invRate();
+const perkProfit = () => PERKS.reduce((m, p) => m * (p.profit && perk(p.id) ? p.profit : 1), 1);
+const perkSpeed = () => PERKS.reduce((m, p) => m * (p.speed && perk(p.id) ? p.speed : 1), 1);
+const upgMul = i => UPGS.reduce((m, u) => m * (S.upg[u.id] && (u.biz === i || u.biz === -1) ? u.mul : 1), 1);
+function profitMul(i){
+  return upgMul(i) * (S.mgr[i] ? 3 : 1) * Math.pow(3, emsCount()) * invMul() * perkProfit() * (R.boom > 0 ? 7 : 1) * (R.news && R.news.i === i ? R.news.mul : 1);
+}
+const MIN_T = 0.2; // cycles faster than this pay out the difference instead
+function cycle(i){
+  const b = BIZ[i], n = S.biz[i].n;
+  let t = b.t / (Math.pow(2, msCount(n)) * perkSpeed() * (R.rush > 0 ? 3 : 1)), extra = 1;
+  if(t < MIN_T){ extra = MIN_T / t; t = MIN_T; }
+  return {t, per: b.rev * n * profitMul(i) * extra};
+}
+function perSec(i){ if(!S.biz[i].n) return 0; const c = cycle(i); return c.per / c.t; }
+function cashPerSec(){ let s = 0; for(let i = 0; i < NB; i++) s += perSec(i); return s; }
+function priceOf(i, k){ const b = BIZ[i], c0 = b.cost * Math.pow(b.g, S.biz[i].n); return c0 * (Math.pow(b.g, k) - 1) / (b.g - 1); }
+function maxBuy(i){ const b = BIZ[i], c0 = b.cost * Math.pow(b.g, S.biz[i].n); if(S.cash < c0) return 0; return Math.floor(Math.log(S.cash * (b.g - 1) / c0 + 1) / Math.log(b.g)); }
+function buyPlan(i){
+  const a = S.buyAmt, n = S.biz[i].n;
+  let k = a === 'max' ? Math.max(1, maxBuy(i)) : a === 'next' ? nextMs(n) - n : +a;
+  return {k, cost:priceOf(i, k)};
+}
+const mgrCost = i => BIZ[i].mgr.cost * (perk('hire') ? 0.1 : 1);
+const INV_B = () => Math.pow(1e9 / INV_D, INV_P); // investors start counting after $1B lifetime earnings
+const invTotal = L => Math.max(0, Math.floor(150 * (Math.pow(L / INV_D, INV_P) - INV_B())));
+const invPending = () => Math.max(0, invTotal(S.allTime) - S.invEarned);
+function earn(v){ S.cash += v; S.runEarned += v; S.allTime += v; }
+
+// =====================================================================
+//  SIMULATION
+// =====================================================================
+function tick(dt){
+  R.time += dt; R.tod = (R.tod + dt / 300) % 1; // a full day every 5 minutes
+  R.boom = Math.max(0, R.boom - dt); R.rush = Math.max(0, R.rush - dt);
+  for(let i = 0; i < NB; i++){
+    const B = S.biz[i]; if(!B.n) continue;
+    const c = cycle(i); B.p += dt / c.t;
+    if(B.p >= 1){ const k = Math.floor(B.p); earn(c.per * k); B.p -= k; onPayout(i, c.per * k, c.t); }
+  }
+  // market news
+  if(R.news){ R.news.t -= dt; if(R.news.t <= 0) R.news = null; }
+  R.newsT -= dt;
+  if(R.newsT <= 0){ R.newsT = rand(80, 150); const owned = BIZ.map((b, i) => i).filter(i => S.biz[i].n > 0);
+    if(owned.length){ const i = pick(owned); R.news = {i, mul:3, t:60, txt:pick(NEWS[BIZ[i].id])}; uiDirty = true; } }
+  // hot deals
+  if(!R.deal){ R.dealT -= dt * (perk('deal') ? 2 : 1); if(R.dealT <= 0){ R.dealT = rand(45, 90); spawnDeal(); } }
+  S.played += dt;
+}
+const NEWS = {
+  lemon:['Heatwave! Everyone wants lemonade', 'Celebrity spotted sipping your lemonade'],
+  truck:['Taco Tuesday goes viral', 'Food critics crown your tacos #1'],
+  coffee:['Pumpkin spice season is here', 'Study finds coffee makes you rich'],
+  wash:['Mud festival in town', 'Pollen storm covers every car'],
+  pizza:['Big game night: pizza frenzy', 'Pineapple debate drives record sales'],
+  gym:['New Year resolutions kick in', 'Fitness influencer joins your gym'],
+  hotel:['World Expo comes to town', 'Your hotel wins 5 stars'],
+  tech:['Your app tops the charts', 'AI hype sends tech soaring'],
+  studio:['Your blockbuster breaks records', 'Award season sweep'],
+  space:['Moon tourism boom', 'Asteroid mining strikes gold'],
+};
+function spawnDeal(){ R.deal = {x:-8, y:rand(12, 34), vx:rand(9, 13), ph:0}; }
+function claimDeal(){
+  if(!R.deal) return; R.deal = null; S.deals++;
+  const m = perk('deal') ? 2 : 1, r = Math.random();
+  if(r < 0.5){ const v = Math.max(cashPerSec() * 120, 25 + 5 * S.biz[0].n) * m; earn(v); toast(`💰 Hot Deal: +${money(v)}`); }
+  else if(r < 0.78){ R.boom = 30 * m; toast(`🔥 Boom! ×7 profit for ${30 * m}s`); }
+  else { R.rush = 30 * m; toast(`⚡ Rush hour! Everything 3× faster for ${30 * m}s`); }
+  burstCoins(R.dealLx || 120, R.dealLy || 30, 18);
+  uiDirty = true;
+}
+
+// =====================================================================
+//  PIXEL CITY  (drawn at low resolution, upscaled crisp)
+// =====================================================================
+const LW = 240, LH = 128, GY = 98; // ground line
+const low = document.createElement('canvas'); low.width = LW; low.height = LH;
+const lg = low.getContext('2d');
+const cv = $('city'), cg = cv.getContext('2d');
+let CW = 0, CH = 0, PS = 1, DPR = 1;
+function resize(){
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  CW = cv.clientWidth; CH = Math.round(CW * LH / LW);
+  cv.style.height = CH + 'px'; cv.width = Math.round(CW * DPR); cv.height = Math.round(CH * DPR); PS = CW / LW;
+}
+const px = (x, y, w, h, c) => { lg.fillStyle = c; lg.fillRect(Math.round(x), Math.round(y), w, h); };
+function hash(a){ a = (a ^ 61) ^ (a >>> 16); a = a + (a << 3); a = a ^ (a >>> 4); a = Math.imul(a, 0x27d4eb2d); a = a ^ (a >>> 15); return (a >>> 0) / 4294967296; }
+function mix(a, b, k){ const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
+  const f = s => Math.round(((pa >> s) & 255) * (1 - k) + ((pb >> s) & 255) * k);
+  return '#' + ((1 << 24) + (f(16) << 16) + (f(8) << 8) + f(0)).toString(16).slice(1); }
+const THEMES = [
+  {far:'#5a8a6a', hill:'#3f7a4a', grass:'#4a9a4a', walk:'#b8b0a0', road:'#3a3a46', line:'#e8d070', tint:null},
+  {far:'#4a5a7a', hill:'#3a4a66', grass:'#4a7a4a', walk:'#a8a8b4', road:'#2e2e3a', line:'#f0f0f0', tint:null},
+  {far:'#3a2a5a', hill:'#2a1a46', grass:'#2a4a5a', walk:'#6a5a8a', road:'#1e1a2e', line:'#ff5ad8', tint:'neon'},
+  {far:'#8a3a2a', hill:'#6a2a1a', grass:'#9a4a2a', walk:'#c08060', road:'#4a2a22', line:'#ffd0a0', tint:'mars'},
+];
+const SKY = { // [top, bottom] at day / dusk / night
+  day:['#4aa8ff', '#bfe6ff'], dusk:['#5a4aa0', '#ff9a6a'], night:['#070a22', '#1e2a5a'],
+  mday:['#c0603a', '#f0b080'], mnight:['#1a0a10', '#4a1a1a'],
+};
+function skyColors(){
+  const t = R.tod, th = THEMES[S.ipos % 4]; // 0..1: 0.25 noon-ish, 0.75 midnight
+  const d = Math.cos((t - 0.25) * Math.PI * 2); // 1 = noon, -1 = midnight
+  const day = th.tint === 'mars' ? SKY.mday : SKY.day, night = th.tint === 'mars' ? SKY.mnight : SKY.night;
+  let top, bot;
+  if(d > 0.25){ top = day[0]; bot = day[1]; }
+  else if(d > -0.25){ const k = (0.25 - d) / 0.5; top = mix(day[0], SKY.dusk[0], Math.min(1, k * 1.4)); bot = mix(day[1], SKY.dusk[1], Math.min(1, k * 1.4));
+    if(k > 0.6){ const k2 = (k - 0.6) / 0.4; top = mix(top, night[0], k2); bot = mix(bot, night[1], k2); } }
+  else { top = night[0]; bot = night[1]; }
+  if(th.tint === 'neon' && d < 0.25){ bot = mix(bot, '#7a2a8a', 0.4); }
+  return {top, bot, dark: Math.max(0, Math.min(1, (0.15 - d) / 0.4))};
+}
+// building sizes per business (width fits a 22px lot)
+function bHeight(i){ const n = S.biz[i].n, base = [10, 12, 20, 18, 22, 26, 34, 38, 28, 30][i];
+  const grow = Math.min([6, 6, 14, 10, 16, 20, 44, 52, 24, 30][i], Math.floor(Math.log2(n + 1) * 2.4 + msCount(n) * 2)); return base + grow; }
+function windows(x, y, w, h, cols, rows, lit, dark, seed, cw = 2, ch = 2){
+  const gx = Math.floor((w - cols * cw) / (cols + 1)), gy = Math.floor((h - rows * ch) / (rows + 1));
+  for(let r = 0; r < rows; r++) for(let c = 0; c < cols; c++){
+    const on = dark > 0.3 && hash(seed * 131 + r * 17 + c) < 0.7;
+    px(x + gx + c * (cw + gx), y + gy + r * (ch + gy), cw, ch, on ? lit : dark > 0.3 ? '#2a2a3e' : '#9fd8ff');
+  }
+}
+function drawBuilding(i, x, dark){
+  const n = S.biz[i].n, h = bHeight(i), t = R.time, top = GY - h, run = true, lit = '#ffe08a';
+  if(!n){ // empty lot with a sign
+    px(x + 2, GY - 1, 18, 1, '#6a6a5a');
+    px(x + 9, GY - 9, 1, 8, '#6a4a2a'); px(x + 5, GY - 13, 9, 5, '#f0e8d0'); px(x + 6, GY - 12, 7, 1, '#c03030'); px(x + 6, GY - 10, 5, 1, '#888');
+    return;
+  }
+  switch(i){
+    case 0: { // lemonade stand
+      px(x + 4, GY - 8, 14, 8, '#c98a4a'); px(x + 4, GY - 8, 14, 1, '#e8b070');
+      for(let k = 0; k < 7; k++) px(x + 3 + k * 2, GY - 13, 2, 3, k % 2 ? '#fff' : '#ffd84a');
+      px(x + 4, GY - 10, 1, 2, '#8a5a2a'); px(x + 17, GY - 10, 1, 2, '#8a5a2a');
+      px(x + 9, GY - 11, 3, 3, '#ffd9b3'); px(x + 9, GY - 12, 3, 1, '#5a3a20');
+      px(x + 6, GY - 6, 3, 3, '#ffe85a'); px(x + 13, GY - 5, 2, 2, '#ffe85a');
+      if(n >= 25){ px(x + 18, GY - 5, 3, 5, '#5aa0ff'); px(x + 18, GY - 5, 3, 1, '#fff'); }
+      break; }
+    case 1: { // taco truck
+      const bob = run && Math.floor(t * 4) % 2 ? 1 : 0;
+      px(x + 2, GY - 11 + bob, 18, 9, '#3ac0b0'); px(x + 14, GY - 9 + bob, 6, 4, '#bfefff');
+      px(x + 4, GY - 9 + bob, 8, 4, '#2a2a2a'); px(x + 5, GY - 8 + bob, 2, 2, '#ffd9b3');
+      px(x + 3, GY - 12 + bob, 10, 1, '#ff6a3a'); px(x + 2, GY - 4 + bob, 18, 2, '#2a8a80');
+      px(x + 4, GY - 2, 4, 2, '#1a1a1a'); px(x + 14, GY - 2, 4, 2, '#1a1a1a');
+      px(x + 7, GY - 15 + bob, 6, 3, '#ffd84a'); px(x + 8, GY - 14 + bob, 4, 1, '#c03030');
+      break; }
+    case 2: { // coffee shop
+      px(x + 2, top, 18, h, '#8a5a3a'); px(x + 2, top, 18, 2, '#5a3a22');
+      windows(x + 2, top + 3, 18, h - 12, 3, Math.max(1, Math.floor((h - 12) / 6)), lit, dark, i * 7);
+      px(x + 1, GY - 9, 20, 2, '#2a8a4a'); for(let k = 0; k < 5; k++) px(x + 1 + k * 4, GY - 7, 2, 1, '#2a8a4a');
+      px(x + 9, GY - 6, 4, 6, '#3a2418'); px(x + 4, GY - 6, 4, 4, dark > 0.3 ? lit : '#9fd8ff'); px(x + 14, GY - 6, 4, 4, dark > 0.3 ? lit : '#9fd8ff');
+      px(x + 8, top - 6, 6, 5, '#fff'); px(x + 14, top - 5, 2, 2, '#fff'); px(x + 9, top - 5, 4, 1, '#6a3a1a');
+      if(run && Math.floor(t * 3) % 2) px(x + 10, top - 9, 1, 2, '#ddd');
+      break; }
+    case 3: { // car wash
+      px(x + 1, top, 20, h, '#4a7ad0'); px(x + 1, top, 20, 2, '#2a4a9a');
+      px(x + 4, GY - 11, 14, 11, '#1a2a4a');
+      if(run){ px(x + 6, GY - 5, 10, 3, '#e04a4a'); px(x + 8, GY - 7, 6, 2, '#bfefff'); px(x + 7, GY - 2, 2, 2, '#111'); px(x + 13, GY - 2, 2, 2, '#111');
+        for(let k = 0; k < 6; k++){ const bx = x + 4 + hash(k * 9 + Math.floor(t * 6)) * 13, by = GY - 11 + hash(k * 5 + Math.floor(t * 6)) * 9; px(bx, by, 2, 2, '#e8f8ff'); } }
+      px(x + 5, top + 3, 12, 4, '#ffd84a'); px(x + 6, top + 4, 10, 2, '#4a7ad0');
+      break; }
+    case 4: { // pizza place
+      px(x + 2, top + 4, 18, h - 4, '#e8d8b8'); windows(x + 2, top + 6, 18, h - 16, 3, Math.max(1, Math.floor((h - 16) / 6)), lit, dark, i * 7);
+      for(let k = 0; k < 6; k++) px(x + 1 + k * 0.5, top + 4 - k, 20 - k, 1, '#c03a2a');
+      px(x + 15, top - 4, 3, 6, '#8a4a3a');
+      if(run) for(let k = 0; k < 3; k++){ const sy = (t * 6 + k * 4) % 12; px(x + 16 + Math.sin(t * 2 + k) * 1.5, top - 5 - sy, 2, 2, sy > 8 ? '#bbb8' : '#ddd'); }
+      px(x + 1, GY - 9, 20, 2, '#2a8a3a'); px(x + 8, GY - 6, 5, 6, '#5a2a1a');
+      px(x - 1, GY - 16, 5, 5, '#ffcf6a'); px(x, GY - 15, 3, 3, '#e04a3a');
+      break; }
+    case 5: { // gym
+      px(x + 1, top, 20, h, '#7a7f90'); px(x + 1, top, 20, 2, '#4a4f60');
+      windows(x + 1, top + 3, 20, h - 6, 2, Math.max(1, Math.floor((h - 6) / 7)), lit, dark, i * 7, 6, 4);
+      px(x + 5, top - 4, 12, 2, '#333'); px(x + 3, top - 6, 3, 6, '#e04a4a'); px(x + 16, top - 6, 3, 6, '#e04a4a');
+      px(x + 8, GY - 7, 6, 7, '#2a2a3a');
+      break; }
+    case 6: { // hotel
+      px(x + 2, top, 18, h, '#d8c8a0'); px(x + 2, top, 18, 2, '#a89870'); px(x + 2, GY - 12, 18, 12, '#b8a880');
+      windows(x + 2, top + 3, 18, h - 16, 4, Math.max(1, Math.floor((h - 16) / 4)), lit, dark, i * 7);
+      px(x + 7, top - 8, 8, 8, '#c03030'); px(x + 8, top - 7, 1, 6, '#fff'); px(x + 13, top - 7, 1, 6, '#fff'); px(x + 9, top - 4, 4, 1, '#fff');
+      px(x + 8, GY - 8, 6, 8, '#3a2a20'); px(x + 4, GY - 11, 14, 2, '#c03030');
+      break; }
+    case 7: { // tech startup: glass tower
+      px(x + 3, top, 16, h, '#3ab0d0'); px(x + 3, top, 16, 1, '#bfefff');
+      for(let r = 0; r < h - 2; r += 3) px(x + 3, top + 2 + r, 16, 1, '#2a8ab0');
+      for(let k = 0; k < h; k++){ const sx = ((k + Math.floor(t * 12)) % (h + 30)) - 15; if(sx >= 0 && sx < 16) px(x + 3 + sx, top + k, 2, 1, '#e8fbff'); }
+      if(dark > 0.3) windows(x + 3, top + 2, 16, h - 4, 4, Math.floor((h - 4) / 4), '#bfefff', dark, i * 7, 2, 1);
+      px(x + 10, top - 8, 1, 8, '#888'); px(x + 9, top - 9, 3, 2, Math.floor(t * 2) % 2 ? '#ff3a3a' : '#5a1a1a');
+      px(x + 8, GY - 6, 6, 6, '#1a3a4a');
+      break; }
+    case 8: { // movie studio
+      if(dark > 0.2){ lg.globalAlpha = 0.25 * dark; lg.fillStyle = '#fff8c0';
+        for(const [ox, ph] of [[5, 0], [17, 2]]){ const a = Math.sin(t * 0.8 + ph) * 0.5; lg.beginPath(); lg.moveTo(x + ox, top); lg.lineTo(x + ox + Math.sin(a) * 90 - 6, top - 90); lg.lineTo(x + ox + Math.sin(a) * 90 + 6, top - 90); lg.fill(); }
+        lg.globalAlpha = 1; }
+      px(x + 1, top + 6, 20, h - 6, '#7a4ab0'); for(let k = 0; k < 10; k++) px(x + 1 + k * 2, top + 6 - Math.round(Math.sin(k / 9 * Math.PI) * 6), 2, 6, '#7a4ab0');
+      px(x + 4, top + 10, 14, 6, '#1a1030'); px(x + 5, top + 11, 12, 4, Math.floor(t * 2) % 2 ? '#ffd84a' : '#ff8a4a');
+      px(x + 7, GY - 9, 8, 9, '#3a2050'); px(x + 3, top + 2, 3, 3, '#ddd'); px(x + 16, top + 2, 3, 3, '#ddd');
+      break; }
+    case 9: { // space agency + rocket
+      px(x + 1, GY - 10, 12, 10, '#d0d4e0'); px(x + 1, GY - 10, 12, 2, '#9aa0b0'); px(x + 3, GY - 7, 3, 3, '#3a6ad0'); px(x + 8, GY - 7, 3, 3, '#3a6ad0');
+      px(x + 18, top, 2, h, '#8a8f9a'); for(let k = 0; k < h; k += 4) px(x + 17, top + k, 4, 1, '#6a6f7a');
+      const ry = R.rocket > 0 ? -Math.pow(2.6 - R.rocket, 2.4) * 14 : 0;
+      if(R.rocket <= 0 || R.rocket < 2.5){
+        const rx = x + 13, rt = top + 2 + ry;
+        if(rt > -20){ px(rx, rt + 4, 4, h - 6, '#f0f0f4'); px(rx + 1, rt, 2, 4, '#e04a3a'); px(rx, rt + 2, 4, 2, '#e04a3a'); px(rx - 1, rt + h - 6, 1, 4, '#e04a3a'); px(rx + 4, rt + h - 6, 1, 4, '#e04a3a');
+          px(rx + 1, rt + 8, 2, 2, '#3a6ad0');
+          if(R.rocket > 0){ for(let k = 0; k < 4; k++) px(rx + hash(k + Math.floor(t * 20)) * 4, rt + h - 2 + k * 2, 2, 2, k < 2 ? '#ffd84a' : '#ff6a2a'); } }
+      }
+      break; }
+  }
+  if(S.mgr[i]) { px(x + 20, GY - 3, 2, 3, '#2a2a3a'); px(x + 20, GY - 5, 2, 2, '#ffd9b3'); } // the manager standing outside
+}
+const LOTX = i => 9 + i * 22.4;
+function drawCity(){
+  const th = THEMES[S.ipos % 4], sky = skyColors(), t = R.time;
+  for(let y = 0; y < GY; y += 4) px(0, y, LW, 4, mix(sky.top, sky.bot, y / GY));
+  // stars + sun/moon
+  if(sky.dark > 0){ lg.globalAlpha = sky.dark; for(let k = 0; k < 40; k++){ const sx = hash(k * 7) * LW, sy = hash(k * 13) * 60; px(sx, sy, 1, 1, hash(k + Math.floor(t)) > 0.9 ? '#8890b0' : '#fff'); } lg.globalAlpha = 1; }
+  const a = (R.tod + 0.25) * Math.PI * 2;
+  const sx = LW / 2 + Math.cos(a) * 105, sy = 78 - Math.sin(a) * 66, mx = LW / 2 - Math.cos(a) * 105, my = 78 + Math.sin(a) * 66;
+  if(sy < 80){ px(sx - 4, sy - 4, 8, 8, th.tint === 'mars' ? '#ffe0b0' : '#ffe85a'); px(sx - 5, sy - 2, 10, 4, th.tint === 'mars' ? '#ffe0b0' : '#ffe85a'); }
+  if(my < 80){ px(mx - 3, my - 3, 6, 6, '#f0f0ff'); px(mx - 1, my - 2, 2, 2, '#c8c8e0'); }
+  // clouds
+  for(let k = 0; k < 4; k++){ const cx = ((t * (2 + k) + k * 70) % (LW + 40)) - 20, cy = 8 + k * 9;
+    const cc = sky.dark > 0.5 ? '#3a3a5a' : th.tint === 'mars' ? '#f0c0a0' : '#ffffff';
+    px(cx, cy, 16, 3, cc); px(cx + 3, cy - 2, 9, 2, cc); }
+  // distant skyline
+  for(let k = 0; k < 30; k++){ const w = 6 + Math.floor(hash(k * 3) * 8), h = 10 + Math.floor(hash(k * 5) * 26), x = k * 8.5 - 4;
+    px(x, GY - 4 - h, w, h, th.far);
+    if(sky.dark > 0.3) for(let r = 0; r < h - 4; r += 4) for(let c = 1; c < w - 1; c += 3) if(hash(k * 97 + r * 7 + c) < 0.35) px(x + c, GY - 2 - h + r, 1, 1, '#ffe08a'); }
+  if(th.tint === 'mars') for(let k = 0; k < 5; k++){ const x = 20 + k * 48; px(x, GY - 12, 18, 8, '#c8b8a8'); px(x + 3, GY - 15, 12, 3, '#c8b8a8'); px(x + 6, GY - 17, 6, 2, '#c8b8a8'); }
+  px(0, GY - 4, LW, 4, th.hill);
+  // businesses
+  for(let i = 0; i < NB; i++) drawBuilding(i, LOTX(i), sky.dark);
+  // street
+  px(0, GY, LW, 4, th.walk); px(0, GY + 4, LW, 1, '#555');
+  px(0, GY + 5, LW, 16, th.road);
+  for(let x = (-(t * 30) % 12); x < LW; x += 12) px(x, GY + 12, 6, 1, th.line);
+  px(0, GY + 21, LW, LH - GY - 21, th.grass);
+  for(let k = 0; k < 24; k++) px(hash(k * 11) * LW, GY + 23 + hash(k * 3) * 5, 1, 2, mix(th.grass, '#000000', 0.25));
+  // street lamps
+  for(let k = 0; k < 6; k++){ const x = 20 + k * 40; px(x, GY - 12, 1, 12, '#3a3a44'); px(x - 1, GY - 13, 3, 2, sky.dark > 0.3 ? '#fff4b0' : '#888');
+    if(sky.dark > 0.3){ lg.globalAlpha = 0.18 * sky.dark; lg.fillStyle = '#fff4b0'; lg.beginPath(); lg.moveTo(x, GY - 12); lg.lineTo(x - 7, GY + 4); lg.lineTo(x + 8, GY + 4); lg.fill(); lg.globalAlpha = 1; } }
+  // pedestrians and cars
+  const owned = S.biz.reduce((s, b) => s + b.n, 0);
+  const wantP = Math.min(22, 2 + Math.floor(Math.sqrt(owned) * 1.2)), wantC = Math.min(9, 1 + Math.floor(Math.sqrt(owned) * 0.5));
+  while(R.peds.length < wantP) R.peds.push({x:rand(0, LW), d:Math.random() < 0.5 ? -1 : 1, s:rand(4, 9), c:pick(['#e04a4a', '#4a8ae0', '#ffd84a', '#5ad06a', '#c06aff', '#ff8a3a', '#f0f0f0']), sk:pick(['#ffd9b3', '#c68642', '#8d5524', '#f1c27d'])});
+  while(R.cars.length < wantC) R.cars.push({x:rand(0, LW), lane:Math.random() < 0.5 ? 0 : 1, s:rand(18, 34), c:pick(['#e04a4a', '#4a8ae0', '#ffd84a', '#f0f0f0', '#2a2a2a', '#5ad06a'])});
+  for(const p of R.peds){ const yy = GY - 1 + (p.d > 0 ? 0 : 1), step = Math.floor(t * 6 + p.x) % 2;
+    px(p.x, yy - 4, 1, 1, p.sk); px(p.x, yy - 3, 1, 2, p.c); px(p.x - (step ? 0 : 0.5), yy - 1, 1, 1, '#2a2a3a'); }
+  for(const c of R.cars){ const yy = c.lane ? GY + 15 : GY + 7, d = c.lane ? 1 : -1;
+    px(c.x, yy, 9, 3, c.c); px(c.x + 2, yy - 2, 5, 2, c.c); px(c.x + (d > 0 ? 5 : 2), yy - 2, 2, 1, '#bfefff');
+    px(c.x + 1, yy + 3, 2, 1, '#111'); px(c.x + 6, yy + 3, 2, 1, '#111');
+    if(sky.dark > 0.3){ px(c.x + (d > 0 ? 9 : -1), yy, 1, 1, '#fff8c0'); lg.globalAlpha = 0.2; px(c.x + (d > 0 ? 10 : -9), yy - 1, 8, 3, '#fff8c0'); lg.globalAlpha = 1; } }
+  // coins
+  for(const f of R.fx) if(f.coin) px(f.x, f.y, 2, 2, f.life > 0.3 ? '#ffd84a' : '#c09020');
+  // hot deal: a briefcase on a balloon
+  if(R.deal){ const d = R.deal, bx = d.x, by = d.y + Math.sin(t * 2) * 2;
+    px(bx - 3, by - 12, 7, 7, '#ff4a6a'); px(bx - 2, by - 13, 5, 1, '#ff4a6a'); px(bx - 2, by - 11, 2, 2, '#ff9ab0');
+    px(bx, by - 5, 1, 4, '#ddd'); px(bx - 4, by - 1, 9, 6, '#8a5a2a'); px(bx - 4, by - 1, 9, 1, '#a8783a'); px(bx - 1, by - 2, 3, 1, '#5a3a1a'); px(bx, by + 1, 1, 2, '#ffd84a');
+    R.dealLx = bx; R.dealLy = by; }
+}
+function burstCoins(x, y, n){ for(let k = 0; k < n; k++) R.fx.push({coin:true, x, y, vx:rand(-30, 30), vy:rand(-50, -15), life:rand(0.6, 1.1)}); }
+function onPayout(i, v, t){
+  const x = LOTX(i) + 11, top = GY - bHeight(i) - (i === 9 ? 0 : 4);
+  if(i === 9 && t >= 3 && R.rocket <= 0) R.rocket = 2.6;
+  if(R.time - R.lastFx[i] < (t < 1 ? 2.5 : 0.8)) return;
+  R.lastFx[i] = R.time;
+  R.fx.push({txt:'+' + money(v), x:x + rand(-3, 3), y:top, vy:-12, life:1.2, max:1.2});
+  if(t >= 1) burstCoins(x, top, 3);
+}
+function updateFx(dt){
+  for(const f of R.fx){ f.life -= dt; if(f.coin){ f.x += f.vx * dt; f.y += f.vy * dt; f.vy += 90 * dt; } else f.y += f.vy * dt; }
+  R.fx = R.fx.filter(f => f.life > 0);
+  if(R.fx.length > 80) R.fx.splice(0, R.fx.length - 80);
+  for(const p of R.peds){ p.x += p.d * p.s * dt; if(p.x < -4) p.x = LW + 2; if(p.x > LW + 4) p.x = -2; }
+  for(const c of R.cars){ c.x += (c.lane ? 1 : -1) * c.s * dt * (R.rush > 0 ? 2 : 1); if(c.x < -12) c.x = LW + 4; if(c.x > LW + 12) c.x = -10; }
+  if(R.deal){ R.deal.x += R.deal.vx * dt; if(R.deal.x > LW * 0.55) claimDeal(); } // hot deals pop and pay out by themselves
+  if(R.rocket > 0) R.rocket -= dt;
+}
+function render(){
+  drawCity();
+  cg.setTransform(1, 0, 0, 1, 0, 0); cg.imageSmoothingEnabled = false;
+  cg.drawImage(low, 0, 0, cv.width, cv.height);
+  cg.setTransform(DPR, 0, 0, DPR, 0, 0);
+  cg.textAlign = 'center'; cg.font = '900 11px system-ui'; cg.lineWidth = 3; cg.strokeStyle = 'rgba(0,0,0,.7)';
+  for(const f of R.fx){ if(!f.txt) continue; cg.globalAlpha = Math.min(1, f.life / f.max * 1.6); cg.strokeText(f.txt, f.x * PS, f.y * PS); cg.fillStyle = '#7dff9a'; cg.fillText(f.txt, f.x * PS, f.y * PS); }
+  cg.globalAlpha = 1;
+}
+cv.addEventListener('pointerdown', ev => {
+  const r = cv.getBoundingClientRect(), x = (ev.clientX - r.left) / r.width * LW, y = (ev.clientY - r.top) / r.height * LH;
+  if(R.deal && Math.hypot(x - R.dealLx, y - (R.dealLy - 4)) < 16) claimDeal();
+});
+
+// =====================================================================
+//  ACTIONS
+// =====================================================================
+function buyBiz(i){
+  const {k, cost} = buyPlan(i);
+  if(k <= 0 || S.cash < cost){ toast('💸 Need ' + money(cost)); return; }
+  const before = msCount(S.biz[i].n), emsB = emsCount();
+  S.cash -= cost; S.biz[i].n += k;
+  if(msCount(S.biz[i].n) > before) toast(`🎉 ${S.biz[i].n} ${BIZ[i].n}s: ${BIZ[i].n} runs twice as fast!`);
+  if(emsCount() > emsB) toast(`🏆 Empire milestone: every business at ${EMS[Math.min(EMS.length - 1, emsCount() - 1)] || minOwned()}+ → all profit ×3!`);
+  if(S.biz[i].n === k) toast(`${BIZ[i].icon} You opened your first ${BIZ[i].n}!`);
+}
+function hire(i){ const c = mgrCost(i); if(S.mgr[i] || S.cash < c) return; S.cash -= c; S.mgr[i] = true; toast(`👔 ${BIZ[i].mgr.n} joins: ${BIZ[i].n} profit ×3!`); }
+function buyUpg(u){ if(S.upg[u.id] || S.cash < u.cost) return false; S.cash -= u.cost; S.upg[u.id] = true; return true; }
+function ipo(){
+  const g = invPending(); if(g <= 0) return;
+  const keep = {allTime:S.allTime, inv:S.inv + g, invEarned:S.invEarned + g, perks:S.perks, ipos:S.ipos + 1, buyAmt:S.buyAmt, played:S.played, taps:S.taps, deals:S.deals, started:S.started, seenHelp:true, v:S.v};
+  S = Object.assign(freshSave(), keep, freshRun());
+  if(perk('seed')){ S.cash = 5e4; S.biz[0].n = 10; }
+  R.boom = R.rush = 0; R.news = null; R.peds.length = 0; R.cars.length = 0;
+  persist(); renderPanel();
+  showModal(`<h2>🔔 IPO complete!</h2><p>Your company went public. <b>${fmt(g)}</b> new investors joined you.</p>
+    <div class="reward" style="color:var(--inv)">💼 ${fmt(S.inv)} investors</div><p>Every business now earns <b>×${fmt(invMul())}</b>. Welcome to <b>${cityName()}</b>!</p><button class="btn" data-close>Let's build</button>`);
+}
+
+// =====================================================================
+//  UI
+// =====================================================================
+let tab = 'biz', uiDirty = true;
+function toast(msg){ const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('show'), 2200); }
+function showModal(html){ $('modalBox').innerHTML = html; $('modal').hidden = false; }
+function setHTML(el, h){ if(el && el._h !== h){ el.innerHTML = h; el._h = h; } }
+function setTxt(el, s){ if(el && el.textContent !== s) el.textContent = s; }
+
+function renderPanel(){
+  const P = $('panel');
+  $('buyRow').style.display = tab === 'biz' ? 'flex' : 'none';
+  for(const b of document.querySelectorAll('#buyRow button')) b.classList.toggle('active', b.dataset.amt === S.buyAmt);
+  for(const b of document.querySelectorAll('#tabs button')) b.classList.toggle('active', b.dataset.tab === tab);
+  if(tab === 'biz'){
+    const shown = Math.min(NB, Math.max(...S.biz.map((b, i) => b.n ? i : 0)) + 3);
+    let h = '';
+    for(let i = 0; i < shown; i++){ const b = BIZ[i];
+      h += `<div class="biz" data-row="${i}"><div class="bic">${b.icon}<span class="cnt" data-cnt="${i}"></span>${S.mgr[i] ? '<span class="mg">👔</span>' : ''}</div>
+        <div class="bmid"><div class="bname">${b.n}<small data-ms="${i}"></small></div>
+        <div class="pbar"><i data-fill="${i}"></i><span data-per="${i}"></span></div>
+        <div class="bsub"><span data-time="${i}"></span><span data-ps="${i}"></span></div></div>
+        <button class="bbuy" data-buy="${i}"></button></div>`; }
+    if(shown < NB) h += `<div class="card" style="text-align:center">🔒 More businesses unlock as you grow…</div>`;
+    P.innerHTML = h;
+  } else if(tab === 'mgr'){
+    P.innerHTML = `<div class="card">Hire a star manager for each business: they <b>triple its profit</b>, forever (until your next IPO).</div>` + BIZ.map((b, i) => `<div class="item ${S.mgr[i] ? 'done' : ''}"><div class="ic">${b.icon}</div>
+      <div class="info"><div class="nm">${b.mgr.n}</div><div class="ds">${b.n} profit ×3${S.biz[i].n ? '' : ' (buy one first)'}</div></div>
+      ${S.mgr[i] ? '<span class="sbtn">Hired ✔</span>' : `<button class="sbtn" data-hire="${i}">${money(mgrCost(i))}</button>`}</div>`).join('');
+  } else if(tab === 'upg'){
+    const left = UPGS.filter(u => !S.upg[u.id]), done = UPGS.length - left.length;
+    P.innerHTML = `<div class="card"><h3>📈 Upgrades</h3>Each upgrade triples profit. ${done}/${UPGS.length} bought.
+      <br>🏆 Empire milestone: when <b>every</b> business reaches <b>${nextEms()}</b>, all profit ×3 (now ×${fmt(Math.pow(3, emsCount()))}).
+      <button class="btn ghost" id="buyAllUpg" style="margin-top:8px">Buy all affordable</button></div>` +
+      left.slice(0, 20).map(u => `<div class="item"><div class="ic">${u.biz < 0 ? '🌐' : BIZ[u.biz].icon}</div>
+        <div class="info"><div class="nm">${u.n.replace(/^\S+ /, '')}</div><div class="ds">${u.biz < 0 ? 'ALL businesses' : BIZ[u.biz].n} profit ×${u.mul}</div></div>
+        <button class="sbtn" data-upg="${u.id}">${money(u.cost)}</button></div>`).join('');
+  } else if(tab === 'inv'){
+    const g = invPending();
+    P.innerHTML = `<div class="card"><h3>💼 Investors</h3>Investors back your empire: each one boosts <b>all profit by +${Math.round(invRate() * 100)}%</b>.
+      You earn investors from your <b>lifetime earnings</b>. Cash them in with an <b>IPO</b>: your businesses, managers, upgrades and cash reset, but investors and perks stay, and you rebuild far faster in a new city.
+      <div style="margin-top:8px">You have <b style="color:var(--inv)">${fmt(S.inv)}</b> investors (×${fmt(invMul())} profit).</div>
+      <div style="margin-top:6px">IPO now to gain:</div><div class="big" id="invGain">+0</div><div id="invNext" style="font-size:12px"></div>
+      <button class="btn" id="ipoBtn">🔔 Go public (IPO)</button></div>
+      <div class="sec">Investor perks <span style="text-transform:none;letter-spacing:0">spending investors removes their bonus</span></div>` +
+      PERKS.map(p => `<div class="item ${perk(p.id) ? 'done' : ''}"><div class="ic">${p.icon}</div><div class="info"><div class="nm">${p.n}</div><div class="ds">${p.info}</div></div>
+        ${perk(p.id) ? '<span class="sbtn">Owned ✔</span>' : `<button class="sbtn inv" data-perk="${p.id}">💼 ${fmt(p.cost)}</button>`}</div>`).join('');
+  } else {
+    P.innerHTML = `<div class="card"><h3>📊 Stats</h3><div id="statList"></div></div>
+      <div class="card"><h3>📱 Install on your phone</h3><b>iPhone:</b> Safari → Share → <i>Add to Home Screen</i>.<br><b>Android:</b> Chrome → ⋮ → <i>Install app</i>.<br>It works offline and keeps earning while you're away. 100% free.</div>
+      <div class="card"><h3>⚠️ Danger zone</h3>Wipe all progress and start over.<button class="btn danger" id="wipeBtn">Reset save</button></div>`;
+  }
+  uiDirty = false; updatePanel();
+}
+function updatePanel(){
+  setTxt($('cash'), money(S.cash));
+  setTxt($('rate'), money(cashPerSec()) + ' / sec' + (R.boom > 0 ? ' 🔥' : ''));
+  setTxt($('invChip'), '💼 ' + fmt(S.inv));
+  setTxt($('cityName'), '📍 ' + cityName());
+  const boosts = []; if(R.boom > 0) boosts.push(`🔥 ×7 profit ${Math.ceil(R.boom)}s`); if(R.rush > 0) boosts.push(`⚡ 3× speed ${Math.ceil(R.rush)}s`);
+  if(R.news) boosts.push(`📰 ${BIZ[R.news.i].icon} ×3 ${Math.ceil(R.news.t)}s`);
+  setHTML($('boosts'), boosts.map(b => `<span>${b}</span>`).join(''));
+  const tk = $('ticker'); tk.classList.toggle('hot', !!R.news);
+  setTxt(tk, R.news ? `📰 BREAKING: ${R.news.txt}! ${BIZ[R.news.i].n}s earn ×3 for ${Math.ceil(R.news.t)}s` : tipText());
+  if(tab === 'biz'){
+    for(let i = 0; i < NB; i++){
+      const row = document.querySelector(`[data-row="${i}"]`); if(!row) continue;
+      const B = S.biz[i], n = B.n, c = cycle(i), {k, cost} = buyPlan(i), can = S.cash >= cost && k > 0;
+      row.classList.toggle('none', !n); row.classList.toggle('hot', !!(R.news && R.news.i === i));
+      setTxt(row.querySelector('[data-cnt]'), n ? String(n) : '—');
+      const fill = row.querySelector('[data-fill]'), fast = c.t <= MIN_T + 1e-9 && n > 0;
+      fill.classList.toggle('fast', fast); if(!fast) fill.style.width = (Math.min(1, B.p) * 100).toFixed(1) + '%';
+      setTxt(row.querySelector('[data-per]'), n ? money(c.per) : money(BIZ[i].rev));
+      setTxt(row.querySelector('[data-time]'), n ? '⏱ ' + dur(Math.max(0, (1 - B.p) * c.t)) : 'Not owned');
+      setTxt(row.querySelector('[data-ps]'), n ? money(c.per / c.t) + '/s' : '');
+      setTxt(row.querySelector('[data-ms]'), `${n}/${nextMs(n)} ⚡`);
+      const bb = row.querySelector('[data-buy]'); bb.classList.toggle('can', can);
+      setHTML(bb, `Buy ×${k}<b>${money(cost)}</b>`);
+    }
+  } else if(tab === 'mgr'){
+    for(const b of document.querySelectorAll('[data-hire]')) b.classList.toggle('can', S.cash >= mgrCost(+b.dataset.hire) && S.biz[+b.dataset.hire].n > 0);
+  } else if(tab === 'upg'){
+    for(const b of document.querySelectorAll('[data-upg]')) b.classList.toggle('can', S.cash >= UPGS.find(u => u.id === b.dataset.upg).cost);
+  } else if(tab === 'inv'){
+    const g = invPending(), next = invTotal(S.allTime) + 1, need = Math.pow(next / 150 + INV_B(), 1 / INV_P) * INV_D;
+    setTxt($('invGain'), '+' + fmt(g) + ' 💼');
+    setTxt($('invNext'), `Next investor at ${money(need)} lifetime earnings (now ${money(S.allTime)}).` + (g ? ` IPO now: ×${fmt(invMul())} → ×${fmt(1 + (S.inv + g) * invRate())} profit.` : ''));
+    $('ipoBtn').disabled = g <= 0;
+    for(const b of document.querySelectorAll('[data-perk]')) b.classList.toggle('can', S.inv >= PERKS.find(p => p.id === b.dataset.perk).cost);
+  } else if(tab === 'stats'){
+    const owned = S.biz.reduce((s, b) => s + b.n, 0);
+    setHTML($('statList'), [['Cash per second', money(cashPerSec())], ['Earned this run', money(S.runEarned)], ['Lifetime earnings', money(S.allTime)],
+      ['Businesses owned', fmt(owned)], ['Managers hired', S.mgr.filter(Boolean).length + '/' + NB], ['Upgrades bought', Object.keys(S.upg).length + '/' + UPGS.length],
+      ['Investors', fmt(S.inv) + ' (×' + fmt(invMul()) + ')'], ['IPOs', S.ipos], ['Hot deals grabbed', S.deals], ['Time played', dur(S.played)]]
+      .map(([a, b]) => `<div class="stat"><span>${a}</span><b>${b}</b></div>`).join(''));
+  }
+  const tabs = document.querySelectorAll('#tabs button');
+  tabs[1].classList.toggle('alert', BIZ.some((b, i) => !S.mgr[i] && S.biz[i].n > 0 && S.cash >= mgrCost(i)));
+  tabs[2].classList.toggle('alert', UPGS.some(u => !S.upg[u.id] && S.cash >= u.cost));
+  tabs[3].classList.toggle('alert', invPending() >= Math.max(1, S.inv));
+}
+const TIPS = ['📰 Tip: your businesses earn on their own, even while you\'re away', '📰 Tip: managers triple a business\'s profit', '📰 Tip: owning 10, 25, 50, 100… of a business doubles its speed',
+  '📰 Tip: watch for the balloon briefcase: it brings a Hot Deal', '📰 Tip: get every business to 25 for an empire-wide ×3', '📰 Tip: an IPO turns lifetime earnings into investors',
+  '📰 Markets are calm today', '📰 Analysts call your company "one to watch"', '📰 Rumor: a rival is buying lemons in bulk'];
+function tipText(){ return TIPS[Math.floor(R.time / 8) % TIPS.length]; }
+
+document.addEventListener('click', ev => {
+  const t = ev.target.closest('button'); if(!t || t.disabled) return;
+  if(t.dataset.tab){ tab = t.dataset.tab; renderPanel(); $('panel').scrollTop = 0; return; }
+  if(t.dataset.amt){ S.buyAmt = t.dataset.amt; renderPanel(); return; }
+  if(t.dataset.buy){ const i = +t.dataset.buy, had = Math.max(...S.biz.map((b, j) => b.n ? j : 0)); buyBiz(i);
+    if(Math.max(...S.biz.map((b, j) => b.n ? j : 0)) !== had) renderPanel(); else updatePanel(); persist(); return; }
+  if(t.dataset.hire){ const i = +t.dataset.hire; if(!S.biz[i].n){ toast('Buy a ' + BIZ[i].n + ' first'); return; }
+    if(S.cash < mgrCost(i)){ toast('💸 Need ' + money(mgrCost(i))); return; } hire(i); renderPanel(); persist(); return; }
+  if(t.dataset.upg){ const u = UPGS.find(x => x.id === t.dataset.upg); if(!buyUpg(u)){ toast('💸 Need ' + money(u.cost)); return; }
+    toast(`📈 ${u.n}: ${u.biz < 0 ? 'everything' : BIZ[u.biz].n} ×3!`); renderPanel(); persist(); return; }
+  if(t.id === 'buyAllUpg'){ let n = 0; for(const u of UPGS) if(buyUpg(u)) n++; toast(n ? `📈 Bought ${n} upgrades` : '💸 Nothing affordable yet'); renderPanel(); persist(); return; }
+  if(t.dataset.perk){ const p = PERKS.find(x => x.id === t.dataset.perk); if(S.inv < p.cost){ toast('💼 Need ' + fmt(p.cost) + ' investors'); return; }
+    S.inv -= p.cost; S.perks[p.id] = true; toast(`${p.icon} ${p.n} unlocked!`); renderPanel(); persist(); return; }
+  if(t.id === 'ipoBtn'){ const g = invPending();
+    showModal(`<h2>🔔 Go public?</h2><p>Your cash, businesses, managers and upgrades reset. Investors and perks stay forever.</p>
+      <div class="reward" style="color:var(--inv)">+${fmt(g)} 💼</div><p>Profit multiplier: ×${fmt(invMul())} → <b>×${fmt(1 + (S.inv + g) * invRate())}</b></p>
+      <button class="btn" id="ipoYes">Ring the bell!</button><button class="btn ghost" data-close>Not yet</button>`); return; }
+  if(t.id === 'ipoYes'){ $('modal').hidden = true; ipo(); return; }
+  if(t.id === 'wipeBtn'){ showModal(`<h2>Reset everything?</h2><p>This deletes ALL progress, investors included.</p><button class="btn danger" id="wipeYes">Yes, wipe it</button><button class="btn ghost" data-close>Cancel</button>`); return; }
+  if(t.id === 'wipeYes'){ localStorage.removeItem(SAVE_KEY); S = freshSave(); $('modal').hidden = true; tab = 'biz'; renderPanel(); return; }
+  if(t.hasAttribute('data-close')){ $('modal').hidden = true; return; }
+});
+
+// =====================================================================
+//  OFFLINE EARNINGS + MAIN LOOP
+// =====================================================================
+function offline(){
+  const away = (Date.now() - S.last) / 1000;
+  if(away < 30) return;
+  const cap = (perk('night') ? 48 : 24) * 3600, secs = Math.min(away, cap), v = cashPerSec() * secs * (perk('night') ? 2 : 1);
+  for(let i = 0; i < NB; i++) S.biz[i].p = Math.random();
+  if(v <= 0) return;
+  earn(v);
+  showModal(`<h2>👋 Welcome back!</h2><p>Your empire kept earning for ${dur(secs)}${away > cap ? ' (max)' : ''}.</p><div class="reward">+${money(v)}</div><button class="btn" data-close>Collect</button>`);
+}
+let lastT = performance.now(), uiT = 0, saveT = 0;
+function frame(now){
+  const dt = Math.min(0.25, (now - lastT) / 1000); lastT = now;
+  tick(dt); updateFx(dt);
+  if(!CW) resize();
+  render();
+  uiT += dt; saveT += dt;
+  if(uiDirty) renderPanel();
+  else if(uiT > 0.1){ uiT = 0; updatePanel(); }
+  if(saveT > 5){ saveT = 0; persist(); }
+  requestAnimationFrame(frame);
+}
+window.addEventListener('resize', resize);
+document.addEventListener('visibilitychange', () => { if(document.hidden) persist(); else { offline(); lastT = performance.now(); } });
+window.addEventListener('pagehide', persist);
+resize(); offline(); renderPanel();
+if(!S.seenHelp){ S.seenHelp = true;
+  showModal(`<h2>🏙️ Empire Tycoon</h2><p>Start with one lemonade stand and build a business empire.</p>
+    <p>💵 Businesses <b>earn automatically</b>, even while you're away.<br>🛒 <b>Buy</b> more to earn more.<br>👔 <b>Hire managers</b> to triple a business's profit.<br>🔔 <b>IPO</b> later for investors that multiply everything.</p>
+    <button class="btn" data-close>Open for business</button>`); }
+requestAnimationFrame(frame);
+if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
