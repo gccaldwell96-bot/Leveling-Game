@@ -362,16 +362,24 @@ async function saveCode(){
   let bin = ''; for(let i = 0; i < out.length; i += 0x8000) bin += String.fromCharCode.apply(null, out.subarray(i, i + 0x8000));
   return tag + btoa(bin);
 }
+async function decodeSave(code){ // save code → save object (throws if it isn't one)
+  code = (code || '').trim().replace(/\s+/g, ''); let json;
+  if(code.startsWith('{')) json = code;
+  else { const tag = code.slice(0, 4), bin = atob(code.slice(4)), bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+    if(tag === 'DD2:') json = await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+    else if(tag === 'DD1:') json = new TextDecoder().decode(bytes); else throw 0; }
+  const o = JSON.parse(json); if(!o || !Array.isArray(o.horses) || typeof o.t !== 'number') throw 0;
+  return o;
+}
+function linkedSave(){ // ?load=name opens saves/name.txt, a save stored with the game, and offers to load it
+  const n = new URLSearchParams(location.search).get('load'); if(!n || !/^[\w-]+$/.test(n)) return;
+  fetch(`saves/${n}.txt`, {cache:'no-store'}).then(r => { if(!r.ok) throw 0; return r.text(); }).then(async code => { const o = await decodeSave(code); R.linked = code;
+    showModal(`<h2>📥 Load saved game?</h2><p><b>${monthName(o.t)}</b> · ${money(o.cash)} · ⭐ ${Math.floor(o.fame)} · ${o.horses.length} horses</p><p>${o.horses.slice(0, 6).map(h => h.name).join(', ')}${o.horses.length > 6 ? '…' : ''}</p><p style="font-size:12px;color:var(--dim)">⚠️ This replaces the game on this device.</p><button class="btn" id="linkYes">📥 Load this save</button><button class="btn ghost" id="linkNo">Keep my current game</button>`); })
+  .catch(() => toast('❌ Couldn\'t load that saved game'));
+}
 async function loadCode(code){
-  code = (code || '').trim().replace(/\s+/g, '');
-  try{ let json;
-    if(code.startsWith('{')) json = code;
-    else { const tag = code.slice(0, 4), bin = atob(code.slice(4)), bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
-      if(tag === 'DD2:') json = await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
-      else if(tag === 'DD1:') json = new TextDecoder().decode(bytes); else throw 0; }
-    const o = JSON.parse(json); if(!o || !Array.isArray(o.horses) || typeof o.t !== 'number') throw 0;
-    localStorage.setItem(SAVE_KEY, json); toast('📥 Save loaded!'); setTimeout(() => location.reload(), 400);
-  }catch(e){ toast('❌ That save code didn\'t work. Copy the whole code and try again.'); }
+  try{ const o = await decodeSave(code); localStorage.setItem(SAVE_KEY, JSON.stringify(o)); toast('📥 Save loaded!'); setTimeout(() => location.replace(location.pathname), 400); }
+  catch(e){ toast('❌ That save code didn\'t work. Copy the whole code and try again.'); }
 }
 document.addEventListener('change', ev => { if(ev.target.id === 'xOpen' && ev.target.files[0]) ev.target.files[0].text().then(loadCode); });
 function persist(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){} }
@@ -1384,6 +1392,8 @@ document.addEventListener('click', ev => {
   if(t.id === 'xShare'){ saveCode().then(c => navigator.share({title:'Derby Dynasty save', text:c}).catch(() => {})); return; }
   if(t.id === 'xFile'){ saveCode().then(c => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([c], {type:'text/plain'})); a.download = `derby-dynasty-${monthName(S.t).replace(/[ ,]+/g, '-')}.txt`; document.body.appendChild(a); a.click(); a.remove(); toast('⬇️ Save file downloaded'); }); return; }
   if(t.id === 'xLoad'){ loadCode($('xCode').value); return; }
+  if(t.id === 'linkYes'){ loadCode(R.linked); return; }
+  if(t.id === 'linkNo'){ $('modal').hidden = true; history.replaceState(null, '', location.pathname); return; }
   if(t.id === 'wipeBtn'){ showModal(`<h2>Start over?</h2><p>This deletes your whole stable, money and progress. It can't be undone.</p><button class="btn danger" id="wipeYes">Yes, new game</button><button class="btn ghost" data-close>Cancel</button>`); return; }
   if(t.id === 'wipeYes'){ localStorage.removeItem(SAVE_KEY); freshSave(); S.seen = true; persist(); R.walkers = []; R.play = null; R.queue = []; REPORT = null; setSceneBtns(); tab = 'stable'; renderPanel(); showModal(HOWTO); toast('🔄 New game started'); return; }
   if(t.hasAttribute('data-close')){ $('modal').hidden = true; R.betWin = false; R.betHorse = null; return; }
@@ -1403,7 +1413,7 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 window.addEventListener('resize', resize);
-load(); resize(); renderPanel();
+load(); resize(); renderPanel(); linkedSave();
 if(S.pending) showEvent();
 if(!S.seen){ S.seen = true; persist();
   showModal(HOWTO); }
