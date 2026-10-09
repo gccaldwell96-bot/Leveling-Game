@@ -355,6 +355,25 @@ function load(){
     return; } }catch(e){}
   freshSave();
 }
+// ---- moving a save between devices: a text code (gzip + base64 when the browser supports it) ----
+async function saveCode(){
+  const json = JSON.stringify(S), bytes = new TextEncoder().encode(json); let out = bytes, tag = 'DD1:';
+  if(window.CompressionStream){ try{ out = new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer()); tag = 'DD2:'; }catch(e){ out = bytes; } }
+  let bin = ''; for(let i = 0; i < out.length; i += 0x8000) bin += String.fromCharCode.apply(null, out.subarray(i, i + 0x8000));
+  return tag + btoa(bin);
+}
+async function loadCode(code){
+  code = (code || '').trim().replace(/\s+/g, '');
+  try{ let json;
+    if(code.startsWith('{')) json = code;
+    else { const tag = code.slice(0, 4), bin = atob(code.slice(4)), bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+      if(tag === 'DD2:') json = await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+      else if(tag === 'DD1:') json = new TextDecoder().decode(bytes); else throw 0; }
+    const o = JSON.parse(json); if(!o || !Array.isArray(o.horses) || typeof o.t !== 'number') throw 0;
+    localStorage.setItem(SAVE_KEY, json); toast('📥 Save loaded!'); setTimeout(() => location.reload(), 400);
+  }catch(e){ toast('❌ That save code didn\'t work. Copy the whole code and try again.'); }
+}
+document.addEventListener('change', ev => { if(ev.target.id === 'xOpen' && ev.target.files[0]) ev.target.files[0].text().then(loadCode); });
 function persist(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){} }
 
 // =====================================================================
@@ -1354,8 +1373,17 @@ document.addEventListener('click', ev => {
   if(d.silk2){ S.silk2 = +d.silk2; SPR.clear(); persist(); renderPanel(); return; }
   if(d.silkpat){ S.silkPat = d.silkpat; SPR.clear(); persist(); renderPanel(); return; }
   if(t.id === 'menuBtn'){ showModal(`<h2>⚙️ Menu</h2><p>${monthName(S.t)} · net worth ${money(netWorth())}</p>
-    <button class="btn ghost" id="howBtn">❓ How to play</button><button class="btn danger" id="wipeBtn">🔄 New game (reset)</button><button class="btn" data-close>Back to the ranch</button>`); return; }
+    <button class="btn ghost" id="howBtn">❓ How to play</button><button class="btn ghost" id="xferBtn">💾 Move save to another device</button><button class="btn danger" id="wipeBtn">🔄 New game (reset)</button><button class="btn" data-close>Back to the ranch</button>`); return; }
   if(t.id === 'howBtn'){ showModal(HOWTO); return; }
+  if(t.id === 'xferBtn'){ persist(); showModal(`<h2>💾 Move your save</h2><p style="text-align:left">Your game is saved in this browser only. To play on another device:<br>1. Here: <b>copy the save code</b> (or save it as a file) and send it to yourself (text, email, notes…).<br>2. On the other device: open Derby Dynasty → ⚙️ → 💾 → paste the code (or open the file) → <b>Load</b>.</p>
+    <div class="sec">📤 From this device</div><button class="btn" id="xCopy">📋 Copy save code</button>${navigator.share ? '<button class="btn ghost" id="xShare">📨 Share save code…</button>' : ''}<button class="btn ghost" id="xFile">⬇️ Save as file</button>
+    <div class="sec">📥 Load a save from another device</div><textarea id="xCode" rows="3" placeholder="Paste a save code here" style="width:100%;border-radius:10px;padding:8px;background:var(--card2);color:var(--text);border:1px solid var(--line);font-size:12px"></textarea>
+    <button class="btn" id="xLoad">📥 Load save code</button><label class="btn ghost" style="display:block;text-align:center;cursor:pointer">📂 Open save file<input type="file" id="xOpen" accept=".txt,.json,text/plain,application/json" hidden></label>
+    <p style="font-size:11px;color:var(--dim)">⚠️ Loading replaces the game on this device.</p><button class="btn ghost" data-close>Close</button>`); return; }
+  if(t.id === 'xCopy'){ saveCode().then(c => navigator.clipboard.writeText(c).then(() => toast('📋 Save code copied! Paste it on your other device.'), () => { $('xCode').value = c; $('xCode').select(); toast('Select the code in the box and copy it'); })); return; }
+  if(t.id === 'xShare'){ saveCode().then(c => navigator.share({title:'Derby Dynasty save', text:c}).catch(() => {})); return; }
+  if(t.id === 'xFile'){ saveCode().then(c => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([c], {type:'text/plain'})); a.download = `derby-dynasty-${monthName(S.t).replace(/[ ,]+/g, '-')}.txt`; document.body.appendChild(a); a.click(); a.remove(); toast('⬇️ Save file downloaded'); }); return; }
+  if(t.id === 'xLoad'){ loadCode($('xCode').value); return; }
   if(t.id === 'wipeBtn'){ showModal(`<h2>Start over?</h2><p>This deletes your whole stable, money and progress. It can't be undone.</p><button class="btn danger" id="wipeYes">Yes, new game</button><button class="btn ghost" data-close>Cancel</button>`); return; }
   if(t.id === 'wipeYes'){ localStorage.removeItem(SAVE_KEY); freshSave(); S.seen = true; persist(); R.walkers = []; R.play = null; R.queue = []; REPORT = null; setSceneBtns(); tab = 'stable'; renderPanel(); showModal(HOWTO); toast('🔄 New game started'); return; }
   if(t.hasAttribute('data-close')){ $('modal').hidden = true; R.betWin = false; R.betHorse = null; return; }
