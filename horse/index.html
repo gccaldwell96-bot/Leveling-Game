@@ -423,7 +423,7 @@ function value(h){
 }
 const sellPrice = h => Math.round(value(h) * 0.9);
 const crownMul = h => { const legs = (h.crown || []).length; return legs ? (1 + 0.5 * legs) * (tcWinner(h) ? 2 : 1) : 1; }; // Triple Crown prestige: ×1.5 per classic won, a sweep ×5
-const studFee = h => Math.round((300 * Math.pow(avgPot(h) / 20, 2.4) * (1 + 0.2 * Math.min(h.wins, 15) + 0.5 * h.gw) * crownMul(h)) / 50) * 50;
+const studFee = h => Math.round((300 * Math.pow(avgPot(h) / 20, 2.4) * (1 + 0.2 * Math.min(h.wins, 15) + 0.5 * h.gw) * crownMul(h) * (h.breed === 'legend' ? 10 : 1)) / 50) * 50; // Legends command 10× fees
 const netWorth = () => S.cash + S.horses.reduce((s, h) => s + value(h), 0) + FAC.reduce((s, f) => s + facSpent(f, S.fac[f.id]) * 0.5, 0);
 const facCost = (f, l) => Math.round(f.base * Math.pow(f.g, l));
 const facSpent = (f, l) => { let s = 0; for(let k = 0; k < l; k++) s += facCost(f, k); return s; };
@@ -489,6 +489,12 @@ function refreshStuds(){ // 12 outside stallions, new every month: budget → el
     h.wins = irand(tier * 2, 3 + tier * 5); h.gw = tier >= 2 ? irand(tier - 1, tier * 2) : 0; h.fee = studFee(h); h.tier = tier;
     S.studs.push(h);
   });
+  if(S.horses.some(has150)){ // Legend studs: unlocked once you own a horse with a 150 stat, scaled to your best Legend and priced to match
+    const L = S.horses.filter(x => x.breed === 'legend'), best = L.length ? Math.max(...L.map(avgPot)) : POT_CAP;
+    for(let k = 0; k < 2; k++){ const h = newHorse({breed:'legend', age:irand(60, 110), extra:{sex:'M'}});
+      for(const s of STATS){ h.pot[s] = Math.round(clamp(best * rand(0.95, 1.03) + irand(-3, 3), POT_CAP, LEGEND_CAP)); h.st[s] = Math.round(h.pot[s] * 0.9); }
+      h.pref = pick(prefs); h.wins = irand(10, 25); h.gw = irand(4, 10); h.tier = 4; h.fee = studFee(h); S.studs.push(h); }
+  }
   S.studs.sort((a, b) => a.fee - b.fee);
 }
 
@@ -1251,7 +1257,7 @@ function renderPanel(){
     const mares = S.horses.filter(h => h.sex === 'F'), stallions = S.horses.filter(h => h.sex === 'M');
     P.innerHTML = `<div class="card"><h3>💞 Breeding</h3>Choose a mare (3y+) and a stallion. She's in foal for 5 months (no racing). Foals get the <b>average potential</b> of both parents ±, with a <b>${Math.round(mutChance() * 1000) / 10}%</b> chance per stat to mutate 6–14 points higher, and may get a rare coat. Your own stallions can also earn stud fees.<br>✨ <b>Legend breed:</b> breed two horses that both have <b>150 in the same stat</b>, a Legend with any horse that has a 150 stat, or two Legends. Legend foals can reach <b>175</b> potential. (Your top races get tougher as your Legends get stronger.)</div>
       <div class="sec">Your mares</div>${mares.map(h => `<div class="item">${pimg(h, 96)}<div class="info"><div class="nm">${h.name} <span style="color:var(--gold);font-size:11px">${stars(grade(h))}</span></div><div class="ds">${statusTxt(h) || (canBreedMare(h) ? 'Ready to breed' : 'Too young (3y+)')}${h.plan.t === 'breed' ? ` · 💞 with ${h.plan.sn}` : ''}</div></div>${canBreedMare(h) ? `<button class="sbtn ${h.plan.t === 'breed' ? 'on' : 'can'}" data-plan="${h.id}" data-p="breed">${h.plan.t === 'breed' ? 'Change' : 'Breed…'}</button>` : ''}</div>`).join('') || '<div class="card">No mares yet.</div>'}
-      <div class="sec"><span>Stud book (outside stallions)</span><span style="text-transform:none;letter-spacing:0">New stallions every month</span></div>${S.studs.map(st => `<div class="item">${pimg(st, 96)}<div class="info"><div class="nm">${st.tier === 3 ? '🏆 ' : ''}${st.name} <span style="color:var(--gold);font-size:11px">${stars(grade(st))}</span>${st.tier === 3 ? ' <span class="tag win">ELITE</span>' : ''}</div><div class="ds">${BREEDS[st.breed].n} · ${COAT[st.coat].n} · ${st.wins} wins · pot ${st.pot.spd}/${st.pot.sta}/${st.pot.acc}</div></div><span class="sbtn">${money(st.fee)}</span></div>`).join('')}
+      <div class="sec"><span>Stud book (outside stallions)</span><span style="text-transform:none;letter-spacing:0">New stallions every month</span></div>${S.studs.map(st => `<div class="item">${pimg(st, 96)}<div class="info"><div class="nm">${st.tier === 3 ? '🏆 ' : ''}${st.name} <span style="color:var(--gold);font-size:11px">${stars(grade(st))}</span>${st.tier === 3 ? ' <span class="tag win">ELITE</span>' : ''}${st.breed === 'legend' ? ' <span class="tc" style="background:linear-gradient(90deg,#c8f0ff,#d6a8ff)">✨ LEGEND</span>' : ''}</div><div class="ds">${BREEDS[st.breed].n} · ${COAT[st.coat].n} · ${st.wins} wins · pot ${st.pot.spd}/${st.pot.sta}/${st.pot.acc}</div></div><span class="sbtn">${money(st.fee)}</span></div>`).join('')}
       <div class="sec">Your stallions</div>${stallions.map(h => `<div class="item">${pimg(h, 96)}<div class="info"><div class="nm">${h.name} <span style="color:var(--gold);font-size:11px">${stars(grade(h))}</span></div><div class="ds">pot ${h.pot.spd}/${h.pot.sta}/${h.pot.acc} · stud fee ${money(studFee(h))}</div></div></div>`).join('') || '<div class="card">No stallions yet.</div>'}`;
   } else if(tab === 'market'){
     P.innerHTML = `<div class="card"><h3>🛒 Horse market</h3>New horses every month. ★ = potential grade. Bars show current stats vs. potential (faint).</div>` + S.market.map(marketCard).join('') +
@@ -1313,7 +1319,7 @@ function racePicker(h){
 function breedPicker(h){
   const own = S.horses.filter(x => x !== h && canStud(x) && x.plan.t !== 'race');
   const opt = (x, isOwn) => { const exp = STATS.map(s => Math.round((h.pot[s] + x.pot[s]) / 2)).join('/');
-    return `<button data-pickstud="${x.id}" data-own="${isOwn ? 1 : 0}" data-h="${h.id}" style="display:flex;gap:10px;align-items:center">${pimg(x, 78)}<span style="flex:1;min-width:0"><b>${x.name}</b> ${stars(grade(x))}<br>${isOwn ? 'your stallion (free)' : money(x.fee)} · ${PREF_ICON[x.pref]} · ${COAT[x.coat].n}${legendPair(h, x) ? `<br><b style="color:#d6a8ff">✨ LEGEND foal! (${legendWhy(h, x)})</b>` : ''}<small>Potential ${x.pot.spd}/${x.pot.sta}/${x.pot.acc} → expected foal ≈ ${exp} (SPD/STA/ACC)</small></span></button>`; };
+    return `<button data-pickstud="${x.id}" data-own="${isOwn ? 1 : 0}" data-h="${h.id}" style="display:flex;gap:10px;align-items:center">${pimg(x, 78)}<span style="flex:1;min-width:0"><b>${x.name}</b> ${stars(grade(x))}${x.breed === 'legend' ? ' <span class="tc" style="background:linear-gradient(90deg,#c8f0ff,#d6a8ff)">✨ LEGEND</span>' : ''}<br>${isOwn ? 'your stallion (free)' : money(x.fee)} · ${PREF_ICON[x.pref]} · ${COAT[x.coat].n}${legendPair(h, x) ? `<br><b style="color:#d6a8ff">✨ LEGEND foal! (${legendWhy(h, x)})</b>` : ''}<small>Potential ${x.pot.spd}/${x.pot.sta}/${x.pot.acc} → expected foal ≈ ${exp} (SPD/STA/ACC)</small></span></button>`; };
   showModal(`${pimg(h, 110)}<h2>💞 Breed ${h.name}</h2><p>${PREF_ICON[h.pref]} · her potential: ${h.pot.spd}/${h.pot.sta}/${h.pot.acc} · fertility ${Math.round(fertility(h) * 100)}%</p><div class="pick">${own.map(x => opt(x, true)).join('')}${S.studs.map(x => opt(x, false)).join('')}</div><button class="btn ghost" data-close>Cancel</button>`);
 }
 // ---- Horse Editor: pricey cosmetic changes (looks and a one-time rename) ----
