@@ -215,7 +215,7 @@ const money = n => (n < 0 ? '-$' : '$') + fmt(Math.abs(n));
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const monthName = t => MONTHS[t % 12] + ', Y' + (Math.floor(t / 12) + 1);
 // racing age, like real racing: every horse officially turns a year older on January 1, whatever month it was born
-const raceAge = (h, t = S.t) => Math.floor(t / 12) - Math.floor((t - h.age) / 12);
+const raceAge = (h, t = S.t) => Math.floor(t / 12) - Math.floor((S.t - h.age) / 12); // birth month = S.t - age; t can be a future month
 function ageTxt(m){ const y = Math.floor(m / 12), mo = m % 12; return y ? `${y}y${mo ? ' ' + mo + 'm' : ''}` : `${mo}m`; }
 function hash(a){ a = (a ^ 61) ^ (a >>> 16); a = a + (a << 3); a = a ^ (a >>> 4); a = Math.imul(a, 0x27d4eb2d); a = a ^ (a >>> 15); return (a >>> 0) / 4294967296; }
 const ord = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th');
@@ -356,7 +356,7 @@ function newHorse(o = {}){
 }
 function freshSave(){
   S = {v:1, t:0, cash:30000, fame:0, nextId:1, horses:[], fac:{stables:0, train:0, vet:0, barn:0, academy:0, pasture:0, pool:0, coach:0}, silk:0,
-    market:[], studs:[], rivals:RIVAL_NAMES.map(([n, c, l]) => ({n, silk:c, lvl:l, earn:0, total:0, wins:0})), yearEarn:0, yearWins:0, total:0, tough2:true,
+    market:[], studs:[], rivals:RIVAL_NAMES.map(([n, c, l]) => ({n, silk:c, lvl:l, earn:0, total:0, wins:0})), yearEarn:0, yearWins:0, total:0, tough2:true, raceAgeMig:[],
     log:[], goals:{}, hall:[], pending:null, stats:{races:0, wins:0, foals:0, sold:0, bought:0, spent:0, bets:0, betsWon:0, betProfit:0}, bets:[], seen:false, lastYear:null};
   S.horses.push(newHorse({breed:'mustang', age:40, extra:{name:'Daisy Belle', sex:'F'}}));
   S.horses.push(newHorse({breed:'quarter', age:30, extra:{name:'Copper Jack', sex:'M'}}));
@@ -371,6 +371,13 @@ function load(){
     if(S.rivals.some(r => r.lvl == null)){ S.rivals.forEach((r, i) => { r.lvl = RIVAL_NAMES[i][2] + 2 * Math.floor(S.t / 12); r.earn = 0; r.wins = 0; delete r.str; }); S.yearWins = S.yearWins || 0; }
     for(const h of [...S.horses, ...(S.studs || []), ...(S.market || [])]) for(const st of STATS){ h.pot[st] = Math.min(h.pot[st], potCap(h)); h.st[st] = Math.min(h.st[st], h.pot[st]); } // stud barn used to exceed 150
     if(S.studs) for(const h of S.studs) h.fee = studFee(h);
+    if(!S.raceAgeMig){ // one-time switch to racing age: horses that were set for the next Triple Crown under the old rule keep it (birthday moved to Jan 1)
+      const m = S.t % 12, Yc = Math.floor(S.t / 12) + (m > 6 ? 1 : 0); S.raceAgeMig = [];
+      for(const h of S.horses){ if(h.age < 24) continue;
+        const oldOk = [4, 5, 6].some(k => { const t = Yc * 12 + k; if(t < S.t) return false; const a = h.age + (t - S.t); return a >= 36 && a < 48; });
+        if(oldOk && raceAge(h, Yc * 12 + 4) !== 3){ h.age = S.t - (Yc - 3) * 12; S.raceAgeMig.push(h.name); } }
+      if(S.raceAgeMig.length) setTimeout(() => toast(`📅 Racing age update: ${S.raceAgeMig.join(', ')} keep their Triple Crown year (birthday moved to Jan 1)`), 900);
+    }
     autoStud();
     if(S.card && S.card.length) addHighStakes(S.card); // older cards skipped High Stakes next to restricted races
     if(!S.card || S.card.some(r => !r.field0)){ for(const b of S.bets) S.cash += b.amt; S.bets = []; makeCard(); for(const h of S.horses) if(h.plan.t === 'race') h.plan = {t:'train', f:'spd'}; }
@@ -1496,8 +1503,15 @@ document.addEventListener('click', ev => {
   if(d.silk2){ S.silk2 = +d.silk2; SPR.clear(); persist(); renderPanel(); return; }
   if(d.silkpat){ S.silkPat = d.silkpat; SPR.clear(); persist(); renderPanel(); return; }
   if(t.id === 'menuBtn'){ showModal(`<h2>⚙️ Menu</h2><p>${monthName(S.t)} · net worth ${money(netWorth())}</p>
-    <button class="btn ghost" id="howBtn">❓ How to play</button><button class="btn ghost" id="xferBtn">💾 Move save to another device</button><button class="btn danger" id="wipeBtn">🔄 New game (reset)</button><button class="btn" data-close>Back to the ranch</button>`); return; }
+    <button class="btn ghost" id="howBtn">❓ How to play</button><button class="btn ghost" id="xferBtn">💾 Move save to another device</button>${S.rewound ? '' : '<button class="btn ghost" id="rewBtn">⏪ Go back to May (one time)</button>'}<button class="btn danger" id="wipeBtn">🔄 New game (reset)</button><button class="btn" data-close>Back to the ranch</button>`); return; }
   if(t.id === 'howBtn'){ showModal(HOWTO); return; }
+  if(t.id === 'rewBtn'){ const k = (S.t % 12 - 4 + 12) % 12; if(!k){ toast("📅 It's already May"); return; }
+    showModal(`<h2>⏪ Go back to May?</h2><p style="text-align:left">A one-time rewind for the racing-age update. The calendar goes back <b>${k} month${k > 1 ? 's' : ''}</b> to <b>${monthName(S.t - k)}</b> and every horse gets ${k} month${k > 1 ? 's' : ''} younger, so you can run the Triple Crown again under the new rules.<br><br>You keep your money, fame, wins and foals. This year's Triple Crown results are cleared, and open bets are refunded.</p><p style="color:var(--gold)">⚠️ You can only do this once.</p><button class="btn" id="rewYes">⏪ Go back to May</button><button class="btn ghost" data-close>Cancel</button>`); return; }
+  if(t.id === 'rewYes'){ const k = (S.t % 12 - 4 + 12) % 12; if(!k || S.rewound) return;
+    for(const b of S.bets || []) S.cash += b.amt; S.bets = []; S.pending = null;
+    S.t -= k; const yr = Math.floor(S.t / 12);
+    for(const h of S.horses){ h.age = Math.max(0, h.age - k); h.crown = (h.crown || []).filter(c => !c.endsWith('@' + yr)); if(h.plan.t === 'race') h.plan = canRace(h) ? {t:'train', f:'bal'} : {t:'rest'}; }
+    S.rewound = true; makeCard(); refreshMarket(); refreshStuds(); autoStud(); persist(); $('modal').hidden = true; R.walkers = []; updateTop(); renderPanel(); toast(`⏪ Back to ${monthName(S.t)}! Good luck in the Triple Crown`); return; }
   if(t.id === 'xferBtn'){ persist(); showModal(`<h2>💾 Move your save</h2><p style="text-align:left">Your game is saved in this browser only. To play on another device:<br>1. Here: <b>copy the save code</b> (or save it as a file) and send it to yourself (text, email, notes…).<br>2. On the other device: open Derby Dynasty → ⚙️ → 💾 → paste the code (or open the file) → <b>Load</b>.</p>
     <div class="sec">📤 From this device</div><button class="btn" id="xCopy">📋 Copy save code</button>${navigator.share ? '<button class="btn ghost" id="xShare">📨 Share save code…</button>' : ''}<button class="btn ghost" id="xFile">⬇️ Save as file</button>
     <div class="sec">📥 Load a save from another device</div><textarea id="xCode" rows="3" placeholder="Paste a save code here" style="width:100%;border-radius:10px;padding:8px;background:var(--card2);color:var(--text);border:1px solid var(--line);font-size:12px"></textarea>
