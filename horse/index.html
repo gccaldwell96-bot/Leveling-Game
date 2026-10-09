@@ -676,14 +676,14 @@ function endMonth(){
   }
   // ---- breeding ----
   for(const h of S.horses) if(h.plan.t === 'breed' && canBreedMare(h)){
-    const sire = h.plan.own ? S.horses.find(x => x.id === h.plan.s) : S.studs.find(x => x.id === h.plan.s);
-    if(!sire){ continue; }
-    if(!h.plan.own) led(`💞 Stud fee: ${sire.name}`, -sire.fee);
+    const sire = h.plan.own ? S.horses.find(x => x.id === h.plan.s) : (S.studs.find(x => x.id === h.plan.s) || h.plan.snap);
+    if(!sire){ if(h.rebreed){ h.rebreed = false; rep.notes.push(`🔁 ${h.name}: ${h.plan.sn} is no longer available, so continuous breeding stopped.`); } h.plan = {t:'rest'}; continue; }
+    if(!h.plan.own) led(`💞 Stud fee: ${sire.name}`, -(sire.fee ?? h.plan.fee ?? 0));
     if(Math.random() < fertility(h)){ h.preg = {sire:sire.name, s:snapshot(sire), due:5}; rep.notes.push(`💞 ${h.name} is in foal to ${sire.name}! Due in 5 months.`); }
-    else rep.notes.push(`💔 ${h.name} didn't take this time. Try again next month.`);
-    h.plan = {t:'rest'};
+    else rep.notes.push(`💔 ${h.name} didn't take this time.${h.rebreed ? ' 🔁 Trying again next month.' : ' Try again next month.'}`);
+    h.plan = h.rebreed && !h.preg ? {...h.rebreedPlan} : {t:'rest'};
   }
-  for(const h of S.horses.slice()) if(h.preg){ h.preg.due--; if(h.preg.due <= 0){ const f = foal(h, h.preg.s); h.preg = null; rep.births.push(f); } }
+  for(const h of S.horses.slice()) if(h.preg){ h.preg.due--; if(h.preg.due <= 0){ const f = foal(h, h.preg.s); h.preg = null; rep.births.push(f); if(h.rebreed && h.rebreedPlan){ h.plan = {...h.rebreedPlan}; rep.notes.push(`🔁 ${h.name} will be bred to ${h.rebreedPlan.sn} again.`); } } }
   // ---- aging ----
   for(const h of S.horses){ h.age++;
     if(h.age > 96) for(const s of STATS) h.st[s] = Math.max(5, h.st[s] - rand(0.3, 1.2));
@@ -707,7 +707,7 @@ function endMonth(){
   if(yearEnd) rep.year = yearSummary();
   refreshStuds(); // a fresh set of outside stallions every month
   refreshMarket(); makeCard();
-  for(const h of S.horses){ if(h.plan.t === 'race' || h.plan.t === 'breed') h.plan = {t:'train', f:h.plan.f || 'spd'}; if(h.plan.t === 'stud' && !canStud(h)) h.plan = {t:'rest'}; if(h.age < 6 && h.plan.t === 'train') h.plan = {t:'rest'}; }
+  for(const h of S.horses){ if(h.plan.t === 'race' || (h.plan.t === 'breed' && !h.rebreed)) h.plan = {t:'train', f:h.plan.f || 'spd'}; /* continuous breeders keep their booking */ if(h.plan.t === 'stud' && !canStud(h)) h.plan = {t:'rest'}; if(h.age < 6 && h.plan.t === 'train') h.plan = {t:'rest'}; }
   // ---- event card ----
   if(Math.random() < 0.55) S.pending = makeEvent();
   checkGoals();
@@ -790,7 +790,7 @@ function showEvent(){
 function resolveEvent(a){
   const e = S.pending; if(!e) return; const h = e.h && S.horses.find(x => x.id === e.h);
   if(e.cost && a !== 'no' && S.cash < e.cost){ toast('💸 Not enough cash'); return; }
-  if(a === 'mystery' && S.horses.length >= capacity()){ toast('🏠 No free stall'); return; }
+  if(a === 'mystery' && S.horses.length >= capacity()){ stablesFull('No free stall for the yearling'); return; }
   S.pending = null; $('modal').hidden = true;
   if(a === 'ok'){ if(e.fx === 'cash') S.cash += e.v; if(e.fx === 'fame') S.fame += e.v; if(e.fx === 'form' && h) h.form = 100; }
   if(a === 'sell' && h){ S.cash += e.offer; S.horses = S.horses.filter(x => x !== h); S.stats.sold++; toast(`💰 Sold ${h.name} for ${money(e.offer)}`); }
@@ -1146,7 +1146,7 @@ const bar = (cur, pot, cls) => `<div class="sb"><i class="pot" style="width:${cl
 function statusTxt(h){
   if(h.age < 24) return `🍼 Foal: races at 2y (${24 - h.age} months)`;
   if(h.inj) return `🤕 Injured: ${h.inj} month${h.inj > 1 ? 's' : ''}`;
-  if(h.preg) return `🤰 In foal to ${h.preg.sire}: due in ${h.preg.due} months`;
+  if(h.preg) return `🤰 In foal to ${h.preg.sire}: due in ${h.preg.due} months${h.rebreed ? ' · 🔁 keeps breeding' : ''}`;
   if(h.age >= 264) return `🌅 Twilight years (${Math.floor(h.age / 12)}y)`;
   if(h.age >= 144) return h.sex === 'F' && h.age >= 216 ? `🎓 Retired · fertility ${Math.round(fertility(h) * 100)}%` : '🎓 Retired from racing';
   return '';
@@ -1196,6 +1196,15 @@ function stableList(){
     wins:(a, b) => b.wins - a.wins || b.earned - a.earned, age:(a, b) => a.age - b.age, name:(a, b) => a.name.localeCompare(b.name)}[by];
   return cmp ? L.slice().sort(cmp) : L;
 }
+function stablesFull(why){ // full stalls: let the player pick horses to sell instead of just saying no
+  const hs = S.horses.slice().sort((a, b) => sellPrice(b) - sellPrice(a));
+  R.sell = R.sell || new Set();
+  const row = h => `<button class="pickbox ${R.sell.has(h.id) ? 'on' : ''}" data-fullpick="${h.id}" data-why="${why}"><span class="cb">${R.sell.has(h.id) ? '✓' : ''}</span><span style="flex:1;min-width:0">${h.sex === 'M' ? '♂' : '♀'} <b>${h.name}</b> <small style="color:var(--dim)">${ageTxt(h.age)}${inPasture(h) ? ' · retired' : h.age < 24 ? ' · foal' : ''} · ${stars(grade(h))}</small></span><b style="color:var(--good)">${sellPrice(h) ? money(sellPrice(h)) : 'rehome'}</b></button>`;
+  const sel = S.horses.filter(h => R.sell.has(h.id)), tot = sel.reduce((a, h) => a + sellPrice(h), 0);
+  showModal(`<h2>🏠 Stables full (${S.horses.length}/${capacity()})</h2><p>${why}. Tick horses to sell and free up stalls, or build more stalls on the Ranch tab.</p>
+    <div style="max-height:46vh;overflow:auto;text-align:left">${hs.map(row).join('')}</div>
+    <button class="btn" data-sellconfirm="1" ${sel.length ? '' : 'disabled style="opacity:.45"'}>💰 Sell ${sel.length || ''} ${sel.length === 1 ? 'horse' : 'horses'}${sel.length ? ` for ${money(tot)}` : ''}</button><button class="btn ghost" id="fullCancel">Cancel</button>`);
+}
 function sellBar(){ // shown at the top of the Stable / Nursery while picking horses to sell
   if(!R.sell) return `<div class="arr" style="margin-top:5px"><b>Sell</b><button class="sbtn" data-sellmode="1">💰 Sell horses…</button></div>`;
   return '';
@@ -1210,12 +1219,12 @@ function freeMares(st){ // mares booked to a stallion that leaves the ranch go b
 }
 function horseCard(h){
   const st = statusTxt(h), p = h.plan, busy = h.preg || h.inj;
-  const plans = h.age < 24 ? `<span class="note">🤖 Auto-training${h.age >= 6 ? `: <b style="color:var(--text)">${STAT_N[autoFocus(h)] || 'All-round'}</b> (most room to grow)` : ' starts at 6 months (resting for now)'}</span>` : autoStudHorse(h) && !busy ? `<span class="note">🐎 ${h.retired && h.age < 144 ? 'Retired early' : 'Retired'} · at stud automatically: <b style="color:var(--text)">${money(studFee(h))}</b>/mare (still uses a stall)</span>` : busy ? `<span class="note">${st}</span>${h.inj ? (h.doc ? '<span class="note">🩺 Doctor already used</span>' : `<button data-doc="${h.id}" ${S.cash < docCost(h) ? 'disabled style="opacity:.45"' : ''}>🩺 Call the doctor ${money(docCost(h))}</button>`) : ''}` : `
+  const plans = h.age < 24 ? `<span class="note">🤖 Auto-training${h.age >= 6 ? `: <b style="color:var(--text)">${STAT_N[autoFocus(h)] || 'All-round'}</b> (most room to grow)` : ' starts at 6 months (resting for now)'}</span>` : autoStudHorse(h) && !busy ? `<span class="note">🐎 ${h.retired && h.age < 144 ? 'Retired early' : 'Retired'} · at stud automatically: <b style="color:var(--text)">${money(studFee(h))}</b>/mare (still uses a stall)</span>` : busy ? `<span class="note">${st}</span>${h.preg && h.rebreed ? `<button data-stopbreed="${h.id}">⏹ Stop 🔁</button>` : ''}${h.inj ? (h.doc ? '<span class="note">🩺 Doctor already used</span>' : `<button data-doc="${h.id}" ${S.cash < docCost(h) ? 'disabled style="opacity:.45"' : ''}>🩺 Call the doctor ${money(docCost(h))}</button>`) : ''}` : `
     ${h.age >= 6 ? STATS.concat(['bal']).map(f => `<button class="${p.t === 'train' && p.f === f ? 'on' : ''}" data-plan="${h.id}" data-p="train" data-f="${f}">🏋️ ${f === 'bal' ? 'All' : STAT_N[f]}</button>`).join('') : ''}
     <button class="${p.t === 'rest' ? 'on' : ''}" data-plan="${h.id}" data-p="rest">😴 Rest</button>
     ${canRace(h) ? `<button class="${p.t === 'race' ? 'on' : ''}" data-plan="${h.id}" data-p="race">🏁 ${p.t === 'race' ? planLabel(h).slice(3) : 'Race…'}</button>` : ''}
     ${p.t === 'race' && canRace(h) ? `<button class="${betsOn(h).length ? 'on' : ''}" data-betfor="${h.id}">🎟️ ${betsOn(h).length ? money(betsOn(h).reduce((s, b) => s + b.amt, 0)) + ' bet' : 'Bet'}</button>` : ''}
-    ${canBreedMare(h) && S.fac.barn ? `<button class="${p.t === 'breed' ? 'on' : ''}" data-plan="${h.id}" data-p="breed">💞 ${p.t === 'breed' ? p.sn : 'Breed…'}</button>` : ''}
+    ${canBreedMare(h) && S.fac.barn ? `<button class="${p.t === 'breed' ? 'on' : ''}" data-plan="${h.id}" data-p="breed">💞 ${p.t === 'breed' ? p.sn : 'Breed…'}${h.rebreed ? ' 🔁' : ''}</button>` : ''}
     ${canStud(h) && S.fac.barn ? `<button class="${p.t === 'stud' ? 'on' : ''}" data-plan="${h.id}" data-p="stud">🐎 Stud ${money(studFee(h))}</button>` : ''}
     ${h.sex === 'M' && h.age >= 36 && h.age < 144 && S.fac.barn ? `<button data-retstud="${h.id}">🎓 Retire to stud</button>` : ''}`;
   const pick = R.sell ? `<button class="pickbox ${R.sell.has(h.id) ? 'on' : ''}" data-sellpick="${h.id}"><span class="cb">${R.sell.has(h.id) ? '✓' : ''}</span>${sellPrice(h) ? `Sell for <b>${money(sellPrice(h))}</b>` : 'Rehome (free)'}</button>` : ''; // sell mode: tick horses to sell
@@ -1247,7 +1256,7 @@ function renderPanel(){
   for(const b of document.querySelectorAll('#tabs button')) b.classList.toggle('active', b.dataset.tab === tab);
   if(tab === 'stable'){
     const ent = S.horses.filter(h => h.plan.t === 'race' && canRace(h) && S.card.some(r => r.id === h.plan.r));
-    P.innerHTML = sellTop() + crownAlert() + (ent.length ? `<div class="card" style="padding:9px 12px">🏁 <b>${ent.length} horse${ent.length > 1 ? 's' : ''} entered this month:</b> ${ent.map(h => `${h.name} <span style="color:var(--dim)">(${S.card.find(r => r.id === h.plan.r).n})</span>`).join(', ')}</div>` : '') +
+    P.innerHTML = sellTop() + (S.horses.length > capacity() ? `<div class="card" style="border:1px solid var(--bad)">🏠 <b>Too many horses: ${S.horses.length}/${capacity()} stalls.</b> Pick some to sell, or build more stalls. <button class="sbtn" style="min-width:0;padding:4px 10px;margin-left:6px" id="fullBtn">💰 Choose horses to sell</button></div>` : '') + crownAlert() + (ent.length ? `<div class="card" style="padding:9px 12px">🏁 <b>${ent.length} horse${ent.length > 1 ? 's' : ''} entered this month:</b> ${ent.map(h => `${h.name} <span style="color:var(--dim)">(${S.card.find(r => r.id === h.plan.r).n})</span>`).join(', ')}</div>` : '') +
       `<div class="card" style="padding:7px 12px;font-size:12px">Portrait color = favorite distance: <span class="pimg d-sprint" style="padding:1px 7px;border-radius:6px;color:#fff">⚡ Sprint</span> <span class="pimg d-mile" style="padding:1px 7px;border-radius:6px;color:#fff">🎯 Mile</span> <span class="pimg d-long" style="padding:1px 7px;border-radius:6px;color:#fff">🛤️ Route</span></div>` +
       (S.horses.some(h => h.age < 24) ? `<div class="card" style="padding:8px 12px">🍼 <b>${S.horses.filter(h => h.age < 24).length} foal${S.horses.filter(h => h.age < 24).length > 1 ? 's' : ''}</b> growing up in the Nursery (auto-training) <button class="sbtn" style="min-width:0;padding:4px 10px;margin-left:6px" data-tab="nursery">Open Nursery ▸</button></div>` : '') +
       (S.horses.some(inPasture) ? `<div class="card" style="padding:8px 12px">🌾 <b>${S.horses.filter(inPasture).length} retired horse${S.horses.filter(inPasture).length > 1 ? 's' : ''}</b> in the Pasture <button class="sbtn" style="min-width:0;padding:4px 10px;margin-left:6px" data-tab="pasture">Open Pasture ▸</button></div>` : '') +
@@ -1351,11 +1360,12 @@ function racePicker(h){
     <p>${cur ? `Currently entered in <b style="color:var(--gold)">${cur.n}</b>. Tap another race to switch.` : 'Not entered in a race yet this month.'}</p>
     <div class="pick">${opts}</div>${cur ? `<button class="btn ghost" data-withdraw="${h.id}">✖ Withdraw from ${cur.n}</button>` : ''}<button class="btn ghost" data-close>Cancel</button>`);
 }
-function breedPicker(h){
+function breedPicker(h, keep){
+  if(keep === undefined) R.keepBreed = !!h.rebreed;
   const own = S.horses.filter(x => x !== h && canStud(x) && x.plan.t !== 'race');
   const opt = (x, isOwn) => { const exp = STATS.map(s => Math.round((h.pot[s] + x.pot[s]) / 2)).join('/');
     return `<button data-pickstud="${x.id}" data-own="${isOwn ? 1 : 0}" data-h="${h.id}" style="display:flex;gap:10px;align-items:center">${pimg(x, 78)}<span style="flex:1;min-width:0"><b>${x.name}</b> ${stars(grade(x))}${x.breed === 'legend' ? ' <span class="tc" style="background:linear-gradient(90deg,#c8f0ff,#d6a8ff)">✨ LEGEND</span>' : ''}<br>${isOwn ? 'your stallion (free)' : money(x.fee)} · ${PREF_ICON[x.pref]} · ${COAT[x.coat].n}${legendPair(h, x) ? `<br><b style="color:#d6a8ff">✨ LEGEND foal! (${legendWhy(h, x)})</b>` : ''}<small>Potential ${x.pot.spd}/${x.pot.sta}/${x.pot.acc} → expected foal ≈ ${exp} (SPD/STA/ACC)</small></span></button>`; };
-  showModal(`${pimg(h, 110)}<h2>💞 Breed ${h.name}</h2><p>${PREF_ICON[h.pref]} · her potential: ${h.pot.spd}/${h.pot.sta}/${h.pot.acc} · fertility ${Math.round(fertility(h) * 100)}%</p><div class="pick">${own.map(x => opt(x, true)).join('')}${S.studs.map(x => opt(x, false)).join('')}</div><button class="btn ghost" data-close>Cancel</button>`);
+  showModal(`${pimg(h, 110)}<h2>💞 Breed ${h.name}</h2><p>${PREF_ICON[h.pref]} · her potential: ${h.pot.spd}/${h.pot.sta}/${h.pot.acc} · fertility ${Math.round(fertility(h) * 100)}%</p><button class="pickbox ${R.keepBreed ? 'on' : ''}" id="keepBreed" data-h="${h.id}"><span class="cb">${R.keepBreed ? '✓' : ''}</span><span>🔁 <b>Keep breeding</b>: breed her to the same stallion again every time a foal is born</span></button><div class="pick">${own.map(x => opt(x, true)).join('')}${S.studs.map(x => opt(x, false)).join('')}</div><button class="btn ghost" data-close>Cancel</button>`);
 }
 // ---- Horse Editor: pricey cosmetic changes (looks and a one-time rename) ----
 const EDIT_COST = {coat:2e6, rare:1e7, face:5e5, socks:5e5, rename:1e6}; // looks and name only
@@ -1431,6 +1441,10 @@ document.addEventListener('change', ev => {
 document.addEventListener('click', ev => {
   const t = ev.target.closest('button,.por'); if(!t || t.disabled) return;
   const d = t.dataset;
+  if(d.stopbreed){ const h = S.horses.find(x => x.id === +d.stopbreed); if(h){ h.rebreed = false; toast(`🔁 ${h.name}: continuous breeding off`); persist(); renderPanel(); } return; }
+  if(t.id === 'keepBreed'){ R.keepBreed = !R.keepBreed; breedPicker(S.horses.find(x => x.id === +d.h), true); return; }
+  if(t.id === 'fullCancel'){ R.sell = null; $('modal').hidden = true; renderPanel(); return; }
+  if(t.id === 'fullBtn'){ stablesFull('You have more horses than stalls'); return; }
   if(t.id === 'endBtn2'){ $('endBtn').click(); return; }
   if(d.tab){ if(R.freeze){ toast('🏁 Finish watching the races first (or tap Skip)'); return; } if(d.tab !== tab) R.sell = null; tab = d.tab; if(innerWidth >= 900 && scrollY > $('panel').offsetTop) scrollTo({top:$('panel').offsetTop - 70}); renderPanel(); $('panel').scrollTop = 0; return; }
   if(t.id === 'endBtn'){ if(R.play) return; if(!S.noBetWin && !S.pending && S.card.some(r => runnersFor(r).length)){ betWindow(); return; } endMonth(); if(R.freeze) updateTop(); else renderPanel(); return; }
@@ -1451,20 +1465,22 @@ document.addEventListener('click', ev => {
     if(d.p === 'breed'){ breedPicker(h); return; }
     if(d.p === 'stud'){ h.plan = h.plan.t === 'stud' ? {t:'rest'} : {t:'stud'}; }
     else h.plan = d.p === 'train' ? {t:'train', f:d.f} : {t:d.p};
+    if(h.rebreed){ h.rebreed = false; toast(`🔁 ${h.name}: continuous breeding off`); }
     persist(); renderPanel(); return; }
   if(d.withdraw){ const h = S.horses.find(x => x.id === +d.withdraw); if(!h) return; refundBets(h); h.plan = {t:'train', f:h.plan.f || 'spd'}; $('modal').hidden = true; toast(`✖ ${h.name} withdrawn: back to training`); persist(); renderPanel(); return; }
   if(d.pickrace){ const h = S.horses.find(x => x.id === +d.h); refundBets(h, d.pickrace); h.plan = {t:'race', r:d.pickrace, f:h.plan.f}; $('modal').hidden = true; persist(); renderPanel(); return; }
   if(d.pickstud){ const h = S.horses.find(x => x.id === +d.h), own = d.own === '1', s = own ? S.horses.find(x => x.id === +d.pickstud) : S.studs.find(x => x.id === +d.pickstud);
     if(!own && S.cash < s.fee){ toast('💸 Need ' + money(s.fee)); return; }
-    if(S.horses.length >= capacity()){ toast('🏠 Stables full: build more stalls first (the foal needs a stall)'); return; }
-    h.plan = {t:'breed', s:s.id, own, sn:s.name}; $('modal').hidden = true; persist(); renderPanel(); return; }
+    h.plan = {t:'breed', s:s.id, own, sn:s.name, fee:own ? 0 : s.fee, snap:own ? null : {...snapshot(s), fee:s.fee}}; h.rebreed = !!R.keepBreed; if(h.rebreed) h.rebreedPlan = {...h.plan};
+    if(S.horses.length >= capacity()) toast('🏠 Stables are full: the foal will put you over. You can choose who to sell any time.'); $('modal').hidden = true; persist(); renderPanel(); return; }
   if(d.detail){ detail(S.horses.find(x => x.id === +d.detail)); return; }
   if(d.mdetail){ detail(S.market[+d.mdetail], true); return; }
   if(d.buy){ const i = +d.buy, h = S.market[i]; if(!h) return;
     if(S.cash < h.price){ toast('💸 Need ' + money(h.price)); return; }
-    if(S.horses.length >= capacity()){ toast('🏠 Stables full: upgrade Stables on the Ranch tab'); return; }
+    if(S.horses.length >= capacity()){ stablesFull(`No free stall for ${h.name}`); return; }
     S.cash -= h.price; S.stats.bought++; delete h.kind; const pr = h.price; delete h.price; h.plan = canRace(h) ? {t:'train', f:'spd'} : {t:'rest'}; h.id = S.nextId++;
     S.horses.push(h); S.market.splice(i, 1); toast(`🐎 ${h.name} joins your stable (${money(pr)})`); checkGoals(); persist(); renderPanel(); return; }
+  if(d.fullpick){ const id = +d.fullpick; R.sell = R.sell || new Set(); R.sell.has(id) ? R.sell.delete(id) : R.sell.add(id); stablesFull(d.why); return; }
   if(d.sellmode){ R.sell = d.sellmode === '1' ? new Set() : null; renderPanel(); return; }
   if(d.sellpick){ const id = +d.sellpick; R.sell.has(id) ? R.sell.delete(id) : R.sell.add(id); renderPanel(); return; }
   if(d.sellconfirm){ const hs = S.horses.filter(h => R.sell && R.sell.has(h.id)); if(!hs.length) return; const tot = hs.reduce((a, h) => a + sellPrice(h), 0);
