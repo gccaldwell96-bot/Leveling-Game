@@ -40,8 +40,8 @@
   #planSum{flex:1;font-size:11.5px;color:var(--dim);line-height:1.35;min-width:0}
   #glance{display:none;background:var(--panel);border-radius:12px;padding:12px 14px;font-size:13.5px;color:var(--dim);line-height:1.6}
   #glance b{color:var(--text)} #glance h4{margin:0 0 4px;color:var(--gold);font-size:14px}
-  #tabs{display:grid;grid-template-columns:repeat(8,1fr);gap:3px;padding:6px 12px 4px}
-  @media (max-width:520px){ #tabs button{font-size:8.6px;letter-spacing:-.2px} #tabs button b{font-size:15px} }
+  #tabs{display:grid;grid-template-columns:repeat(9,1fr);gap:3px;padding:6px 12px 4px}
+  @media (max-width:520px){ #tabs{gap:2px;padding:6px 8px 4px} #tabs button{font-size:7.8px;letter-spacing:-.3px} #tabs button b{font-size:15px} }
   .field{display:flex;flex-direction:column;gap:3px;margin-top:6px}
   .runner{display:flex;align-items:center;gap:6px;background:var(--card);border-radius:9px;padding:5px 6px}
   .runner.mine{outline:1px solid var(--gold)}
@@ -177,6 +177,7 @@
   <nav id="tabs">
     <button data-tab="stable"><b>🐎</b>Stable<i class="dot"></i></button>
     <button data-tab="nursery"><b>🍼</b>Nursery<i class="dot"></i></button>
+    <button data-tab="pasture"><b>🌾</b>Pasture<i class="dot"></i></button>
     <button data-tab="races"><b>🏁</b>Races<i class="dot"></i></button>
     <button data-tab="bets"><b>🎟️</b>Bets<i class="dot"></i></button>
     <button data-tab="breed"><b>💞</b>Breeding<i class="dot"></i></button>
@@ -1147,7 +1148,7 @@ function planLabel(h){ const p = h.plan;
 function autoFocus(h){ const gaps = STATS.map(s => [s, h.pot[s] - h.st[s]]).sort((a, b) => b[1] - a[1]); return gaps[0][1] > 1 ? gaps[0][0] : 'bal'; }
 const totSt = h => Math.round(h.st.spd + h.st.sta + h.st.acc), totPot = h => h.pot.spd + h.pot.sta + h.pot.acc;
 const SORTS = [['custom', '✋ My order'], ['total', '🔢 Total skill'], ['pot', '★ Potential'], ['dist', '📏 Distance'], ['wins', '🏆 Wins'], ['age', '🍼 Youngest'], ['name', '🔤 Name']];
-const FILTERS = [['all', 'All', () => true], ['ready', '🏁 Race-ready', h => canRace(h)], ['mare', '♀ Mares', h => h.sex === 'F'], ['stal', '♂ Stallions', h => h.sex === 'M'], ['ret', '🎓 Retired', h => h.age >= 144 || h.retired]];
+const FILTERS = [['all', 'All', () => true], ['ready', '🏁 Race-ready', h => canRace(h)], ['mare', '♀ Mares', h => h.sex === 'F'], ['stal', '♂ Stallions', h => h.sex === 'M']];
 const NSORTS = [['old', '🐴 Oldest'], ['young', '🍼 Youngest'], ['pot', '★ Potential'], ['total', '🔢 Total skill'], ['dist', '📏 Distance'], ['sex', '♀♂ Fillies first'], ['name', '🔤 Name']];
 const NFILTERS = [['all', 'All', () => true], ['F', '♀ Fillies', h => h.sex === 'F'], ['M', '♂ Colts', h => h.sex === 'M'], ['top', '⭐ 5-star', h => grade(h) >= 5]];
 function nurseryList(){ // foals, sorted and filtered
@@ -1169,8 +1170,9 @@ function crownAlert(){ // Triple Crown leg this month (or next) at the top of th
     ${ok.length ? `<div class="plans" style="margin-top:6px">${ok.map(h => `<button data-pickrace="${r.id}" data-h="${h.id}">🏁 Enter ${h.name} · ${Math.round(rating(h, r.dist))}${h.pref === r.dist ? ' ✓' : ''} · ${xs(odds(r, h).win.x)}</button>`).join('')}</div>` : ins.length ? '' : `<br><span style="color:#ffb0b0">${why}</span>`}
     ${crownWatch().map(x => `<br>${x}`).join('')}</div>`;
 }
+const inPasture = h => h.age >= 144 || !!h.retired; // retired horses live in the Pasture tab (they still use stalls)
 function stableList(){
-  const f = (FILTERS.find(x => x[0] === (S.filterBy || 'all')) || FILTERS[0])[2], by = S.sortBy || 'custom', L = S.horses.filter(h => h.age >= 24 && f(h)); // foals live in the Nursery tab
+  const f = (FILTERS.find(x => x[0] === (S.filterBy || 'all')) || FILTERS[0])[2], by = S.sortBy || 'custom', L = S.horses.filter(h => h.age >= 24 && !inPasture(h) && f(h)); // foals live in the Nursery tab, retired horses in the Pasture
   const cmp = {total:(a, b) => totSt(b) - totSt(a), pot:(a, b) => totPot(b) - totPot(a), dist:(a, b) => DORD[a.pref] - DORD[b.pref] || totSt(b) - totSt(a),
     wins:(a, b) => b.wins - a.wins || b.earned - a.earned, age:(a, b) => a.age - b.age, name:(a, b) => a.name.localeCompare(b.name)}[by];
   return cmp ? L.slice().sort(cmp) : L;
@@ -1229,10 +1231,15 @@ function renderPanel(){
     P.innerHTML = sellTop() + crownAlert() + (ent.length ? `<div class="card" style="padding:9px 12px">🏁 <b>${ent.length} horse${ent.length > 1 ? 's' : ''} entered this month:</b> ${ent.map(h => `${h.name} <span style="color:var(--dim)">(${S.card.find(r => r.id === h.plan.r).n})</span>`).join(', ')}</div>` : '') +
       `<div class="card" style="padding:7px 12px;font-size:12px">Portrait color = favorite distance: <span class="pimg d-sprint" style="padding:1px 7px;border-radius:6px;color:#fff">⚡ Sprint</span> <span class="pimg d-mile" style="padding:1px 7px;border-radius:6px;color:#fff">🎯 Mile</span> <span class="pimg d-long" style="padding:1px 7px;border-radius:6px;color:#fff">🛤️ Route</span></div>` +
       (S.horses.some(h => h.age < 24) ? `<div class="card" style="padding:8px 12px">🍼 <b>${S.horses.filter(h => h.age < 24).length} foal${S.horses.filter(h => h.age < 24).length > 1 ? 's' : ''}</b> growing up in the Nursery (auto-training) <button class="sbtn" style="min-width:0;padding:4px 10px;margin-left:6px" data-tab="nursery">Open Nursery ▸</button></div>` : '') +
+      (S.horses.some(inPasture) ? `<div class="card" style="padding:8px 12px">🌾 <b>${S.horses.filter(inPasture).length} retired horse${S.horses.filter(inPasture).length > 1 ? 's' : ''}</b> in the Pasture <button class="sbtn" style="min-width:0;padding:4px 10px;margin-left:6px" data-tab="pasture">Open Pasture ▸</button></div>` : '') +
       `<div class="sec"><span>Stalls used ${S.horses.length}/${capacity()}${S.horses.some(h => h.age < 24) ? ` (incl. ${S.horses.filter(h => h.age < 24).length} foal${S.horses.filter(h => h.age < 24).length > 1 ? 's' : ''})` : ''}</span><span style="text-transform:none;letter-spacing:0">Upkeep ${money(UPKEEP * (1 - 0.05 * S.fac.pasture))}/horse/mo</span></div>` +
       `<div class="card" style="padding:8px 12px"><div class="arr"><b>Sort</b>${SORTS.map(([id, n]) => `<button class="sbtn ${(S.sortBy || 'custom') === id ? 'on' : ''}" data-sort="${id}">${n}</button>`).join('')}</div>
-        <div class="arr" style="margin-top:5px"><b>Show</b>${FILTERS.map(([id, n, f]) => `<button class="sbtn ${(S.filterBy || 'all') === id ? 'on' : ''}" data-filter="${id}">${n} (${S.horses.filter(h => h.age >= 24 && f(h)).length})</button>`).join('')}</div>${sellBar()}</div>` +
+        <div class="arr" style="margin-top:5px"><b>Show</b>${FILTERS.map(([id, n, f]) => `<button class="sbtn ${(S.filterBy || 'all') === id ? 'on' : ''}" data-filter="${id}">${n} (${S.horses.filter(h => h.age >= 24 && !inPasture(h) && f(h)).length})</button>`).join('')}</div>${sellBar()}</div>` +
       stableList().map(horseCard).join('') + (S.horses.length ? (stableList().length ? '' : '<div class="card">No horses match this filter.</div>') : '<div class="card">No horses! Buy one in the Market.</div>');
+  } else if(tab === 'pasture'){
+    const ret = S.horses.filter(inPasture), studs = ret.filter(autoStudHorse);
+    P.innerHTML = sellTop() + `<div class="card"><h3>🌾 Pasture: ${ret.length} retired horse${ret.length === 1 ? '' : 's'}</h3>Retired horses graze here. Stallions stand at stud automatically${studs.length ? ` (${studs.length} earning up to <b>${money(studs.reduce((a, h) => a + studFee(h) * 3, 0))}</b>/month)` : ''}, and mares can still be bred while they're fertile. They still use a stall (${S.horses.length}/${capacity()} used).${ret.length ? sellBar() : ''}</div>` +
+      (ret.length ? ret.map(horseCard).join('') : '<div class="card">No retired horses yet. Stallions can retire to stud early with 🎓 Retire to stud, and every horse retires from racing at 12.</div>');
   } else if(tab === 'nursery'){
     const all = S.horses.filter(h => h.age < 24), foals = nurseryList();
     P.innerHTML = sellTop() + `<div class="card"><h3>🍼 Nursery: ${all.length} foal${all.length === 1 ? '' : 's'}</h3>Foals train themselves: from 6 months old they work on whichever stat has the most room to grow, every month. At 2 years old they move to your main stable, ready to race. Foals use a stall like any horse (${S.horses.length}/${capacity()} stalls used).</div>` +
