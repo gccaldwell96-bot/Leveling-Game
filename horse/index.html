@@ -29,6 +29,8 @@
   #fame{color:var(--fame)}
   #date{margin-left:auto;color:var(--gold)}
   #menuBtn{cursor:pointer}
+  #endBtn2{display:none;background:linear-gradient(135deg,#ffb347,#ff5d8a);color:#fff;font-weight:900}
+  #endBtn2:disabled{opacity:.45}
   #sceneWrap{position:relative;margin:0 12px;border-radius:14px;overflow:hidden;background:#000;touch-action:manipulation}
   #scene{display:block;width:100%;image-rendering:pixelated}
   #sceneBtns{position:absolute;right:8px;bottom:8px;display:flex;gap:6px}
@@ -149,16 +151,18 @@
   .swatch{width:30px;height:30px;border-radius:50%;border:3px solid transparent;display:inline-block;margin:3px}
   .swatch.on{border-color:#fff}
   @media (min-width:900px){ /* desktop: race view top-left, controls beside it, cards side by side below */
-    #app{max-width:1800px;display:grid;grid-template-columns:minmax(0,min(56vw,820px)) minmax(0,1fr);grid-template-rows:auto auto auto minmax(0,1fr);
-      grid-template-areas:"top top" "scene end" "scene tabs" "panel panel";column-gap:18px;padding:10px 18px;height:100vh}
-    #top{grid-area:top} #sceneWrap{grid-area:scene;margin:0;align-self:start}
+    #app{max-width:1800px;display:grid;grid-template-columns:minmax(0,min(56vw,820px)) minmax(0,1fr);grid-template-rows:auto auto auto auto;
+      grid-template-areas:"top top" "scene end" "scene tabs" "panel panel";column-gap:18px;padding:0 18px 10px;height:auto;min-height:100vh} /* the whole page scrolls: the ranch scrolls away, horses get the screen */
+    html,body{height:auto}
+    #top{grid-area:top;position:sticky;top:0;z-index:15;background:var(--bg);padding:10px 0 8px;box-shadow:0 6px 12px -8px #0008} #sceneWrap{grid-area:scene;margin:0;align-self:start}
     #endRow{grid-area:end;padding:4px 0;align-self:start;flex-direction:column;align-items:stretch;gap:10px}
     #endRow #planSum{font-size:14px;background:var(--panel);border-radius:12px;padding:12px 14px;line-height:1.55}
     #glance{display:block!important}
+    body.scrolled #endBtn2{display:inline-block} /* End Month stays reachable in the pinned top bar */
     #endBtn{font-size:19px;padding:15px 22px}
     #tabs{grid-area:tabs;padding:0 0 4px;align-self:end;gap:6px}
     #tabs button{font-size:12px;padding:9px 2px} #tabs button b{font-size:21px}
-    #panel{grid-area:panel;min-height:0;padding:10px 2px 18px;display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:0 12px;align-content:start;align-items:start}
+    #panel{grid-area:panel;min-height:0;overflow:visible;padding:10px 2px 18px;display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:0 12px;align-content:start;align-items:start}
     #panel > .sec, #panel > .card, #panel > p{grid-column:1 / -1}
     #panel > .horse, #panel > .item, #panel > .race{margin-bottom:12px}
     .chip{font-size:14px;padding:6px 12px} #cash{font-size:17px}
@@ -170,7 +174,7 @@
 <body>
 <div id="app">
   <div id="top">
-    <span class="chip" id="cash">$0</span><span class="chip" id="fame">⭐ 0</span><span class="chip" id="rank">🏆 #6</span><span class="chip" id="date">Jan, Y1</span><button class="chip" id="menuBtn" title="Menu">⚙️</button>
+    <span class="chip" id="cash">$0</span><span class="chip" id="fame">⭐ 0</span><span class="chip" id="rank">🏆 #6</span><span class="chip" id="date">Jan, Y1</span><button class="chip" id="endBtn2" title="End Month">End Month ▶</button><button class="chip" id="menuBtn" title="Menu">⚙️</button>
   </div>
   <div id="sceneWrap"><canvas id="scene"></canvas><div id="sceneBtns"></div></div>
   <div id="endRow"><div id="planSum"></div><button id="endBtn">End Month ▶</button><div id="glance"></div></div>
@@ -997,6 +1001,7 @@ function updateWalkers(dt){
 }
 // ---- race playback ----
 function startPlayback(rep){
+  if(scrollY > 0) scrollTo({top:0, behavior:"smooth"}); // desktop: bring the race view back into sight
   R.queue = rep.races.map(r => r);
   if(R.queue.length) nextRace(); else monthReport();
 }
@@ -1311,12 +1316,12 @@ function updateTop(){
       <br>🏁 Entered: ${ent.length ? ent.map(h => `<b>${h.name}</b> <span style="opacity:.75">(${S.card.find(r => r.id === h.plan.r).n})</span>`).join(', ') : 'none yet'}
       <br>🎟️ Bets: ${bt ? `<b>${money(bt)}</b> on ${S.bets.length} ticket${S.bets.length > 1 ? 's' : ''}` : 'none'}
       <br>🏆 Year standing: <b>#${(() => { const ye = Z ? Z.yearEarn : S.yearEarn, tb = [...(Z ? Z.rivals : S.rivals.map(r => r.earn)), ye].sort((a, b) => b - a); return tb.indexOf(ye) + 1; })()}</b> with ${money(Z ? Z.yearEarn : S.yearEarn)} won · ${S.horses.length}/${capacity()} stalls used`; }
-  if(Z){ $('planSum').innerHTML = '🏁 <b>Race day!</b> Watch your races, or tap Skip.<br>Results and money come with the month report.'; $('endBtn').disabled = true; return; }
+  if(Z){ $('planSum').innerHTML = '🏁 <b>Race day!</b> Watch your races, or tap Skip.<br>Results and money come with the month report.'; $('endBtn').disabled = $('endBtn2').disabled = true; return; }
   const n = k => S.horses.filter(h => h.plan.t === k && !h.inj && !h.preg).length;
   const fees = S.card.reduce((s, r) => s + r.fee * runnersFor(r).length, 0);
   const bt = (S.bets || []).reduce((s, b) => s + b.amt, 0);
   $('planSum').innerHTML = `This month: 🏋️ ${n('train')} train · 🏁 ${n('race')} race · 😴 ${n('rest')} rest${n('breed') ? ` · 💞 ${n('breed')} breed` : ''}${bt ? ` · 🎟️ ${money(bt)} bet` : ''}<br>Bills: upkeep ${money(Math.round(UPKEEP * S.horses.length * (1 - 0.05 * S.fac.pasture)))}${fees ? ` + fees ${money(fees)}` : ''}`;
-  $('endBtn').disabled = !!R.play;
+  $('endBtn').disabled = $('endBtn2').disabled = !!R.play;
   const tabs = Object.fromEntries([...document.querySelectorAll('#tabs button')].map(b => [b.dataset.tab, b]));
   tabs.races.classList.toggle('alert', S.card.some(r => r.big && S.horses.some(h => !eligible(h, r))) && !S.card.some(r => r.big && runnersFor(r).length));
   tabs.ranch.classList.toggle('alert', FAC.some(f => S.fac[f.id] < f.max && S.cash >= facCost(f, S.fac[f.id]) && S.cash > 20000));
@@ -1374,6 +1379,7 @@ function afterBet(){ // refresh whichever betting view is open
   else if(modalOpen && R.betHorse){ const h = S.horses.find(x => x.id === R.betHorse); if(h) betModal(h); }
   renderPanel();
 }
+addEventListener('scroll', () => document.body.classList.toggle('scrolled', innerWidth >= 900 && scrollY > $('endBtn').offsetTop + 40), {passive:true});
 // ---- drag & drop to rearrange the stable (My order): grab the ⠿ handle; works with mouse and touch ----
 let DRAG = null;
 document.addEventListener('pointerdown', ev => {
@@ -1411,7 +1417,8 @@ document.addEventListener('change', ev => {
 document.addEventListener('click', ev => {
   const t = ev.target.closest('button,.por'); if(!t || t.disabled) return;
   const d = t.dataset;
-  if(d.tab){ if(R.freeze){ toast('🏁 Finish watching the races first (or tap Skip)'); return; } if(d.tab !== tab) R.sell = null; tab = d.tab; renderPanel(); $('panel').scrollTop = 0; return; }
+  if(t.id === 'endBtn2'){ $('endBtn').click(); return; }
+  if(d.tab){ if(R.freeze){ toast('🏁 Finish watching the races first (or tap Skip)'); return; } if(d.tab !== tab) R.sell = null; tab = d.tab; if(innerWidth >= 900 && scrollY > $('panel').offsetTop) scrollTo({top:$('panel').offsetTop - 70}); renderPanel(); $('panel').scrollTop = 0; return; }
   if(t.id === 'endBtn'){ if(R.play) return; if(!S.noBetWin && !S.pending && S.card.some(r => runnersFor(r).length)){ betWindow(); return; } endMonth(); if(R.freeze) updateTop(); else renderPanel(); return; }
   if(t.id === 'runRaces'){ R.betWin = false; $('modal').hidden = true; endMonth(); if(R.freeze) updateTop(); else renderPanel(); return; }
   if(t.id === 'toBets'){ R.betWin = false; $('modal').hidden = true; tab = 'bets'; renderPanel(); $('panel').scrollTop = 0; return; }
