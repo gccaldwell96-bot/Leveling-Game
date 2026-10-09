@@ -737,6 +737,7 @@ function yearSummary(){
 }
 
 // ---- event cards (some ask you to choose) ----
+const GEM_ODDS = 0.35, JACKPOT_ODDS = 0.05; // mystery yearling: 35% gem, 5% of gems are a jackpot (one stat at 150)
 function makeEvent(){
   const hs = S.horses.filter(h => isAdult(h)), h = hs.length ? pick(hs) : null, y = Math.pow(1.4, Math.floor(S.t / 12));
   const E = [
@@ -746,7 +747,7 @@ function makeEvent(){
     () => ({t:'🤝 Sponsorship deal', d:`A feed company wants your silks on their ads: <b>${money(Math.round(8000 * y + S.fame * 40))}</b>.`, fx:'cash', v:Math.round(8000 * y + S.fame * 40), choices:[['Sign it', 'ok']]}),
     () => h && {t:'🍀 Good spirits', d:`${h.name} is full of energy this month (form maxed).`, fx:'form', h:h.id, choices:[['Nice', 'ok']]},
     () => h && {t:'🧑‍🏫 Famous trainer visits', d:`A legendary trainer offers a private session with ${h.name} for <b>${money(Math.round(5000 * y))}</b>: +4 to every stat (up to potential).`, h:h.id, cost:Math.round(5000 * y), choices:[['Book it', 'train'], ['No thanks', 'no']]},
-    () => ({t:'🎰 Mystery yearling', d:`A shady dealer offers a yearling "with royal blood" for <b>${money(Math.round(12000 * y))}</b>. Could be a gem… or a dud.`, cost:Math.round(12000 * y), choices:[['Gamble', 'mystery'], ['Walk away', 'no']]}),
+    () => ({t:'🎰 Mystery yearling', d:`A shady dealer offers a yearling "with royal blood" for <b>${money(Math.round(12000 * y))}</b>. Could be a gem… or a dud.<br><small style="color:var(--dim)">💎 Gem 35%: Akhal-Teke or Thoroughbred, close to your best horses' level · 🌟 Jackpot ${Math.round(GEM_ODDS * JACKPOT_ODDS * 1000) / 10}%: a gem with a 150 stat · 🥔 Dud 65%: Mustang or Quarter Horse</small>`, cost:Math.round(12000 * y), choices:[['Gamble', 'mystery'], ['Walk away', 'no']]}),
     () => ({t:'🌾 Hay shortage', d:`Feed prices spike: <b>${money(Math.round(250 * S.horses.length * y))}</b> extra this month.`, fx:'cash', v:-Math.round(250 * S.horses.length * y), choices:[['Ouch', 'ok']]}),
     () => h && {t:'🎥 Film crew', d:`A movie studio wants to film ${h.name} for <b>${money(Math.round(4000 * y))}</b>, but filming tires them out (form −30).`, h:h.id, v:Math.round(4000 * y), choices:[['Lights, camera!', 'film'], ['No thanks', 'no']]},
     () => ({t:'🏆 Charity gala', d:`Donate <b>${money(Math.round(6000 * y))}</b> to the retired racehorse charity for +${irand(15, 30)} fame?`, cost:Math.round(6000 * y), v:irand(15, 30), choices:[['Donate', 'donate'], ['Skip', 'no']]}),
@@ -767,9 +768,14 @@ function resolveEvent(a){
   if(a === 'sell' && h){ S.cash += e.offer; S.horses = S.horses.filter(x => x !== h); S.stats.sold++; toast(`💰 Sold ${h.name} for ${money(e.offer)}`); }
   if(a === 'train' && h){ S.cash -= e.cost; for(const s of STATS) h.st[s] = Math.min(h.pot[s], h.st[s] + 4); toast(`📈 ${h.name} +4 all stats`); }
   if(a === 'mystery'){ S.cash -= e.cost;
-    const gem = Math.random() < 0.35, b = gem ? (Math.random() < 0.4 ? 'akhal' : 'thoroughbred') : pick(['mustang', 'quarter']);
-    const nh = newHorse({breed:b, age:irand(12, 18)}); if(gem) for(const s of STATS) nh.pot[s] = Math.min(POT_CAP, Math.round(nh.pot[s] * 1.12)); S.horses.push(nh);
-    showModal(`<h2>${gem ? '💎 A gem!' : '🥔 A dud…'}</h2><p>You got <b>${nh.name}</b>, a ${BREEDS[b].n} (${stars(grade(nh))}).</p><button class="btn" data-close>OK</button>`); }
+    const gem = Math.random() < GEM_ODDS, jackpot = gem && Math.random() < JACKPOT_ODDS, b = gem ? (Math.random() < 0.4 ? 'akhal' : 'thoroughbred') : pick(['mustang', 'quarter']);
+    const nh = newHorse({breed:b, age:irand(12, 18)});
+    if(gem){ const best = Math.min(POT_CAP, Math.max(0, ...S.horses.filter(x => x.breed !== 'legend').map(avgPot))); // gems keep up with your stable
+      for(const s of STATS) nh.pot[s] = Math.min(POT_CAP, Math.max(Math.round(nh.pot[s] * 1.12), Math.round(best * rand(0.8, 0.95))));
+      if(jackpot) nh.pot[pick(STATS)] = POT_CAP;
+      for(const s of STATS) nh.st[s] = Math.min(nh.st[s], nh.pot[s]); }
+    S.horses.push(nh);
+    showModal(`<h2>${jackpot ? '🌟 JACKPOT!' : gem ? '💎 A gem!' : '🥔 A dud…'}</h2><p>You got <b>${nh.name}</b>, a ${BREEDS[b].n} (${stars(grade(nh))}).</p><p>Potential ${nh.pot.spd}/${nh.pot.sta}/${nh.pot.acc}${jackpot ? '<br><b style="color:#d6a8ff">A 150 stat: Legend breeding material!</b>' : ''}</p><button class="btn" data-close>OK</button>`); }
   if(a === 'film' && h){ S.cash += e.v; h.form = clamp(h.form - 30, 0, 100); }
   if(a === 'donate'){ S.cash -= e.cost; S.fame += e.v; }
   persist(); renderPanel();
