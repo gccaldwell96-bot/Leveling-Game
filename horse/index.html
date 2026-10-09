@@ -1153,7 +1153,12 @@ function planLabel(h){ const p = h.plan;
 function autoFocus(h){ const gaps = STATS.map(s => [s, h.pot[s] - h.st[s]]).sort((a, b) => b[1] - a[1]); return gaps[0][1] > 1 ? gaps[0][0] : 'bal'; }
 const totSt = h => Math.round(h.st.spd + h.st.sta + h.st.acc), totPot = h => h.pot.spd + h.pot.sta + h.pot.acc;
 const SORTS = [['custom', '✋ My order'], ['total', '🔢 Total skill'], ['pot', '★ Potential'], ['dist', '📏 Distance'], ['wins', '🏆 Wins'], ['age', '🍼 Youngest'], ['name', '🔤 Name']];
-const FILTERS = [['all', 'All', () => true], ['ready', '🏁 Race-ready', h => canRace(h)], ['mare', '♀ Mares', h => h.sex === 'F'], ['stal', '♂ Stallions', h => h.sex === 'M'], ['age3', '3️⃣ 3-year-olds', h => Math.floor(h.age / 12) === 3]]; // 3-year-olds: Triple Crown eligible
+const FILTERS = [['all', 'All', () => true, ''], ['ready', '🏁 Race-ready', h => canRace(h), 'status'], ['mare', '♀ Mares', h => h.sex === 'F', 'sex'], ['stal', '♂ Stallions', h => h.sex === 'M', 'sex'],
+  ['age3', '3️⃣ 3-year-olds', h => Math.floor(h.age / 12) === 3, 'age'], ['sprint', '⚡ Sprint', h => h.pref === 'sprint', 'dist'], ['mile', '🎯 Mile', h => h.pref === 'mile', 'dist'], ['long', '🛤️ Route', h => h.pref === 'long', 'dist']];
+// several filters at once: within a group any can match (Mares or Stallions), across groups all must (3-year-old AND Sprint)
+const activeFilters = () => (S.filters || []).filter(id => FILTERS.some(f => f[0] === id));
+function passFilters(h){ const act = FILTERS.filter(f => activeFilters().includes(f[0])), groups = [...new Set(act.map(f => f[3]))];
+  return groups.every(g => act.some(f => f[3] === g && f[2](h))); }
 const NSORTS = [['old', '🐴 Oldest'], ['young', '🍼 Youngest'], ['pot', '★ Potential'], ['total', '🔢 Total skill'], ['dist', '📏 Distance'], ['sex', '♀♂ Fillies first'], ['name', '🔤 Name']];
 const NFILTERS = [['all', 'All', () => true], ['F', '♀ Fillies', h => h.sex === 'F'], ['M', '♂ Colts', h => h.sex === 'M'], ['top', '⭐ 5-star', h => grade(h) >= 5]];
 function nurseryList(){ // foals, sorted and filtered
@@ -1177,7 +1182,7 @@ function crownAlert(){ // Triple Crown leg this month (or next) at the top of th
 }
 const inPasture = h => h.age >= 144 || !!h.retired; // retired horses live in the Pasture tab (they still use stalls)
 function stableList(){
-  const f = (FILTERS.find(x => x[0] === (S.filterBy || 'all')) || FILTERS[0])[2], by = S.sortBy || 'custom', L = S.horses.filter(h => h.age >= 24 && !inPasture(h) && f(h)); // foals live in the Nursery tab, retired horses in the Pasture
+  const by = S.sortBy || 'custom', L = S.horses.filter(h => h.age >= 24 && !inPasture(h) && passFilters(h)); // foals live in the Nursery tab, retired horses in the Pasture
   const cmp = {total:(a, b) => totSt(b) - totSt(a), pot:(a, b) => totPot(b) - totPot(a), dist:(a, b) => DORD[a.pref] - DORD[b.pref] || totSt(b) - totSt(a),
     wins:(a, b) => b.wins - a.wins || b.earned - a.earned, age:(a, b) => a.age - b.age, name:(a, b) => a.name.localeCompare(b.name)}[by];
   return cmp ? L.slice().sort(cmp) : L;
@@ -1239,7 +1244,7 @@ function renderPanel(){
       (S.horses.some(inPasture) ? `<div class="card" style="padding:8px 12px">🌾 <b>${S.horses.filter(inPasture).length} retired horse${S.horses.filter(inPasture).length > 1 ? 's' : ''}</b> in the Pasture <button class="sbtn" style="min-width:0;padding:4px 10px;margin-left:6px" data-tab="pasture">Open Pasture ▸</button></div>` : '') +
       `<div class="sec"><span>Stalls used ${S.horses.length}/${capacity()}${S.horses.some(h => h.age < 24) ? ` (incl. ${S.horses.filter(h => h.age < 24).length} foal${S.horses.filter(h => h.age < 24).length > 1 ? 's' : ''})` : ''}</span><span style="text-transform:none;letter-spacing:0">Upkeep ${money(UPKEEP * (1 - 0.05 * S.fac.pasture))}/horse/mo</span></div>` +
       `<div class="card" style="padding:8px 12px"><div class="arr"><b>Sort</b>${SORTS.map(([id, n]) => `<button class="sbtn ${(S.sortBy || 'custom') === id ? 'on' : ''}" data-sort="${id}">${n}</button>`).join('')}</div>
-        <div class="arr" style="margin-top:5px"><b>Show</b>${FILTERS.map(([id, n, f]) => `<button class="sbtn ${(S.filterBy || 'all') === id ? 'on' : ''}" data-filter="${id}">${n} (${S.horses.filter(h => h.age >= 24 && !inPasture(h) && f(h)).length})</button>`).join('')}</div>${sellBar()}</div>` +
+        <div class="arr" style="margin-top:5px"><b>Show</b>${FILTERS.map(([id, n, f]) => `<button class="sbtn ${id === 'all' ? (activeFilters().length ? '' : 'on') : activeFilters().includes(id) ? 'on' : ''}" data-filter="${id}">${n} (${S.horses.filter(h => h.age >= 24 && !inPasture(h) && f(h)).length})</button>`).join('')}${activeFilters().length ? `<span style="font-size:12px;color:var(--dim);align-self:center">→ showing ${stableList().length}</span>` : ''}</div>${sellBar()}</div>` +
       stableList().map(horseCard).join('') + (S.horses.length ? (stableList().length ? '' : '<div class="card">No horses match this filter.</div>') : '<div class="card">No horses! Buy one in the Market.</div>');
   } else if(tab === 'pasture'){
     const ret = S.horses.filter(inPasture), studs = ret.filter(autoStudHorse);
@@ -1483,7 +1488,7 @@ document.addEventListener('click', ev => {
   if(d.sort){ S.sortBy = d.sort; persist(); renderPanel(); return; }
   if(d.nsort){ S.nSort = d.nsort; persist(); renderPanel(); return; }
   if(d.nfilter){ S.nFilter = d.nfilter; persist(); renderPanel(); return; }
-  if(d.filter){ S.filterBy = d.filter; persist(); renderPanel(); return; }
+  if(d.filter){ const a = activeFilters(); S.filters = d.filter === 'all' ? [] : a.includes(d.filter) ? a.filter(x => x !== d.filter) : [...a, d.filter]; delete S.filterBy; persist(); renderPanel(); return; }
   if(d.mv){ const L = stableList(), i = L.findIndex(x => x.id === +d.mv), j = i + +d.dir; if(i < 0 || j < 0 || j >= L.length) return;
     const a = S.horses.indexOf(L[i]), b = S.horses.indexOf(L[j]); [S.horses[a], S.horses[b]] = [S.horses[b], S.horses[a]]; persist(); renderPanel(); return; }
   if(d.silk2){ S.silk2 = +d.silk2; SPR.clear(); persist(); renderPanel(); return; }
