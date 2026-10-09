@@ -239,7 +239,15 @@ const BREEDS = {
   arabian:     {n:'Arabian',       pot:[40, 62], bias:[0, 9, -3]},
   thoroughbred:{n:'Thoroughbred',  pot:[50, 76], bias:[8, 0, 2]},
   akhal:       {n:'Akhal-Teke',    pot:[64, 88], bias:[4, 6, 2]},
+  legend:      {n:'✨ Legend',     pot:[140, 150], bias:[0, 0, 0]}, // only bred from two maxed-out parents
 };
+const POT_CAP = 150, LEGEND_CAP = 175; // normal horses top out at 150 potential; Legends can reach 175
+const potCap = h => h.breed === 'legend' ? LEGEND_CAP : POT_CAP;
+const legendStats = (a, b) => STATS.filter(s => a.pot[s] >= POT_CAP && b.pot[s] >= POT_CAP); // both parents maxed (150) in the same stat
+const has150 = h => STATS.some(s => h.pot[s] >= POT_CAP);
+const legendPair = (a, b) => { const la = a.breed === 'legend', lb = b.breed === 'legend';
+  return la && lb ? true : la ? has150(b) : lb ? has150(a) : legendStats(a, b).length > 0; }; // Legends help: Legend × Legend always, Legend × any horse with a 150 stat
+const legendWhy = (a, b) => a.breed === 'legend' && b.breed === 'legend' ? 'two Legends' : a.breed === 'legend' || b.breed === 'legend' ? 'Legend parent' : `both 150 ${legendStats(a, b).map(s => STAT_N[s]).join(' & ')}`;
 const STATS = ['spd', 'sta', 'acc'], STAT_N = {spd:'Speed', sta:'Stamina', acc:'Accel'};
 const ADJ = ['Thunder', 'Silver', 'Midnight', 'Golden', 'Wild', 'Lucky', 'Royal', 'Storm', 'Shadow', 'Crimson', 'Desert', 'Northern', 'Blazing', 'Velvet', 'Iron', 'Majestic', 'Dancing', 'Rapid', 'Secret', 'Winter', 'Starlight', 'Copper', 'Brave', 'Noble', 'Sapphire', 'Mystic', 'Prairie', 'Ocean'];
 const NOUN = ['Comet', 'Arrow', 'Dream', 'Spirit', 'Rose', 'Thunder', 'Prince', 'Lady', 'Runner', 'Storm', 'Legend', 'Flash', 'Echo', 'Fortune', 'Glory', 'Rebel', 'Breeze', 'Knight', 'Dancer', 'Star', 'Blaze', 'Charm', 'Rocket', 'Tide', 'Queen', 'Whisper', 'Outlaw', 'Duchess'];
@@ -350,6 +358,8 @@ function load(){
     for(const f of FAC) if(S.fac[f.id] == null) S.fac[f.id] = 0;
     if(!S.tough2){ S.rivals.forEach(r => { if(r.lvl != null) r.lvl += 4; }); S.tough2 = true; } // rivals stepped up
     if(S.rivals.some(r => r.lvl == null)){ S.rivals.forEach((r, i) => { r.lvl = RIVAL_NAMES[i][2] + 2 * Math.floor(S.t / 12); r.earn = 0; r.wins = 0; delete r.str; }); S.yearWins = S.yearWins || 0; }
+    for(const h of [...S.horses, ...(S.studs || []), ...(S.market || [])]) for(const st of STATS){ h.pot[st] = Math.min(h.pot[st], potCap(h)); h.st[st] = Math.min(h.st[st], h.pot[st]); } // stud barn used to exceed 150
+    if(S.studs) for(const h of S.studs) h.fee = studFee(h);
     if(S.card && S.card.length) addHighStakes(S.card); // older cards skipped High Stakes next to restricted races
     if(!S.card || S.card.some(r => !r.field0)){ for(const b of S.bets) S.cash += b.amt; S.bets = []; makeCard(); for(const h of S.horses) if(h.plan.t === 'race') h.plan = {t:'train', f:'spd'}; }
     return; } }catch(e){}
@@ -396,6 +406,7 @@ const canRace = h => h.age >= 24 && h.age < 144 && !h.inj && !h.preg;
 const canBreedMare = h => h.sex === 'F' && h.age >= 36 && h.age < 300 && !h.preg && !h.inj;
 const fertility = h => Math.min(1, 0.7 + 0.03 * S.fac.barn) * (h.age < 216 ? 1 : Math.max(0.15, 1 - (h.age - 216) / 100)); // drops after 18, none after 25
 const breedable = h => h.sex === 'F' ? h.age < 240 : h.age < 264; // still worth something as breeding stock
+const docCost = h => Math.round(h.inj * (20000 + 600 * totPot(h) + 3 * studFee(h)) / 1000) * 1000; // the doctor: pricier for better horses (potential & stud value), per month left
 const canStud = h => h.sex === 'M' && h.age >= 36 && !h.inj;
 const capacity = () => 4 + 2 * S.fac.stables;
 const perfMul = () => 1 + 0.02 * S.fac.academy;
@@ -421,7 +432,8 @@ function trainGain(h){ const y = h.age / 12; return (y < 2 ? 1.25 : y < 5 ? 1 : 
 // =====================================================================
 //  MONTHLY RACE CARD, MARKET, STUD BOOK
 // =====================================================================
-function addRace(card, o){ const yr = Math.floor(S.t / 12); let k = card.length; while(card.some(r => r.id === 'r' + S.t + '_' + k)) k++; o.id = 'r' + S.t + '_' + k; o.fee = Math.max(100, Math.round(o.purse * 0.02 / 50) * 50); const tough = (o.crown ? 1.13 : o.big ? 1.10 : o.cls >= 3 ? 1.13 : o.cls === 2 ? 1.07 : o.cls === 1 ? 1.02 : 1) * (1 + 0.045 * Math.min(yr, 12)); o.lo *= tough; o.hi *= tough; /* tougher fields higher up, and every year */ o.field0 = makeField(o); card.push(o); }
+function addRace(card, o){ const yr = Math.floor(S.t / 12); let k = card.length; while(card.some(r => r.id === 'r' + S.t + '_' + k)) k++; o.id = 'r' + S.t + '_' + k; o.fee = Math.max(100, Math.round(o.purse * 0.02 / 50) * 50); const tough = (o.crown ? 1.13 : o.big ? 1.10 : o.cls >= 3 ? 1.13 : o.cls === 2 ? 1.07 : o.cls === 1 ? 1.02 : 1) * (1 + 0.045 * Math.min(yr, 12)) * (o.big || o.cls >= 3 ? legendBoost() : 1); o.lo *= tough; o.hi *= tough; /* tougher fields higher up, and every year */ o.field0 = makeField(o); card.push(o); }
+const legendBoost = () => { const L = S.horses.filter(h => h.breed === 'legend'); return L.length ? clamp(Math.max(...L.map(avgPot)) / POT_CAP, 1, LEGEND_CAP / POT_CAP) : 1; }; // top races get tougher as your Legends get stronger
 const openRace = r => !r.age2 && !r.age3 && !r.sex && !r.vet && !r.maiden; // any horse can enter (fame aside)
 function addHighStakes(card){ // an open High Stakes race at every distance that has no open big race this month ($450K+, growing each year)
   const yr = Math.floor(S.t / 12);
@@ -472,7 +484,7 @@ function refreshStuds(){ // 12 outside stallions, new every month: budget → el
     ['thoroughbred', 2], ['akhal', 2], ['akhal', 2], ['akhal', 3], ['thoroughbred', 3]];
   TIERS.forEach(([breed, tier], k) => {
     const h = newHorse({breed, age:irand(60, 130), trained:1.1, extra:{sex:'M'}});
-    if(tier) for(const s of STATS){ h.pot[s] = Math.round(h.pot[s] * (1 + 0.05 * lv) + [0, 4, 10, 18][tier]); h.st[s] = Math.round(h.pot[s] * 0.9); }
+    if(tier) for(const s of STATS){ h.pot[s] = Math.min(POT_CAP, Math.round(h.pot[s] * (1 + 0.05 * lv) + [0, 4, 10, 18][tier])); h.st[s] = Math.round(h.pot[s] * 0.9); }
     if(tier) h.pref = prefs[k % 3];
     h.wins = irand(tier * 2, 3 + tier * 5); h.gw = tier >= 2 ? irand(tier - 1, tier * 2) : 0; h.fee = studFee(h); h.tier = tier;
     S.studs.push(h);
@@ -698,10 +710,12 @@ const mutChance = (l = S.fac.barn) => 0.10 + 0.04 * l; // per stat: 10% → 50% 
 function foal(dam, sire){
   const mut = mutChance(), pot = {};
   let prodigy = false;
+  const legend = legendPair(dam, sire), cap = legend ? LEGEND_CAP : POT_CAP;
   for(const s of STATS){ let v = (dam.pot[s] + sire.pot[s]) / 2 * rand(0.95, 1.08) + gauss() * 2.5;
-    if(Math.random() < mut){ v += rand(6, 14); prodigy = true; } pot[s] = Math.round(clamp(v, 10, 150)); }
+    if(Math.random() < mut){ v += rand(6, 14); prodigy = true; } pot[s] = Math.round(clamp(v, 10, cap)); }
   const coat = Math.random() < 0.06 + 0.01 * S.fac.barn ? randCoat(true) : Math.random() < 0.5 ? dam.coat : sire.coat;
-  const better = avgPot(dam) >= avgPot({pot:sire.pot}) ? dam.breed : sire.breed;
+  let better = avgPot(dam) >= avgPot({pot:sire.pot}) ? dam.breed : sire.breed;
+  if(legend) better = 'legend'; else if(better === 'legend') better = dam.breed === 'legend' ? sire.breed : dam.breed; // a Legend needs both parents at 150 in the same stat
   const h = newHorse({breed:better, age:0, pot:[pot.spd, pot.sta, pot.acc]});
   h.pref = Math.random() < 0.1 ? pick(['sprint', 'mile', 'long']) : Math.random() < 0.5 ? (dam.pref || 'mile') : (sire.pref || 'mile');
   Object.assign(h, {coat, mark:Math.random() < 0.5 ? dam.mark : sire.mark, socks:Math.random() < 0.5 ? dam.socks : sire.socks, gen:(dam.gen || 0) + 1, dam:dam.name, sire:sire.name, plan:{t:'rest'}, prodigy});
@@ -754,7 +768,7 @@ function resolveEvent(a){
   if(a === 'train' && h){ S.cash -= e.cost; for(const s of STATS) h.st[s] = Math.min(h.pot[s], h.st[s] + 4); toast(`📈 ${h.name} +4 all stats`); }
   if(a === 'mystery'){ S.cash -= e.cost;
     const gem = Math.random() < 0.35, b = gem ? (Math.random() < 0.4 ? 'akhal' : 'thoroughbred') : pick(['mustang', 'quarter']);
-    const nh = newHorse({breed:b, age:irand(12, 18)}); if(gem) for(const s of STATS) nh.pot[s] = Math.round(nh.pot[s] * 1.12); S.horses.push(nh);
+    const nh = newHorse({breed:b, age:irand(12, 18)}); if(gem) for(const s of STATS) nh.pot[s] = Math.min(POT_CAP, Math.round(nh.pot[s] * 1.12)); S.horses.push(nh);
     showModal(`<h2>${gem ? '💎 A gem!' : '🥔 A dud…'}</h2><p>You got <b>${nh.name}</b>, a ${BREEDS[b].n} (${stars(grade(nh))}).</p><button class="btn" data-close>OK</button>`); }
   if(a === 'film' && h){ S.cash += e.v; h.form = clamp(h.form - 30, 0, 100); }
   if(a === 'donate'){ S.cash -= e.cost; S.fame += e.v; }
@@ -1073,7 +1087,7 @@ function monthReport(){
   const net = rep.income - rep.expense;
   let h = `<h2>📅 ${monthName(rep.month)} report</h2>`;
   if(rep.deaths.length) h += rep.deaths.map(m => `<div class="card" style="text-align:center;margin:6px 0"><img src="${portrait(m)}" style="width:70px;image-rendering:pixelated;filter:grayscale(.6)"><br>🕊️ <b>${m.name}</b> passed away peacefully at ${Math.floor(m.age / 12)}.<br>${m.wins ? `${m.wins} wins · ${money(m.earned)} earned. ` : ''}${m.wins >= 3 ? 'A memorial has been placed in your Hall of Fame.' : 'Rest easy, old friend.'}</div>`).join('');
-  if(rep.births.length) h += rep.births.map(f => `<div class="card" style="text-align:center;margin:6px 0">${pimg(f, 70)}<br>🍼 <b>${f.name}</b> is born! ${f.sex === 'M' ? '♂ colt' : '♀ filly'}, ${COAT[f.coat].n}<br><span style="color:var(--gold)">${stars(grade(f))}</span>${f.prodigy ? ' <span class="tag win">PRODIGY</span>' : ''}</div>`).join('');
+  if(rep.births.length) h += rep.births.map(f => `<div class="card" style="text-align:center;margin:6px 0">${pimg(f, 70)}<br>🍼 <b>${f.name}</b> is born! ${f.breed === 'legend' ? '<b style="color:#d6a8ff">✨ A LEGEND!</b> ' : ''}${f.sex === 'M' ? '♂ colt' : '♀ filly'}, ${COAT[f.coat].n}<br><span style="color:var(--gold)">${stars(grade(f))}</span>${f.prodigy ? ' <span class="tag win">PRODIGY</span>' : ''}</div>`).join('');
   if(rep.crownWin){ const w = rep.crownWin; h += `<div class="tcwin"><div style="font-size:30px">👑🏆👑</div>${pimg(w, 120)}<h3>TRIPLE CROWN!</h3><div class="big">${w.name}</div>
     <div class="legs">✅ ${CROWN.map(c => c.n).join('<br>✅ ')}</div><div style="margin-top:8px;font-weight:900;color:#7dff9a">+$5,000,000 bonus · +500 ⭐</div><div style="margin-top:4px;font-weight:900;color:#ffe27a">📈 ${w.sex === 'M' ? `Stud fee now ${money(studFee(w))}/mare (×5)` : `Value now ${money(value(w))} (×5)`}</div><div style="font-size:11px;color:#ffe9b0;margin-top:4px">Only the greatest horses ever win all three.</div></div>`; }
   if(rep.notes.length) h += `<p style="text-align:left">${rep.notes.join('<br>')}</p>`;
@@ -1155,7 +1169,7 @@ function freeMares(st){ // mares booked to a stallion that leaves the ranch go b
 }
 function horseCard(h){
   const st = statusTxt(h), p = h.plan, busy = h.preg || h.inj;
-  const plans = h.age < 24 ? `<span class="note">🤖 Auto-training${h.age >= 6 ? `: <b style="color:var(--text)">${STAT_N[autoFocus(h)] || 'All-round'}</b> (most room to grow)` : ' starts at 6 months (resting for now)'}</span>` : busy ? `<span class="note">${st}</span>` : `
+  const plans = h.age < 24 ? `<span class="note">🤖 Auto-training${h.age >= 6 ? `: <b style="color:var(--text)">${STAT_N[autoFocus(h)] || 'All-round'}</b> (most room to grow)` : ' starts at 6 months (resting for now)'}</span>` : busy ? `<span class="note">${st}</span>${h.inj ? (h.doc ? '<span class="note">🩺 Doctor already used</span>' : `<button data-doc="${h.id}" ${S.cash < docCost(h) ? 'disabled style="opacity:.45"' : ''}>🩺 Call the doctor ${money(docCost(h))}</button>`) : ''}` : `
     ${h.age >= 6 ? STATS.concat(['bal']).map(f => `<button class="${p.t === 'train' && p.f === f ? 'on' : ''}" data-plan="${h.id}" data-p="train" data-f="${f}">🏋️ ${f === 'bal' ? 'All' : STAT_N[f]}</button>`).join('') : ''}
     <button class="${p.t === 'rest' ? 'on' : ''}" data-plan="${h.id}" data-p="rest">😴 Rest</button>
     ${canRace(h) ? `<button class="${p.t === 'race' ? 'on' : ''}" data-plan="${h.id}" data-p="race">🏁 ${p.t === 'race' ? planLabel(h).slice(3) : 'Race…'}</button>` : ''}
@@ -1166,7 +1180,7 @@ function horseCard(h){
   const er = p.t === 'race' && canRace(h) ? S.card.find(r => r.id === p.r) : null, eb = er ? betsOn(h) : [];
   const banner = er ? `<div class="entered ${er.crown ? 'crown' : ''}">🏁 Entered in <b>${RN(er)}</b> · ${DIST[er.dist].n}${h.pref === er.dist ? ' ✓' : ''} · purse ${money(er.purse)} · win odds <b style="color:var(--gold)">${xs(odds(er, h).win.x)}</b>${eb.length ? ` · 🎟️ ${money(eb.reduce((a, b) => a + b.amt, 0))} bet` : ''}</div>` : '';
   return `<div class="horse mine ${er ? 'racing' : ''} ${R.sell && R.sell.has(h.id) ? 'picked' : ''}">${pick}<div class="hrow"><div class="por d-${h.pref}" data-detail="${h.id}" title="${PREF_ICON[h.pref]} specialist"><span class="dt">${DICON[h.pref]}</span><img src="${portrait(h)}"></div>
-    <div class="hinfo"><div class="hname">${(S.sortBy || 'custom') === 'custom' && h.age >= 24 ? `<span class="mv"><button data-mv="${h.id}" data-dir="-1" title="Move up">▲</button><button data-mv="${h.id}" data-dir="1" title="Move down">▼</button></span>` : ''}${h.sex === 'M' ? '♂' : '♀'} ${h.name} <span class="st">${stars(grade(h))}</span>${tcWinner(h) ? ' <span class="tc">👑 TRIPLE CROWN</span>' : ''}${er ? ' <span class="rtag">🏁 RACING</span>' : ''}</div>
+    <div class="hinfo"><div class="hname">${(S.sortBy || 'custom') === 'custom' && h.age >= 24 ? `<span class="mv"><button data-mv="${h.id}" data-dir="-1" title="Move up">▲</button><button data-mv="${h.id}" data-dir="1" title="Move down">▼</button></span>` : ''}${h.sex === 'M' ? '♂' : '♀'} ${h.name} <span class="st">${stars(grade(h))}</span>${h.breed === 'legend' ? ' <span class="tc" style="background:linear-gradient(90deg,#c8f0ff,#d6a8ff)">✨ LEGEND</span>' : ''}${tcWinner(h) ? ' <span class="tc">👑 TRIPLE CROWN</span>' : ''}${er ? ' <span class="rtag">🏁 RACING</span>' : ''}</div>
     <div class="hsub">${ageTxt(h.age)} · ${BREEDS[h.breed].n} · ${PREF_ICON[h.pref]} · ${h.wins}W/${h.starts}R${h.gw ? ` · ${h.gw} graded` : ''}</div>
     <div class="stats"><span>SPD</span>${bar(h.st.spd, h.pot.spd, '')}<span>${Math.round(h.st.spd)}/${h.pot.spd}</span>
       <span>STA</span>${bar(h.st.sta, h.pot.sta, 'sta')}<span>${Math.round(h.st.sta)}/${h.pot.sta}</span>
@@ -1229,7 +1243,7 @@ function renderPanel(){
   } else if(tab === 'breed'){
     if(!S.fac.barn){ P.innerHTML = `<div class="card"><h3>💞 Breeding</h3>Build a <b>Breeding Barn</b> on the Ranch tab to start breeding. Foals inherit their parents' potential, with a chance to mutate into something better, or a rare coat!</div>`; return; }
     const mares = S.horses.filter(h => h.sex === 'F'), stallions = S.horses.filter(h => h.sex === 'M');
-    P.innerHTML = `<div class="card"><h3>💞 Breeding</h3>Choose a mare (3y+) and a stallion. She's in foal for 5 months (no racing). Foals get the <b>average potential</b> of both parents ±, with a <b>${Math.round(mutChance() * 1000) / 10}%</b> chance per stat to mutate 6–14 points higher, and may get a rare coat. Your own stallions can also earn stud fees.</div>
+    P.innerHTML = `<div class="card"><h3>💞 Breeding</h3>Choose a mare (3y+) and a stallion. She's in foal for 5 months (no racing). Foals get the <b>average potential</b> of both parents ±, with a <b>${Math.round(mutChance() * 1000) / 10}%</b> chance per stat to mutate 6–14 points higher, and may get a rare coat. Your own stallions can also earn stud fees.<br>✨ <b>Legend breed:</b> breed two horses that both have <b>150 in the same stat</b>, a Legend with any horse that has a 150 stat, or two Legends. Legend foals can reach <b>175</b> potential. (Your top races get tougher as your Legends get stronger.)</div>
       <div class="sec">Your mares</div>${mares.map(h => `<div class="item">${pimg(h, 96)}<div class="info"><div class="nm">${h.name} <span style="color:var(--gold);font-size:11px">${stars(grade(h))}</span></div><div class="ds">${statusTxt(h) || (canBreedMare(h) ? 'Ready to breed' : 'Too young (3y+)')}${h.plan.t === 'breed' ? ` · 💞 with ${h.plan.sn}` : ''}</div></div>${canBreedMare(h) ? `<button class="sbtn ${h.plan.t === 'breed' ? 'on' : 'can'}" data-plan="${h.id}" data-p="breed">${h.plan.t === 'breed' ? 'Change' : 'Breed…'}</button>` : ''}</div>`).join('') || '<div class="card">No mares yet.</div>'}
       <div class="sec"><span>Stud book (outside stallions)</span><span style="text-transform:none;letter-spacing:0">New stallions every month</span></div>${S.studs.map(st => `<div class="item">${pimg(st, 96)}<div class="info"><div class="nm">${st.tier === 3 ? '🏆 ' : ''}${st.name} <span style="color:var(--gold);font-size:11px">${stars(grade(st))}</span>${st.tier === 3 ? ' <span class="tag win">ELITE</span>' : ''}</div><div class="ds">${BREEDS[st.breed].n} · ${COAT[st.coat].n} · ${st.wins} wins · pot ${st.pot.spd}/${st.pot.sta}/${st.pot.acc}</div></div><span class="sbtn">${money(st.fee)}</span></div>`).join('')}
       <div class="sec">Your stallions</div>${stallions.map(h => `<div class="item">${pimg(h, 96)}<div class="info"><div class="nm">${h.name} <span style="color:var(--gold);font-size:11px">${stars(grade(h))}</span></div><div class="ds">pot ${h.pot.spd}/${h.pot.sta}/${h.pot.acc} · stud fee ${money(studFee(h))}</div></div></div>`).join('') || '<div class="card">No stallions yet.</div>'}`;
@@ -1293,7 +1307,7 @@ function racePicker(h){
 function breedPicker(h){
   const own = S.horses.filter(x => x !== h && canStud(x) && x.plan.t !== 'race');
   const opt = (x, isOwn) => { const exp = STATS.map(s => Math.round((h.pot[s] + x.pot[s]) / 2)).join('/');
-    return `<button data-pickstud="${x.id}" data-own="${isOwn ? 1 : 0}" data-h="${h.id}" style="display:flex;gap:10px;align-items:center">${pimg(x, 78)}<span style="flex:1;min-width:0"><b>${x.name}</b> ${stars(grade(x))}<br>${isOwn ? 'your stallion (free)' : money(x.fee)} · ${PREF_ICON[x.pref]} · ${COAT[x.coat].n}<small>Potential ${x.pot.spd}/${x.pot.sta}/${x.pot.acc} → expected foal ≈ ${exp} (SPD/STA/ACC)</small></span></button>`; };
+    return `<button data-pickstud="${x.id}" data-own="${isOwn ? 1 : 0}" data-h="${h.id}" style="display:flex;gap:10px;align-items:center">${pimg(x, 78)}<span style="flex:1;min-width:0"><b>${x.name}</b> ${stars(grade(x))}<br>${isOwn ? 'your stallion (free)' : money(x.fee)} · ${PREF_ICON[x.pref]} · ${COAT[x.coat].n}${legendPair(h, x) ? `<br><b style="color:#d6a8ff">✨ LEGEND foal! (${legendWhy(h, x)})</b>` : ''}<small>Potential ${x.pot.spd}/${x.pot.sta}/${x.pot.acc} → expected foal ≈ ${exp} (SPD/STA/ACC)</small></span></button>`; };
   showModal(`${pimg(h, 110)}<h2>💞 Breed ${h.name}</h2><p>${PREF_ICON[h.pref]} · her potential: ${h.pot.spd}/${h.pot.sta}/${h.pot.acc} · fertility ${Math.round(fertility(h) * 100)}%</p><div class="pick">${own.map(x => opt(x, true)).join('')}${S.studs.map(x => opt(x, false)).join('')}</div><button class="btn ghost" data-close>Cancel</button>`);
 }
 // ---- Horse Editor: pricey cosmetic changes (looks and a one-time rename) ----
@@ -1388,6 +1402,11 @@ document.addEventListener('click', ev => {
     if(!v) S.fame += 1; $('modal').hidden = true; toast(v ? `💰 Sold ${h.name} for ${money(v)}` : `🏡 ${h.name} went to a retirement farm. Happy trails!`); persist(); renderPanel(); return; }
   if(d.retire){ const h = S.horses.find(x => x.id === +d.retire); if(!h) return; refundBets(h); freeMares(h); S.hall.push({name:h.name, coat:h.coat, mark:h.mark, socks:h.socks, age:h.age, wins:h.wins, earned:h.earned, gw:h.gw});
     S.horses = S.horses.filter(x => x !== h); S.fame += 10 + h.wins * 2; $('modal').hidden = true; toast(`🏅 ${h.name} enters the Hall of Fame! +${10 + h.wins * 2} ⭐`); persist(); renderPanel(); return; }
+  if(d.doc){ const h = S.horses.find(x => x.id === +d.doc); if(!h || !h.inj || h.doc) return; if(R.freeze){ toast('🏁 Finish watching the races first (or tap Skip)'); return; }
+    const c = docCost(h); if(S.cash < c){ toast('💸 Not enough cash'); return; }
+    showModal(`<h2>🩺 Call the doctor for ${h.name}?</h2><p>The doctor fixes the injury today, so ${h.name} can train, race or breed this month instead of resting ${h.inj} more month${h.inj > 1 ? 's' : ''}.</p><p>Cost <b>${money(c)}</b><br><small style="color:var(--dim)">Price depends on the months left, the horse's potential and its stud value.</small></p><p style="color:var(--gold)">⚠️ Each horse can see the doctor only <b>once</b> in its life.</p><button class="btn" data-docyes="${h.id}">🩺 Pay ${money(c)}</button><button class="btn ghost" data-close>Not now</button>`); return; }
+  if(d.docyes){ const h = S.horses.find(x => x.id === +d.docyes); if(!h || !h.inj || h.doc) return; const c = docCost(h); if(S.cash < c) return;
+    S.cash -= c; h.inj = 0; h.doc = true; h.plan = canRace(h) ? {t:'train', f:'bal'} : {t:'rest'}; $('modal').hidden = true; toast(`🩺 ${h.name} is fit again! (−${money(c)})`); persist(); updateTop(); renderPanel(); return; }
   if(d.edit){ const h = S.horses.find(x => x.id === +d.edit); if(h) editHorse(h); return; }
   if(d.ed){ const h = S.horses.find(x => x.id === +d.h); if(h) doEdit(h, d.ed, d.v); return; }
   if(d.fac){ const f = FAC.find(x => x.id === d.fac), l = S.fac[f.id], c = facCost(f, l); if(S.cash < c){ toast('💸 Need ' + money(c)); return; }

@@ -75,6 +75,8 @@ A free **turn-based horse breeding and racing tycoon** in `horse/`. It plays on 
 - **Selling:** tap **💰 Sell horses…** on the Stable or Nursery tab, tick the horses to sell, then **Confirm sale** (a summary with prices shows before anything is sold).
 - **Move your save:** ⚙️ → 💾 Move save to another device. Copy or share a save code (or save it as a file) on one device, then paste the code or open the file on the other.
 - **Horse Editor (🎨 Edit):** for big money, change a horse's coat ($2M, rare $10M) or face/socks ($500K), and rename it once ($1M). Looks only: stats and distance can't be bought.
+- **Doctor:** once in each horse's life, pay a doctor to fix an injury on the spot (price grows with the months left, potential and stud value).
+- **✨ Legend breed:** normal horses top out at 150 potential (the stud barn too). Breed two horses with 150 in the same stat, a Legend with any horse that has a 150 stat, or two Legends, to get a Legend foal that can reach 175. Top races get tougher as your best Legend gets stronger.
 - **Distance preference:** every horse is a Sprint, Mile or Route specialist (+6% at its favorite distance, −8% at the opposite one). Breeds lean different ways and foals inherit it.
 - **Ranch:** Stables, Training Center, Vet Clinic, Breeding Barn, Jockey Academy, Lush Pastures, Equine Pool (more training, less fatigue) and Head Trainer (flat bonus points each month). They appear on your ranch as you build them.
 - **Betting (play money):** a 🎟️ Bets tab shows every race's field in advance. Bet Win, Place (top 2) or Show (top 3) on any runner, yours or a rival's. Odds come from simulating each race 1,000 times, minus a 15% bookmaker's cut. A "last call for bets" window pops up before your races (can be turned off).
