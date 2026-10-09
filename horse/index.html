@@ -360,6 +360,7 @@ function load(){
     if(S.rivals.some(r => r.lvl == null)){ S.rivals.forEach((r, i) => { r.lvl = RIVAL_NAMES[i][2] + 2 * Math.floor(S.t / 12); r.earn = 0; r.wins = 0; delete r.str; }); S.yearWins = S.yearWins || 0; }
     for(const h of [...S.horses, ...(S.studs || []), ...(S.market || [])]) for(const st of STATS){ h.pot[st] = Math.min(h.pot[st], potCap(h)); h.st[st] = Math.min(h.st[st], h.pot[st]); } // stud barn used to exceed 150
     if(S.studs) for(const h of S.studs) h.fee = studFee(h);
+    autoStud();
     if(S.card && S.card.length) addHighStakes(S.card); // older cards skipped High Stakes next to restricted races
     if(!S.card || S.card.some(r => !r.field0)){ for(const b of S.bets) S.cash += b.amt; S.bets = []; makeCard(); for(const h of S.horses) if(h.plan.t === 'race') h.plan = {t:'train', f:'spd'}; }
     return; } }catch(e){}
@@ -407,6 +408,8 @@ const canBreedMare = h => h.sex === 'F' && h.age >= 36 && h.age < 300 && !h.preg
 const fertility = h => Math.min(1, 0.7 + 0.03 * S.fac.barn) * (h.age < 216 ? 1 : Math.max(0.15, 1 - (h.age - 216) / 100)); // drops after 18, none after 25
 const breedable = h => h.sex === 'F' ? h.age < 240 : h.age < 264; // still worth something as breeding stock
 const docCost = h => Math.round(h.inj * (20000 + 600 * totPot(h) + 3 * studFee(h)) / 1000) * 1000; // the doctor: pricier for better horses (potential & stud value), per month left
+const autoStudHorse = h => h.sex === 'M' && h.age >= 144 && S.fac.barn > 0; // retired stallions stand at stud on their own (they still use a stall)
+function autoStud(){ for(const h of S.horses) if(autoStudHorse(h) && h.plan.t !== 'stud') h.plan = {t:'stud'}; }
 const canStud = h => h.sex === 'M' && h.age >= 36 && !h.inj;
 const capacity = () => 4 + 2 * S.fac.stables;
 const perfMul = () => 1 + 0.02 * S.fac.academy;
@@ -604,7 +607,7 @@ function betModal(h){
 // =====================================================================
 let REPORT = null;
 function endMonth(){
-  R.sell = null;
+  R.sell = null; autoStud();
   if(S.pending){ showEvent(); return; }
   R.freeze = {cash:S.cash, fame:S.fame, t:S.t, yearEarn:S.yearEarn, rivals:S.rivals.map(r => r.earn)}; R.toastQ = []; // no spoilers until the report
   const rep = {lines:[], races:[], births:[], deaths:[], notes:[], income:0, expense:0, month:S.t}, fresh = new Set();
@@ -650,7 +653,7 @@ function endMonth(){
       h.form = clamp(h.form - Math.max(0, 8 - 2 * (S.fac.pool || 0)), 0, 100);
       if(Math.random() < injuryRisk(h, false)){ h.inj = 1; fresh.add(h); rep.notes.push(`🤕 ${h.name} tweaked a leg in training: out 1 month.`); }
     } else if(p.t === 'rest') h.form = clamp(h.form + 35, 0, 100);
-    if(p.t === 'stud' && canStud(h)){ const fee = studFee(h), n = irand(1, 3) + (tcWinner(h) ? 2 : (h.crown || []).length ? 1 : 0); /* classic winners book more mares */ led(`🐎 ${h.name} at stud (${n} mare${n > 1 ? 's' : ''})`, fee * n); }
+    if((p.t === 'stud' || autoStudHorse(h)) && canStud(h)){ const fee = studFee(h), n = irand(1, 3) + (tcWinner(h) ? 2 : (h.crown || []).length ? 1 : 0); /* classic winners book more mares */ led(`🐎 ${h.name} at stud (${n} mare${n > 1 ? 's' : ''})`, fee * n); }
     h.form = clamp(h.form + 12 + 4 * S.fac.vet + 3 * S.fac.pasture, 0, 100);
   }
   // ---- breeding ----
@@ -667,8 +670,9 @@ function endMonth(){
   for(const h of S.horses){ h.age++;
     if(h.age > 96) for(const s of STATS) h.st[s] = Math.max(5, h.st[s] - rand(0.3, 1.2));
     if(h.age === 24){ h.plan = {t:'train', f:autoFocus(h)}; rep.notes.push(`🎉 ${h.name} just turned 2 and is ready to race! Moved from the Nursery to your main stable.`); }
-    if(h.age === 144) rep.notes.push(`🎓 ${h.name} is 12 and retires from racing. Keep them for breeding, sell them, or rehome them.`);
+    if(h.age === 144) rep.notes.push(h.sex === 'M' && S.fac.barn ? `🎓 ${h.name} is 12 and retires from racing. He now stands at stud automatically (${money(studFee(h))}/mare) and still uses a stall.` : `🎓 ${h.name} is 12 and retires from racing. Keep them for breeding, sell them, or rehome them.`);
     if(h.age === 216 && h.sex === 'F') rep.notes.push(`🌅 ${h.name} is 18: her fertility is starting to fade.`); }
+  autoStud();
   for(const h of S.horses.slice()){ const y = h.age / 12; // old age: most horses live to about 25–28, none past 32
     if(y < 22 || h.preg) continue;
     if(y >= 32 || Math.random() < 0.01 * Math.pow(1.5, y - 22)){
@@ -1181,7 +1185,7 @@ function freeMares(st){ // mares booked to a stallion that leaves the ranch go b
 }
 function horseCard(h){
   const st = statusTxt(h), p = h.plan, busy = h.preg || h.inj;
-  const plans = h.age < 24 ? `<span class="note">🤖 Auto-training${h.age >= 6 ? `: <b style="color:var(--text)">${STAT_N[autoFocus(h)] || 'All-round'}</b> (most room to grow)` : ' starts at 6 months (resting for now)'}</span>` : busy ? `<span class="note">${st}</span>${h.inj ? (h.doc ? '<span class="note">🩺 Doctor already used</span>' : `<button data-doc="${h.id}" ${S.cash < docCost(h) ? 'disabled style="opacity:.45"' : ''}>🩺 Call the doctor ${money(docCost(h))}</button>`) : ''}` : `
+  const plans = h.age < 24 ? `<span class="note">🤖 Auto-training${h.age >= 6 ? `: <b style="color:var(--text)">${STAT_N[autoFocus(h)] || 'All-round'}</b> (most room to grow)` : ' starts at 6 months (resting for now)'}</span>` : autoStudHorse(h) && !busy ? `<span class="note">🐎 Retired · at stud automatically: <b style="color:var(--text)">${money(studFee(h))}</b>/mare (still uses a stall)</span>` : busy ? `<span class="note">${st}</span>${h.inj ? (h.doc ? '<span class="note">🩺 Doctor already used</span>' : `<button data-doc="${h.id}" ${S.cash < docCost(h) ? 'disabled style="opacity:.45"' : ''}>🩺 Call the doctor ${money(docCost(h))}</button>`) : ''}` : `
     ${h.age >= 6 ? STATS.concat(['bal']).map(f => `<button class="${p.t === 'train' && p.f === f ? 'on' : ''}" data-plan="${h.id}" data-p="train" data-f="${f}">🏋️ ${f === 'bal' ? 'All' : STAT_N[f]}</button>`).join('') : ''}
     <button class="${p.t === 'rest' ? 'on' : ''}" data-plan="${h.id}" data-p="rest">😴 Rest</button>
     ${canRace(h) ? `<button class="${p.t === 'race' ? 'on' : ''}" data-plan="${h.id}" data-p="race">🏁 ${p.t === 'race' ? planLabel(h).slice(3) : 'Race…'}</button>` : ''}
@@ -1348,7 +1352,7 @@ function detail(h, market){
     <p><span style="color:var(--gold)">${stars(grade(h))}</span> · ${BREEDS[h.breed].n} · ${COAT[h.coat].n} · ${ageTxt(h.age)} · ${PREF_ICON[h.pref]}</p>${ped}
     <p>Potential ${h.pot.spd}/${h.pot.sta}/${h.pot.acc} · Record ${h.wins}W ${h.places}P ${h.starts}R · Earned ${money(h.earned)}${h.crown && h.crown.length ? ' · 👑 ' + h.crown.length + ' classics' : ''}</p>
     <p>Value ≈ <b>${money(value(h))}</b></p>
-    ${market ? '' : `<button class="btn" data-edit="${h.id}">🎨 Edit name & looks</button>${h.wins >= 3 ? `<button class="btn ghost" data-retire="${h.id}">🏅 Retire to Hall of Fame</button>` : ''}<button class="btn ghost" data-sell="${h.id}">${sellPrice(h) ? `💰 Sell for ${money(sellPrice(h))}` : '🏡 Rehome (free)'}</button>`}
+    ${market ? '' : `<button class="btn" data-edit="${h.id}">🎨 Edit name & looks</button>${h.wins >= 3 ? `<button class="btn ghost" data-retire="${h.id}">🏅 Retire to Hall of Fame (leaves your stable)</button>` : ''}<button class="btn ghost" data-sell="${h.id}">${sellPrice(h) ? `💰 Sell for ${money(sellPrice(h))}` : '🏡 Rehome (free)'}</button>`}
     <button class="btn" data-close>Close</button>`);
 }
 
