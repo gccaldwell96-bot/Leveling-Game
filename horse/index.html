@@ -87,6 +87,13 @@
   .sb i.cur.acc{background:linear-gradient(90deg,#ff9a3d,#ffd24a)}
   .sb i.cur.form{background:linear-gradient(90deg,#ff5d8a,#ffb0d0)}
   .plans{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
+  .pickbox{display:flex;align-items:center;gap:8px;width:100%;margin-bottom:7px;padding:7px 10px;border-radius:9px;background:var(--card2);color:var(--text);font-size:13px;font-weight:800;text-align:left}
+  .pickbox .cb{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:5px;border:2px solid var(--dim);font-size:14px;font-weight:900;color:#2a1400}
+  .pickbox.on{background:#2f4a2a}.pickbox.on .cb{background:#7dff9a;border-color:#7dff9a}
+  .horse.picked{outline:2px solid #7dff9a}
+  .sellbar{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;align-items:center;gap:6px;background:#1d3a24;border:2px solid #7dff9a;border-radius:12px;padding:8px 10px;margin-bottom:8px;font-size:13px;box-shadow:0 4px 14px #0008}
+  .sellbar span{flex:1;min-width:150px}.sellbar button{padding:7px 11px;border-radius:9px;font-weight:900;font-size:12px;background:var(--card);color:var(--text)}
+  .sellbar button.go{background:#7dff9a;color:#10301a}.sellbar button:disabled{opacity:.4}
   .plans button{background:var(--card);padding:5px 8px;border-radius:8px;font-size:11px;font-weight:800;color:var(--dim)}
   .plans button.on{background:var(--accent);color:#2a1400}
   .plans .note{font-size:11px;color:var(--dim);font-weight:700;padding:4px 2px}
@@ -552,6 +559,7 @@ function betModal(h){
 // =====================================================================
 let REPORT = null;
 function endMonth(){
+  R.sell = null;
   if(S.pending){ showEvent(); return; }
   R.freeze = {cash:S.cash, fame:S.fame, t:S.t, yearEarn:S.yearEarn, rivals:S.rivals.map(r => r.earn)}; R.toastQ = []; // no spoilers until the report
   const rep = {lines:[], races:[], births:[], deaths:[], notes:[], income:0, expense:0, month:S.t}, fresh = new Set();
@@ -1106,6 +1114,18 @@ function stableList(){
     wins:(a, b) => b.wins - a.wins || b.earned - a.earned, age:(a, b) => a.age - b.age, name:(a, b) => a.name.localeCompare(b.name)}[by];
   return cmp ? L.slice().sort(cmp) : L;
 }
+function sellBar(){ // shown at the top of the Stable / Nursery while picking horses to sell
+  if(!R.sell) return `<div class="arr" style="margin-top:5px"><b>Sell</b><button class="sbtn" data-sellmode="1">💰 Sell horses…</button></div>`;
+  return '';
+}
+function sellTop(){
+  if(!R.sell) return '';
+  const hs = S.horses.filter(h => R.sell.has(h.id)), tot = hs.reduce((a, h) => a + sellPrice(h), 0);
+  return `<div class="sellbar"><span>💰 <b>${hs.length}</b> horse${hs.length === 1 ? '' : 's'} selected${hs.length ? ` · <b style="color:#7dff9a">${money(tot)}</b>` : ': tick the horses you want to sell'}</span><button class="go" data-sellconfirm="1" ${hs.length ? '' : 'disabled'}>✅ Confirm sale</button><button data-sellmode="0">Cancel</button></div>`;
+}
+function freeMares(st){ // mares booked to a stallion that leaves the ranch go back to resting
+  for(const m of S.horses) if(m.plan.t === 'breed' && m.plan.own && m.plan.s === st.id){ m.plan = {t:'rest'}; toast(`💞 ${m.name}'s booking with ${st.name} was cancelled`); }
+}
 function horseCard(h){
   const st = statusTxt(h), p = h.plan, busy = h.preg || h.inj;
   const plans = h.age < 24 ? `<span class="note">🤖 Auto-training${h.age >= 6 ? `: <b style="color:var(--text)">${STAT_N[autoFocus(h)] || 'All-round'}</b> (most room to grow)` : ' starts at 6 months (resting for now)'}</span>` : busy ? `<span class="note">${st}</span>` : `
@@ -1114,11 +1134,11 @@ function horseCard(h){
     ${canRace(h) ? `<button class="${p.t === 'race' ? 'on' : ''}" data-plan="${h.id}" data-p="race">🏁 ${p.t === 'race' ? planLabel(h).slice(3) : 'Race…'}</button>` : ''}
     ${p.t === 'race' && canRace(h) ? `<button class="${betsOn(h).length ? 'on' : ''}" data-betfor="${h.id}">🎟️ ${betsOn(h).length ? money(betsOn(h).reduce((s, b) => s + b.amt, 0)) + ' bet' : 'Bet'}</button>` : ''}
     ${canBreedMare(h) && S.fac.barn ? `<button class="${p.t === 'breed' ? 'on' : ''}" data-plan="${h.id}" data-p="breed">💞 ${p.t === 'breed' ? p.sn : 'Breed…'}</button>` : ''}
-    ${canStud(h) && S.fac.barn ? `<button class="${p.t === 'stud' ? 'on' : ''}" data-plan="${h.id}" data-p="stud">🐎 Stud ${money(studFee(h))}</button>` : ''}
-    ${h.age >= 144 ? `<button data-sell="${h.id}">${sellPrice(h) ? '💰 Sell ' + money(sellPrice(h)) : '🏡 Rehome'}</button>` : ''}`;
+    ${canStud(h) && S.fac.barn ? `<button class="${p.t === 'stud' ? 'on' : ''}" data-plan="${h.id}" data-p="stud">🐎 Stud ${money(studFee(h))}</button>` : ''}`;
+  const pick = R.sell ? `<button class="pickbox ${R.sell.has(h.id) ? 'on' : ''}" data-sellpick="${h.id}"><span class="cb">${R.sell.has(h.id) ? '✓' : ''}</span>${sellPrice(h) ? `Sell for <b>${money(sellPrice(h))}</b>` : 'Rehome (free)'}</button>` : ''; // sell mode: tick horses to sell
   const er = p.t === 'race' && canRace(h) ? S.card.find(r => r.id === p.r) : null, eb = er ? betsOn(h) : [];
   const banner = er ? `<div class="entered ${er.crown ? 'crown' : ''}">🏁 Entered in <b>${RN(er)}</b> · ${DIST[er.dist].n}${h.pref === er.dist ? ' ✓' : ''} · purse ${money(er.purse)} · win odds <b style="color:var(--gold)">${xs(odds(er, h).win.x)}</b>${eb.length ? ` · 🎟️ ${money(eb.reduce((a, b) => a + b.amt, 0))} bet` : ''}</div>` : '';
-  return `<div class="horse mine ${er ? 'racing' : ''}"><div class="hrow"><div class="por d-${h.pref}" data-detail="${h.id}" title="${PREF_ICON[h.pref]} specialist"><span class="dt">${DICON[h.pref]}</span><img src="${portrait(h)}"></div>
+  return `<div class="horse mine ${er ? 'racing' : ''} ${R.sell && R.sell.has(h.id) ? 'picked' : ''}">${pick}<div class="hrow"><div class="por d-${h.pref}" data-detail="${h.id}" title="${PREF_ICON[h.pref]} specialist"><span class="dt">${DICON[h.pref]}</span><img src="${portrait(h)}"></div>
     <div class="hinfo"><div class="hname">${(S.sortBy || 'custom') === 'custom' && h.age >= 24 ? `<span class="mv"><button data-mv="${h.id}" data-dir="-1" title="Move up">▲</button><button data-mv="${h.id}" data-dir="1" title="Move down">▼</button></span>` : ''}${h.sex === 'M' ? '♂' : '♀'} ${h.name} <span class="st">${stars(grade(h))}</span>${tcWinner(h) ? ' <span class="tc">👑 TRIPLE CROWN</span>' : ''}${er ? ' <span class="rtag">🏁 RACING</span>' : ''}</div>
     <div class="hsub">${ageTxt(h.age)} · ${BREEDS[h.breed].n} · ${PREF_ICON[h.pref]} · ${h.wins}W/${h.starts}R${h.gw ? ` · ${h.gw} graded` : ''}</div>
     <div class="stats"><span>SPD</span>${bar(h.st.spd, h.pot.spd, '')}<span>${Math.round(h.st.spd)}/${h.pot.spd}</span>
@@ -1144,18 +1164,18 @@ function renderPanel(){
   for(const b of document.querySelectorAll('#tabs button')) b.classList.toggle('active', b.dataset.tab === tab);
   if(tab === 'stable'){
     const ent = S.horses.filter(h => h.plan.t === 'race' && canRace(h) && S.card.some(r => r.id === h.plan.r));
-    P.innerHTML = crownAlert() + (ent.length ? `<div class="card" style="padding:9px 12px">🏁 <b>${ent.length} horse${ent.length > 1 ? 's' : ''} entered this month:</b> ${ent.map(h => `${h.name} <span style="color:var(--dim)">(${S.card.find(r => r.id === h.plan.r).n})</span>`).join(', ')}</div>` : '') +
+    P.innerHTML = sellTop() + crownAlert() + (ent.length ? `<div class="card" style="padding:9px 12px">🏁 <b>${ent.length} horse${ent.length > 1 ? 's' : ''} entered this month:</b> ${ent.map(h => `${h.name} <span style="color:var(--dim)">(${S.card.find(r => r.id === h.plan.r).n})</span>`).join(', ')}</div>` : '') +
       `<div class="card" style="padding:7px 12px;font-size:12px">Portrait color = favorite distance: <span class="pimg d-sprint" style="padding:1px 7px;border-radius:6px;color:#fff">⚡ Sprint</span> <span class="pimg d-mile" style="padding:1px 7px;border-radius:6px;color:#fff">🎯 Mile</span> <span class="pimg d-long" style="padding:1px 7px;border-radius:6px;color:#fff">🛤️ Route</span></div>` +
       (S.horses.some(h => h.age < 24) ? `<div class="card" style="padding:8px 12px">🍼 <b>${S.horses.filter(h => h.age < 24).length} foal${S.horses.filter(h => h.age < 24).length > 1 ? 's' : ''}</b> growing up in the Nursery (auto-training) <button class="sbtn" style="min-width:0;padding:4px 10px;margin-left:6px" data-tab="nursery">Open Nursery ▸</button></div>` : '') +
       `<div class="sec"><span>Stalls used ${S.horses.length}/${capacity()}${S.horses.some(h => h.age < 24) ? ` (incl. ${S.horses.filter(h => h.age < 24).length} foal${S.horses.filter(h => h.age < 24).length > 1 ? 's' : ''})` : ''}</span><span style="text-transform:none;letter-spacing:0">Upkeep ${money(UPKEEP * (1 - 0.05 * S.fac.pasture))}/horse/mo</span></div>` +
       `<div class="card" style="padding:8px 12px"><div class="arr"><b>Sort</b>${SORTS.map(([id, n]) => `<button class="sbtn ${(S.sortBy || 'custom') === id ? 'on' : ''}" data-sort="${id}">${n}</button>`).join('')}</div>
-        <div class="arr" style="margin-top:5px"><b>Show</b>${FILTERS.map(([id, n, f]) => `<button class="sbtn ${(S.filterBy || 'all') === id ? 'on' : ''}" data-filter="${id}">${n} (${S.horses.filter(h => h.age >= 24 && f(h)).length})</button>`).join('')}</div></div>` +
+        <div class="arr" style="margin-top:5px"><b>Show</b>${FILTERS.map(([id, n, f]) => `<button class="sbtn ${(S.filterBy || 'all') === id ? 'on' : ''}" data-filter="${id}">${n} (${S.horses.filter(h => h.age >= 24 && f(h)).length})</button>`).join('')}</div>${sellBar()}</div>` +
       stableList().map(horseCard).join('') + (S.horses.length ? (stableList().length ? '' : '<div class="card">No horses match this filter.</div>') : '<div class="card">No horses! Buy one in the Market.</div>');
   } else if(tab === 'nursery'){
     const all = S.horses.filter(h => h.age < 24), foals = nurseryList();
-    P.innerHTML = `<div class="card"><h3>🍼 Nursery: ${all.length} foal${all.length === 1 ? '' : 's'}</h3>Foals train themselves: from 6 months old they work on whichever stat has the most room to grow, every month. At 2 years old they move to your main stable, ready to race. Foals use a stall like any horse (${S.horses.length}/${capacity()} stalls used).</div>` +
+    P.innerHTML = sellTop() + `<div class="card"><h3>🍼 Nursery: ${all.length} foal${all.length === 1 ? '' : 's'}</h3>Foals train themselves: from 6 months old they work on whichever stat has the most room to grow, every month. At 2 years old they move to your main stable, ready to race. Foals use a stall like any horse (${S.horses.length}/${capacity()} stalls used).</div>` +
       (all.length > 1 ? `<div class="card" style="padding:8px 12px"><div class="arr"><b>Sort</b>${NSORTS.map(([id, n]) => `<button class="sbtn ${(S.nSort || 'old') === id ? 'on' : ''}" data-nsort="${id}">${n}</button>`).join('')}</div>
-        <div class="arr" style="margin-top:5px"><b>Show</b>${NFILTERS.map(([id, n, f]) => `<button class="sbtn ${(S.nFilter || 'all') === id ? 'on' : ''}" data-nfilter="${id}">${n} (${all.filter(f).length})</button>`).join('')}</div></div>` : '') +
+        <div class="arr" style="margin-top:5px"><b>Show</b>${NFILTERS.map(([id, n, f]) => `<button class="sbtn ${(S.nFilter || 'all') === id ? 'on' : ''}" data-nfilter="${id}">${n} (${all.filter(f).length})</button>`).join('')}</div>${sellBar()}</div>` : all.length ? `<div class="card" style="padding:8px 12px">${sellBar()}</div>` : '') +
       (foals.length ? foals.map(horseCard).join('') : all.length ? '<div class="card">No foals match this filter.</div>' : '<div class="card">No foals right now. Breed a mare on the Breeding tab!</div>');
   } else if(tab === 'races'){
     const m = S.t % 12;
@@ -1272,7 +1292,7 @@ document.addEventListener('change', ev => {
 document.addEventListener('click', ev => {
   const t = ev.target.closest('button,.por'); if(!t || t.disabled) return;
   const d = t.dataset;
-  if(d.tab){ if(R.freeze){ toast('🏁 Finish watching the races first (or tap Skip)'); return; } tab = d.tab; renderPanel(); $('panel').scrollTop = 0; return; }
+  if(d.tab){ if(R.freeze){ toast('🏁 Finish watching the races first (or tap Skip)'); return; } if(d.tab !== tab) R.sell = null; tab = d.tab; renderPanel(); $('panel').scrollTop = 0; return; }
   if(t.id === 'endBtn'){ if(R.play) return; if(!S.noBetWin && !S.pending && S.card.some(r => runnersFor(r).length)){ betWindow(); return; } endMonth(); if(R.freeze) updateTop(); else renderPanel(); return; }
   if(t.id === 'runRaces'){ R.betWin = false; $('modal').hidden = true; endMonth(); if(R.freeze) updateTop(); else renderPanel(); return; }
   if(t.id === 'toBets'){ R.betWin = false; $('modal').hidden = true; tab = 'bets'; renderPanel(); $('panel').scrollTop = 0; return; }
@@ -1305,13 +1325,21 @@ document.addEventListener('click', ev => {
     if(S.horses.length >= capacity()){ toast('🏠 Stables full: upgrade Stables on the Ranch tab'); return; }
     S.cash -= h.price; S.stats.bought++; delete h.kind; const pr = h.price; delete h.price; h.plan = canRace(h) ? {t:'train', f:'spd'} : {t:'rest'}; h.id = S.nextId++;
     S.horses.push(h); S.market.splice(i, 1); toast(`🐎 ${h.name} joins your stable (${money(pr)})`); checkGoals(); persist(); renderPanel(); return; }
+  if(d.sellmode){ R.sell = d.sellmode === '1' ? new Set() : null; renderPanel(); return; }
+  if(d.sellpick){ const id = +d.sellpick; R.sell.has(id) ? R.sell.delete(id) : R.sell.add(id); renderPanel(); return; }
+  if(d.sellconfirm){ const hs = S.horses.filter(h => R.sell && R.sell.has(h.id)); if(!hs.length) return; const tot = hs.reduce((a, h) => a + sellPrice(h), 0);
+    showModal(`<h2>💰 Sell ${hs.length} horse${hs.length > 1 ? 's' : ''}?</h2><div class="ledger">${hs.map(h => `<div><span>${h.sex === 'M' ? '♂' : '♀'} ${h.name} <small style="color:var(--dim)">${ageTxt(h.age)}</small></span><b class="pos">${sellPrice(h) ? money(sellPrice(h)) : 'rehome'}</b></div>`).join('')}<div><span><b>Total</b></span><b class="pos">${money(tot)}</b></div></div>
+      <p>This can't be undone. Any bets on them are refunded.</p><button class="btn" data-sellall="1">✅ Confirm sale</button><button class="btn ghost" data-close>Go back</button>`); return; }
+  if(d.sellall){ const hs = S.horses.filter(h => R.sell && R.sell.has(h.id)); let tot = 0;
+    for(const h of hs){ refundBets(h); freeMares(h); const v = sellPrice(h); tot += v; S.cash += v; if(!v) S.fame += 1; S.stats.sold++; S.horses = S.horses.filter(x => x !== h); }
+    R.sell = null; $('modal').hidden = true; toast(`💰 Sold ${hs.length} horse${hs.length > 1 ? 's' : ''} for ${money(tot)}`); persist(); renderPanel(); return; }
   if(d.sell){ const h = S.horses.find(x => x.id === +d.sell); if(!h) return;
     const v = sellPrice(h), up = Math.round(UPKEEP * (1 - 0.05 * S.fac.pasture));
     showModal(v ? `<h2>Sell ${h.name}?</h2><p>You'll get <b>${money(v)}</b>${h.age >= 144 ? (breedable(h) ? ' as breeding stock' : '') : ''} and save ${money(up)}/month upkeep.</p><button class="btn" data-sellyes="${h.id}">Sell</button><button class="btn ghost" data-close>Keep</button>`
       : `<h2>🏡 Rehome ${h.name}?</h2><p>${h.name} is past racing and breeding, so nobody will pay for them. A retirement farm will give them a happy home for free.</p><p>You save <b>${money(up)}/month</b> upkeep and gain +1 ⭐.</p><button class="btn" data-sellyes="${h.id}">Rehome</button><button class="btn ghost" data-close>Keep</button>`); return; }
-  if(d.sellyes){ const h = S.horses.find(x => x.id === +d.sellyes); if(!h) return; refundBets(h); const v = sellPrice(h); S.cash += v; S.horses = S.horses.filter(x => x !== h); S.stats.sold++;
+  if(d.sellyes){ const h = S.horses.find(x => x.id === +d.sellyes); if(!h) return; refundBets(h); freeMares(h); const v = sellPrice(h); S.cash += v; S.horses = S.horses.filter(x => x !== h); S.stats.sold++;
     if(!v) S.fame += 1; $('modal').hidden = true; toast(v ? `💰 Sold ${h.name} for ${money(v)}` : `🏡 ${h.name} went to a retirement farm. Happy trails!`); persist(); renderPanel(); return; }
-  if(d.retire){ const h = S.horses.find(x => x.id === +d.retire); if(!h) return; refundBets(h); S.hall.push({name:h.name, coat:h.coat, mark:h.mark, socks:h.socks, age:h.age, wins:h.wins, earned:h.earned, gw:h.gw});
+  if(d.retire){ const h = S.horses.find(x => x.id === +d.retire); if(!h) return; refundBets(h); freeMares(h); S.hall.push({name:h.name, coat:h.coat, mark:h.mark, socks:h.socks, age:h.age, wins:h.wins, earned:h.earned, gw:h.gw});
     S.horses = S.horses.filter(x => x !== h); S.fame += 10 + h.wins * 2; $('modal').hidden = true; toast(`🏅 ${h.name} enters the Hall of Fame! +${10 + h.wins * 2} ⭐`); persist(); renderPanel(); return; }
   if(d.rename){ const h = S.horses.find(x => x.id === +d.rename); const n = prompt('New name', h.name); if(n && n.trim()){ h.name = n.trim().slice(0, 22); persist(); detail(h); renderPanel(); } return; }
   if(d.fac){ const f = FAC.find(x => x.id === d.fac), l = S.fac[f.id], c = facCost(f, l); if(S.cash < c){ toast('💸 Need ' + money(c)); return; }
