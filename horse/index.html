@@ -1174,7 +1174,7 @@ function horseCard(h){
       <span>FORM</span>${bar(h.form * 1.5, 150, 'form')}<span>${Math.round(h.form)}%</span></div>
     <div class="hsub" style="margin-top:3px">🔢 Total skill <b style="color:var(--text)">${totSt(h)}</b> / ${totPot(h)} potential</div></div></div>
     ${st && !busy ? `<div class="hsub" style="margin-top:4px">${st}</div>` : ''}${banner}
-    <div class="plans">${plans}${R.sell ? '' : `<button data-edit="${h.id}">🧬 Edit</button>`}</div></div>`;
+    <div class="plans">${plans}${R.sell ? '' : `<button data-edit="${h.id}">🎨 Edit</button>`}</div></div>`;
 }
 function marketCard(h, i){
   const can = S.cash >= h.price;
@@ -1296,29 +1296,25 @@ function breedPicker(h){
     return `<button data-pickstud="${x.id}" data-own="${isOwn ? 1 : 0}" data-h="${h.id}" style="display:flex;gap:10px;align-items:center">${pimg(x, 78)}<span style="flex:1;min-width:0"><b>${x.name}</b> ${stars(grade(x))}<br>${isOwn ? 'your stallion (free)' : money(x.fee)} · ${PREF_ICON[x.pref]} · ${COAT[x.coat].n}<small>Potential ${x.pot.spd}/${x.pot.sta}/${x.pot.acc} → expected foal ≈ ${exp} (SPD/STA/ACC)</small></span></button>`; };
   showModal(`${pimg(h, 110)}<h2>💞 Breed ${h.name}</h2><p>${PREF_ICON[h.pref]} · her potential: ${h.pot.spd}/${h.pot.sta}/${h.pot.acc} · fertility ${Math.round(fertility(h) * 100)}%</p><div class="pick">${own.map(x => opt(x, true)).join('')}${S.studs.map(x => opt(x, false)).join('')}</div><button class="btn ghost" data-close>Cancel</button>`);
 }
-// ---- Horse Editor: pricey changes for players with deep pockets ----
-const EDIT_COST = {dist:5e6, coat:2e6, rare:1e7, face:5e5, socks:5e5, pot:1e7, rename:1e6};
+// ---- Horse Editor: pricey cosmetic changes (looks and a one-time rename) ----
+const EDIT_COST = {coat:2e6, rare:1e7, face:5e5, socks:5e5, rename:1e6}; // looks and name only
 function editHorse(h){
   const b = (k, v, label, cost, on, dis) => `<button class="${on ? 'on' : ''}" data-ed="${k}" data-v="${v}" data-h="${h.id}" ${on || dis || S.cash < cost ? 'disabled' : ''} style="${!on && (dis || S.cash < cost) ? 'opacity:.45' : ''}">${label}</button>`;
-  showModal(`${pimg(h, 110)}<h2>🧬 Edit ${h.name}</h2><p>Cash <b style="color:var(--good)">${money(S.cash)}</b> · each change is paid right away</p>
+  showModal(`${pimg(h, 110)}<h2>🎨 Edit ${h.name}</h2><p>Cash <b style="color:var(--good)">${money(S.cash)}</b> · each change is paid right away</p>
     <div class="sec">✏️ Name · ${money(EDIT_COST.rename)} · one time only</div><div class="plans">${h.renamed ? '<span class="note">Already renamed once</span>' : b('rename', 1, '✏️ Rename…', EDIT_COST.rename)}</div>
-    <div class="sec">📏 Favorite distance · ${money(EDIT_COST.dist)}</div><div class="plans">${['sprint', 'mile', 'long'].map(d => b('dist', d, PREF_ICON[d], EDIT_COST.dist, h.pref === d)).join('')}</div>
-    <div class="sec">🧬 Potential · ${money(EDIT_COST.pot)} for +5 (max 150)</div><div class="plans">${STATS.map(st => b('pot', st, `+5 ${STAT_N[st]} (${h.pot[st]})`, EDIT_COST.pot, false, h.pot[st] >= 150)).join('')}</div>
     <div class="sec">🎨 Coat · ${money(EDIT_COST.coat)} (rare ${money(EDIT_COST.rare)})</div><div class="plans">${COATS.map(c => b('coat', c.id, `<span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${c.c};border:1px solid #0006;vertical-align:-1px"></span> ${c.n}${c.rare ? ' ✨' : ''}`, c.rare ? EDIT_COST.rare : EDIT_COST.coat, h.coat === c.id)).join('')}</div>
     <div class="sec">⚪ Face & legs · ${money(EDIT_COST.face)}</div><div class="plans">${[[0, 'Plain face'], [1, 'Star'], [2, 'Blaze']].map(([v, n]) => b('face', v, n, EDIT_COST.face, (h.mark >= 2 ? 2 : h.mark) === v)).join('')}${b('socks', h.socks ? 0 : 1, h.socks ? 'Remove white socks' : 'Add white socks', EDIT_COST.socks)}</div>
     <button class="btn ghost" data-detail="${h.id}">⬅ Back</button><button class="btn" data-close>Done</button>`);
 }
 function doEdit(h, k, v){
   if(R.freeze){ toast('🏁 Finish watching the races first (or tap Skip)'); return; }
-  const cost = k === 'coat' && COAT[v].rare ? EDIT_COST.rare : EDIT_COST[k]; if(S.cash < cost){ toast('💸 Not enough cash'); return; }
+  if(!(k in EDIT_COST)) return; const cost = k === 'coat' && COAT[v].rare ? EDIT_COST.rare : EDIT_COST[k]; if(S.cash < cost){ toast('💸 Not enough cash'); return; }
   if(k === 'rename'){ if(h.renamed) return; const n = prompt(`New name for ${h.name} (${money(cost)}, you can only do this once)`, h.name); if(!n || !n.trim() || n.trim() === h.name) return; h.name = n.trim().slice(0, 22); h.renamed = true; }
-  else if(k === 'dist') h.pref = v;
-  else if(k === 'pot'){ if(h.pot[v] >= 150) return; h.pot[v] = Math.min(150, h.pot[v] + 5); }
   else if(k === 'coat') h.coat = v;
   else if(k === 'face') h.mark = +v;
   else if(k === 'socks') h.socks = v === '1';
   S.cash -= cost; S.stats.edits = (S.stats.edits || 0) + 1;
-  toast(`🧬 ${h.name} updated (−${money(cost)})`); persist(); renderPanel(); updateTop(); editHorse(h);
+  toast(`🎨 ${h.name} updated (−${money(cost)})`); persist(); renderPanel(); updateTop(); editHorse(h);
 }
 function detail(h, market){
   const ped = h.sire ? `<p>By <b>${h.sire}</b> out of <b>${h.dam}</b> · generation ${h.gen}</p>` : '';
@@ -1326,7 +1322,7 @@ function detail(h, market){
     <p><span style="color:var(--gold)">${stars(grade(h))}</span> · ${BREEDS[h.breed].n} · ${COAT[h.coat].n} · ${ageTxt(h.age)} · ${PREF_ICON[h.pref]}</p>${ped}
     <p>Potential ${h.pot.spd}/${h.pot.sta}/${h.pot.acc} · Record ${h.wins}W ${h.places}P ${h.starts}R · Earned ${money(h.earned)}${h.crown && h.crown.length ? ' · 👑 ' + h.crown.length + ' classics' : ''}</p>
     <p>Value ≈ <b>${money(value(h))}</b></p>
-    ${market ? '' : `<button class="btn" data-edit="${h.id}">🧬 Edit horse (name, distance, potential, looks)</button>${h.wins >= 3 ? `<button class="btn ghost" data-retire="${h.id}">🏅 Retire to Hall of Fame</button>` : ''}<button class="btn ghost" data-sell="${h.id}">${sellPrice(h) ? `💰 Sell for ${money(sellPrice(h))}` : '🏡 Rehome (free)'}</button>`}
+    ${market ? '' : `<button class="btn" data-edit="${h.id}">🎨 Edit name & looks</button>${h.wins >= 3 ? `<button class="btn ghost" data-retire="${h.id}">🏅 Retire to Hall of Fame</button>` : ''}<button class="btn ghost" data-sell="${h.id}">${sellPrice(h) ? `💰 Sell for ${money(sellPrice(h))}` : '🏡 Rehome (free)'}</button>`}
     <button class="btn" data-close>Close</button>`);
 }
 
