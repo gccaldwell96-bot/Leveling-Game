@@ -1153,7 +1153,7 @@ function planLabel(h){ const p = h.plan;
 function autoFocus(h){ const gaps = STATS.map(s => [s, h.pot[s] - h.st[s]]).sort((a, b) => b[1] - a[1]); return gaps[0][1] > 1 ? gaps[0][0] : 'bal'; }
 const totSt = h => Math.round(h.st.spd + h.st.sta + h.st.acc), totPot = h => h.pot.spd + h.pot.sta + h.pot.acc;
 const SORTS = [['custom', '✋ My order'], ['total', '🔢 Total skill'], ['pot', '★ Potential'], ['dist', '📏 Distance'], ['wins', '🏆 Wins'], ['age', '🍼 Youngest'], ['name', '🔤 Name']];
-const FILTERS = [['all', 'All', () => true], ['ready', '🏁 Race-ready', h => canRace(h)], ['mare', '♀ Mares', h => h.sex === 'F'], ['stal', '♂ Stallions', h => h.sex === 'M']];
+const FILTERS = [['all', 'All', () => true], ['ready', '🏁 Race-ready', h => canRace(h)], ['mare', '♀ Mares', h => h.sex === 'F'], ['stal', '♂ Stallions', h => h.sex === 'M'], ['age3', '3️⃣ 3-year-olds', h => Math.floor(h.age / 12) === 3]]; // 3-year-olds: Triple Crown eligible
 const NSORTS = [['old', '🐴 Oldest'], ['young', '🍼 Youngest'], ['pot', '★ Potential'], ['total', '🔢 Total skill'], ['dist', '📏 Distance'], ['sex', '♀♂ Fillies first'], ['name', '🔤 Name']];
 const NFILTERS = [['all', 'All', () => true], ['F', '♀ Fillies', h => h.sex === 'F'], ['M', '♂ Colts', h => h.sex === 'M'], ['top', '⭐ 5-star', h => grade(h) >= 5]];
 function nurseryList(){ // foals, sorted and filtered
