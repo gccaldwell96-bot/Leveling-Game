@@ -214,6 +214,8 @@ function fmt(n){ const neg = n < 0; n = Math.abs(n); let s;
 const money = n => (n < 0 ? '-$' : '$') + fmt(Math.abs(n));
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const monthName = t => MONTHS[t % 12] + ', Y' + (Math.floor(t / 12) + 1);
+// racing age, like real racing: every horse officially turns a year older on January 1, whatever month it was born
+const raceAge = (h, t = S.t) => Math.floor(t / 12) - Math.floor((t - h.age) / 12);
 function ageTxt(m){ const y = Math.floor(m / 12), mo = m % 12; return y ? `${y}y${mo ? ' ' + mo + 'm' : ''}` : `${mo}m`; }
 function hash(a){ a = (a ^ 61) ^ (a >>> 16); a = a + (a << 3); a = a ^ (a >>> 4); a = Math.imul(a, 0x27d4eb2d); a = a ^ (a >>> 15); return (a >>> 0) / 4294967296; }
 const ord = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th');
@@ -517,10 +519,10 @@ function runnersFor(race){ return S.horses.filter(h => h.plan.t === 'race' && h.
 function eligible(h, race){
   if(!canRace(h)) return 'Not fit to race';
   if(race.maiden && h.wins > 0) return 'Maidens only';
-  if(race.age3 && Math.floor(h.age / 12) !== 3) return '3-year-olds only';
-  if(race.age2 && Math.floor(h.age / 12) !== 2) return '2-year-olds only';
+  if(race.age3 && raceAge(h) !== 3) return '3-year-olds only (racing age)';
+  if(race.age2 && raceAge(h) !== 2) return '2-year-olds only (racing age)';
   if(race.sex === 'F' && h.sex !== 'F') return 'Fillies & mares only';
-  if(race.vet && h.age < 84) return 'Ages 7+ only';
+  if(race.vet && raceAge(h) < 7) return 'Ages 7+ only (racing age)';
   if(race.req && S.fame < race.req) return `Needs ⭐ ${race.req} fame`;
   return '';
 }
@@ -1154,7 +1156,7 @@ function autoFocus(h){ const gaps = STATS.map(s => [s, h.pot[s] - h.st[s]]).sort
 const totSt = h => Math.round(h.st.spd + h.st.sta + h.st.acc), totPot = h => h.pot.spd + h.pot.sta + h.pot.acc;
 const SORTS = [['custom', '✋ My order'], ['total', '🔢 Total skill'], ['pot', '★ Potential'], ['dist', '📏 Distance'], ['wins', '🏆 Wins'], ['age', '🍼 Youngest'], ['name', '🔤 Name']];
 const FILTERS = [['all', 'All', () => true, ''], ['ready', '🏁 Race-ready', h => canRace(h), 'status'], ['mare', '♀ Mares', h => h.sex === 'F', 'sex'], ['stal', '♂ Stallions', h => h.sex === 'M', 'sex'],
-  ['age3', '3️⃣ 3-year-olds', h => Math.floor(h.age / 12) === 3, 'age'], ['sprint', '⚡ Sprint', h => h.pref === 'sprint', 'dist'], ['mile', '🎯 Mile', h => h.pref === 'mile', 'dist'], ['long', '🛤️ Route', h => h.pref === 'long', 'dist']];
+  ['age3', '3️⃣ 3-year-olds', h => raceAge(h) === 3, 'age'], ['sprint', '⚡ Sprint', h => h.pref === 'sprint', 'dist'], ['mile', '🎯 Mile', h => h.pref === 'mile', 'dist'], ['long', '🛤️ Route', h => h.pref === 'long', 'dist']];
 // several filters at once: within a group any can match (Mares or Stallions), across groups all must (3-year-old AND Sprint)
 const activeFilters = () => (S.filters || []).filter(id => FILTERS.some(f => f[0] === id));
 function passFilters(h){ const act = FILTERS.filter(f => activeFilters().includes(f[0])), groups = [...new Set(act.map(f => f[3]))];
@@ -1170,7 +1172,7 @@ function nurseryList(){ // foals, sorted and filtered
 function crownAlert(){ // Triple Crown leg this month (or next) at the top of the Stable tab
   const r = S.card.find(x => x.crown);
   if(!r){ const nx = CROWN.find(c => c.m === (S.t + 1) % 12); if(!nx) return '';
-    const n3 = S.horses.filter(h => h.age >= 36 && h.age < 48).length;
+    const n3 = S.horses.filter(h => raceAge(h, S.t + 1) === 3 && h.age + 1 >= 24).length;
     return `<div class="race big crown" style="font-size:13px">🔜 <b>${RN(nx)}</b> is <b>next month</b> (${MONTHS[nx.m]}). ${n3 ? `You'll have ${n3} three-year-old${n3 > 1 ? 's' : ''}: rest ${n3 > 1 ? 'them' : 'it'} this month so ${n3 > 1 ? 'they run' : 'it runs'} in top form.` : 'It is for 3-year-olds only.'}</div>`; }
   const ins = runnersFor(r), ok = S.horses.filter(h => !eligible(h, r) && !ins.includes(h)).sort((a, b) => rating(b, r.dist) - rating(a, r.dist));
   const why = S.fame < r.req ? `You need ⭐ ${r.req} fame to enter (you have ${Math.floor(S.fame)}).` : 'None of your horses can enter: it is for 3-year-olds only, and they must not be injured, pregnant or retired.';
@@ -1214,7 +1216,7 @@ function horseCard(h){
   const banner = er ? `<div class="entered ${er.crown ? 'crown' : ''}">🏁 Entered in <b>${RN(er)}</b> · ${DIST[er.dist].n}${h.pref === er.dist ? ' ✓' : ''} · purse ${money(er.purse)} · win odds <b style="color:var(--gold)">${xs(odds(er, h).win.x)}</b>${eb.length ? ` · 🎟️ ${money(eb.reduce((a, b) => a + b.amt, 0))} bet` : ''}</div>` : '';
   return `<div data-hid="${h.id}" class="horse mine ${er ? 'racing' : ''} ${R.sell && R.sell.has(h.id) ? 'picked' : ''}">${pick}<div class="hrow"><div class="por d-${h.pref}" data-detail="${h.id}" title="${PREF_ICON[h.pref]} specialist"><span class="dt">${DICON[h.pref]}</span><img src="${portrait(h)}"></div>
     <div class="hinfo"><div class="hname">${(S.sortBy || 'custom') === 'custom' && h.age >= 24 ? `<span class="mv"><span class="grip" data-grip="${h.id}" title="Drag to move">⠿</span><button data-mv="${h.id}" data-dir="-1" title="Move up">▲</button><button data-mv="${h.id}" data-dir="1" title="Move down">▼</button></span>` : ''}${h.sex === 'M' ? '♂' : '♀'} ${h.name} <span class="st">${stars(grade(h))}</span>${h.breed === 'legend' ? ' <span class="tc" style="background:linear-gradient(90deg,#c8f0ff,#d6a8ff)">✨ LEGEND</span>' : ''}${tcWinner(h) ? ' <span class="tc">👑 TRIPLE CROWN</span>' : ''}${er ? ' <span class="rtag">🏁 RACING</span>' : ''}</div>
-    <div class="hsub">${ageTxt(h.age)} · ${BREEDS[h.breed].n} · ${PREF_ICON[h.pref]} · ${h.wins}W/${h.starts}R${h.gw ? ` · ${h.gw} graded` : ''}</div>
+    <div class="hsub">${ageTxt(h.age)}${h.age >= 12 ? ` <span title="Racing age: every horse turns a year older on January 1">(races as ${raceAge(h)}yo)</span>` : ''} · ${BREEDS[h.breed].n} · ${PREF_ICON[h.pref]} · ${h.wins}W/${h.starts}R${h.gw ? ` · ${h.gw} graded` : ''}</div>
     <div class="stats"><span>SPD</span>${bar(h.st.spd, h.pot.spd, '')}<span>${Math.round(h.st.spd)}/${h.pot.spd}</span>
       <span>STA</span>${bar(h.st.sta, h.pot.sta, 'sta')}<span>${Math.round(h.st.sta)}/${h.pot.sta}</span>
       <span>ACC</span>${bar(h.st.acc, h.pot.acc, 'acc')}<span>${Math.round(h.st.acc)}/${h.pot.acc}</span>
@@ -1281,7 +1283,7 @@ function renderPanel(){
   } else if(tab === 'breed'){
     if(!S.fac.barn){ P.innerHTML = `<div class="card"><h3>💞 Breeding</h3>Build a <b>Breeding Barn</b> on the Ranch tab to start breeding. Foals inherit their parents' potential, with a chance to mutate into something better, or a rare coat!</div>`; return; }
     const mares = S.horses.filter(h => h.sex === 'F'), stallions = S.horses.filter(h => h.sex === 'M');
-    P.innerHTML = `<div class="card"><h3>💞 Breeding</h3>Choose a mare (3y+) and a stallion. She's in foal for 5 months (no racing). Foals get the <b>average potential</b> of both parents ±, with a <b>${Math.round(mutChance() * 1000) / 10}%</b> chance per stat to mutate 6–14 points higher, and may get a rare coat. Your own stallions can also earn stud fees.<br>✨ <b>Legend breed:</b> breed two horses that both have <b>150 in the same stat</b>, a Legend with any horse that has a 150 stat, or two Legends. Legend foals can reach <b>175</b> potential. (Your top races get tougher as your Legends get stronger.)</div>
+    P.innerHTML = `<div class="card"><h3>💞 Breeding</h3>Choose a mare (3y+) and a stallion. She's in foal for 5 months (no racing). Foals get the <b>average potential</b> of both parents ±, with a <b>${Math.round(mutChance() * 1000) / 10}%</b> chance per stat to mutate 6–14 points higher, and may get a rare coat. Your own stallions can also earn stud fees.<br>📅 <b>Racing age:</b> like real racing, every horse officially turns a year older on <b>January 1</b>, so foals born early in the year are bigger and stronger when they race as 2- and 3-year-olds.<br>✨ <b>Legend breed:</b> breed two horses that both have <b>150 in the same stat</b>, a Legend with any horse that has a 150 stat, or two Legends. Legend foals can reach <b>175</b> potential. (Your top races get tougher as your Legends get stronger.)</div>
       <div class="sec">Your mares</div>${mares.map(h => `<div class="item">${pimg(h, 96)}<div class="info"><div class="nm">${h.name} <span style="color:var(--gold);font-size:11px">${stars(grade(h))}</span></div><div class="ds">${statusTxt(h) || (canBreedMare(h) ? 'Ready to breed' : 'Too young (3y+)')}${h.plan.t === 'breed' ? ` · 💞 with ${h.plan.sn}` : ''}</div></div>${canBreedMare(h) ? `<button class="sbtn ${h.plan.t === 'breed' ? 'on' : 'can'}" data-plan="${h.id}" data-p="breed">${h.plan.t === 'breed' ? 'Change' : 'Breed…'}</button>` : ''}</div>`).join('') || '<div class="card">No mares yet.</div>'}
       <div class="sec"><span>Stud book (outside stallions)</span><span style="text-transform:none;letter-spacing:0">New stallions every month</span></div>${S.studs.map(st => `<div class="item">${pimg(st, 96)}<div class="info"><div class="nm">${st.tier === 3 ? '🏆 ' : ''}${st.name} <span style="color:var(--gold);font-size:11px">${stars(grade(st))}</span>${st.tier === 3 ? ' <span class="tag win">ELITE</span>' : ''}${st.breed === 'legend' ? ' <span class="tc" style="background:linear-gradient(90deg,#c8f0ff,#d6a8ff)">✨ LEGEND</span>' : ''}</div><div class="ds">${BREEDS[st.breed].n} · ${COAT[st.coat].n} · ${st.wins} wins · pot ${st.pot.spd}/${st.pot.sta}/${st.pot.acc}</div></div><span class="sbtn">${money(st.fee)}</span></div>`).join('')}
       <div class="sec">Your stallions</div>${stallions.map(h => `<div class="item">${pimg(h, 96)}<div class="info"><div class="nm">${h.name} <span style="color:var(--gold);font-size:11px">${stars(grade(h))}</span></div><div class="ds">pot ${h.pot.spd}/${h.pot.sta}/${h.pot.acc} · stud fee ${money(studFee(h))}</div></div></div>`).join('') || '<div class="card">No stallions yet.</div>'}`;
