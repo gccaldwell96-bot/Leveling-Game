@@ -569,7 +569,8 @@ function runRace(race){
 }
 const allRecs = () => { const m = new Map((S.archive || []).map(r => [r.id, r])); for(const h of S.horses) m.set(h.id, h); return [...m.values()]; }; // everyone you've ever owned, current horses up to date
 const sweeps = h => (h.crown || []).filter(c => c.startsWith('3@') && h.crown.includes('1@' + c.slice(2)) && h.crown.includes('2@' + c.slice(2))).map(c => +c.slice(2));
-const tcDynasty = h => { if(!sweeps(h).length) return false; const s = findRec(h.sireId, h.sire, 'M', h), d = findRec(h.damId, h.dam, 'F', h); return !!(s && d && sweeps(s).length && sweeps(d).length); }; // a Triple Crown winner out of two Triple Crown winners
+const tcParents = h => { const s = findRec(h.sireId, h.sire, 'M', h), d = findRec(h.damId, h.dam, 'F', h); return !!(s && d && sweeps(s).length && sweeps(d).length); }; // both parents won the Triple Crown
+const tcDynasty = h => sweeps(h).length > 0 && tcParents(h); // a Triple Crown winner out of two Triple Crown winners
 const tcCount = () => allRecs().reduce((a, h) => a + sweeps(h).length, 0);
 const tcWinner = h => (h.crown || []).some(c => c.startsWith('3@') && h.crown.includes('1@' + c.slice(2)) && h.crown.includes('2@' + c.slice(2))); // swept all three in one year
 const RC = r => r.crown ? 'big crown' : r.big ? 'big' : ''; // CSS class for a race row
@@ -774,7 +775,7 @@ function foal(dam, sire){
   Object.assign(h, {coat, mark:Math.random() < 0.5 ? dam.mark : sire.mark, socks:Math.random() < 0.5 ? dam.socks : sire.socks, gen:(dam.gen || 0) + 1, dam:dam.name, sire:sire.name, damId:dam.id, sireId:sire.id, plan:{t:'rest'}, prodigy});
   for(const s of STATS) h.st[s] = Math.round(h.pot[s] * 0.18);
   S.horses.push(h); S.stats.foals++;
-  goal('foal1'); if(grade(h) >= 4) goal('foal4'); if(COAT[h.coat].rare) goal('rare');
+  goal('foal1'); if(grade(h) >= 4) goal('foal4'); if(tcParents(h)) goal('tcfoal'); if(COAT[h.coat].rare) goal('rare');
   return h;
 }
 function yearSummary(){
@@ -857,6 +858,7 @@ const GOALS = [
   {id:'gen10',  n:'Breed a 10th-generation horse',      r:1000000, chk:() => S.horses.some(h => (h.gen || 0) >= 10)},
   {id:'tcsprint', n:'Win the Triple Crown with a ⚡ Sprinter', r:5000000, chk:() => allRecs().some(h => h.pref === 'sprint' && sweeps(h).length)},
   {id:'tcmare', n:'Win the Triple Crown with a ♀ mare',  r:5000000, chk:() => allRecs().some(h => h.sex === 'F' && sweeps(h).length)},
+  {id:'tcfoal', n:'Breed a foal whose sire and dam both won the Triple Crown', r:10000000, chk:() => allRecs().some(tcParents)},
   {id:'tcdyn',  n:'Triple Crown dynasty: a winner whose sire AND dam both won the Triple Crown', r:25000000, chk:() => allRecs().some(tcDynasty)},
   {id:'crown3', n:'Win 3 Triple Crowns',                r:10000000, chk:() => tcCount() >= 3},
 ];
