@@ -381,6 +381,9 @@ function load(){
         if(oldOk && raceAge(h, Yc * 12 + 4) !== 3){ h.age = S.t - (Yc - 3) * 12; S.raceAgeMig.push(h.name); } }
       if(S.raceAgeMig.length) setTimeout(() => toast(`📅 Racing age update: ${S.raceAgeMig.join(', ')} keep their Triple Crown year (birthday moved to Jan 1)`), 900);
     }
+    if(!S.slamMig){ S.slamMig = true;
+      for(const h of S.horses){ h.bigWins = h.bigWins || []; for(const c of h.crown || []){ const n = CROWN[+c.split('@')[0] - 1].n; if(!h.bigWins.includes(n)) h.bigWins.push(n); } }
+      for(const l of [...(S.log || []), ...(S.history || []).filter(x => x.mine).map(x => ({race:x.n, horse:x.w, place:1}))]) if(l.place === 1 && SLAM_ALL.includes(l.race)){ const h = S.horses.find(x => x.name === l.horse); if(h && !h.bigWins.includes(l.race)) h.bigWins.push(l.race); } }
     autoStud();
     if(S.card && S.card.length) addHighStakes(S.card); // older cards skipped High Stakes next to restricted races
     if(!S.card || S.card.some(r => !r.field0)){ for(const b of S.bets) S.cash += b.amt; S.bets = []; makeCard(); for(const h of S.horses) if(h.plan.t === 'race') h.plan = {t:'train', f:'spd'}; }
@@ -416,7 +419,7 @@ async function loadCode(code){
 document.addEventListener('change', ev => { if(ev.target.id === 'xOpen' && ev.target.files[0]) ev.target.files[0].text().then(loadCode); });
 // ---- records: every horse you've owned (for family trees), big-race winners, yearly champions ----
 const recOf = h => ({id:h.id, name:h.name, sex:h.sex, breed:h.breed, pref:h.pref, pot:{...h.pot}, coat:h.coat, mark:h.mark, socks:h.socks, sire:h.sire || null, dam:h.dam || null, sireId:h.sireId ?? null, damId:h.damId ?? null,
-  wins:h.wins || 0, gw:h.gw || 0, crown:(h.crown || []).slice(), earned:h.earned || 0, gen:h.gen || 0, born:h.age != null ? S.t - h.age : null, stud:!!h.outside});
+  wins:h.wins || 0, gw:h.gw || 0, crown:(h.crown || []).slice(), bigWins:(h.bigWins || []).slice(), earned:h.earned || 0, gen:h.gen || 0, born:h.age != null ? S.t - h.age : null, stud:!!h.outside});
 function archiveAll(){ const A = S.archive = S.archive || []; const idx = new Map(A.map((r, i) => [r.id, i]));
   for(const h of S.horses){ const r = recOf(h); if(idx.has(h.id)) A[idx.get(h.id)] = r; else { idx.set(h.id, A.length); A.push(r); } }
   if(A.length > 900) S.archive = A.slice(-900); }
@@ -571,6 +574,8 @@ const allRecs = () => { const m = new Map((S.archive || []).map(r => [r.id, r]))
 const sweeps = h => (h.crown || []).filter(c => c.startsWith('3@') && h.crown.includes('1@' + c.slice(2)) && h.crown.includes('2@' + c.slice(2))).map(c => +c.slice(2));
 const tcParents = h => { const s = findRec(h.sireId, h.sire, 'M', h), d = findRec(h.damId, h.dam, 'F', h); return !!(s && d && sweeps(s).length && sweeps(d).length); }; // both parents won the Triple Crown
 const tcDynasty = h => sweeps(h).length > 0 && tcParents(h); // a Triple Crown winner out of two Triple Crown winners
+const SLAM_ALL = FEATURES.map(f => f.n), SLAM = FEATURES.filter(f => !f.sex).map(f => f.n); // the 12 open big races (mare-only race doesn't count)
+const slamDone = h => SLAM.every(n => (h.bigWins || []).includes(n));
 const tcCount = () => allRecs().reduce((a, h) => a + sweeps(h).length, 0);
 const tcWinner = h => (h.crown || []).some(c => c.startsWith('3@') && h.crown.includes('1@' + c.slice(2)) && h.crown.includes('2@' + c.slice(2))); // swept all three in one year
 const RC = r => r.crown ? 'big crown' : r.big ? 'big' : ''; // CSS class for a race row
@@ -668,7 +673,7 @@ function endMonth(){
     for(const f of res.field.filter(x => x.mine)){
       const h = f.h; h.starts++; S.stats.races++; h.form = clamp(h.form - 28, 0, 100);
       for(const s of STATS) h.st[s] = Math.min(h.pot[s], h.st[s] + 0.6 * trainGain(h));
-      if(f.place === 1){ h.wins++; S.stats.wins++; S.yearWins = (S.yearWins || 0) + 1; if(race.cls >= 4 || race.big) h.gw++; if(race.crown) h.crown.push(race.crown + '@' + Math.floor(S.t / 12)); }
+      if(f.place === 1){ h.wins++; S.stats.wins++; S.yearWins = (S.yearWins || 0) + 1; if(race.cls >= 4 || race.big) h.gw++; if(race.crown) h.crown.push(race.crown + '@' + Math.floor(S.t / 12)); if(SLAM_ALL.includes(race.n) && !(h.bigWins = h.bigWins || []).includes(race.n)) h.bigWins.push(race.n); }
       if(f.place <= 3) h.places++;
       if(f.prize){ h.earned += f.prize; led(`${f.place === 1 ? '🥇' : f.place === 2 ? '🥈' : f.place === 3 ? '🥉' : '🎗️'} ${h.name}: ${race.n}`, f.prize); }
       const fm = f.place === 1 ? race.fame : f.place === 2 ? race.fame * 0.4 : f.place === 3 ? race.fame * 0.2 : 0; S.fame += Math.round(fm);
@@ -860,6 +865,7 @@ const GOALS = [
   {id:'tcmare', n:'Win the Triple Crown with a ♀ mare',  r:5000000, chk:() => allRecs().some(h => h.sex === 'F' && sweeps(h).length)},
   {id:'tcfoal', n:'Breed a foal whose sire and dam both won the Triple Crown', r:10000000, chk:() => allRecs().some(tcParents)},
   {id:'tcdyn',  n:'Triple Crown dynasty: a winner whose sire AND dam both won the Triple Crown', r:25000000, chk:() => allRecs().some(tcDynasty)},
+  {id:'slam',   n:"🏆 Gotta Win 'Em All: one horse wins all 12 open big races in its career", r:50000000, chk:() => allRecs().some(slamDone)},
   {id:'crown3', n:'Win 3 Triple Crowns',                r:10000000, chk:() => tcCount() >= 3},
 ];
 function goal(id){ if(S.goals[id]) return; const g = GOALS.find(x => x.id === id); if(!g) return; S.goals[id] = true; (S.goalT = S.goalT || {})[id] = S.t; S.cash += g.r; const msg = `🎯 Goal: ${g.n}! +${money(g.r)}`; if(R.freeze){ R.toastQ.push(msg); return; } setTimeout(() => toast(msg), 400); }
@@ -1483,6 +1489,7 @@ function detail(h, market){
     <p><span style="color:var(--gold)">${stars(grade(h))}</span> · ${BREEDS[h.breed].n} · ${COAT[h.coat].n} · ${ageTxt(h.age)} · ${PREF_ICON[h.pref]}</p>${ped}
     <p>Potential ${h.pot.spd}/${h.pot.sta}/${h.pot.acc} · Record ${h.wins}W ${h.places}P ${h.starts}R · Earned ${money(h.earned)}${h.crown && h.crown.length ? ' · 👑 ' + h.crown.length + ' classics' : ''}</p>
     <p>Value ≈ <b>${money(value(h))}</b></p>
+    ${market ? '' : `<p style="font-size:12px;text-align:left">🏆 <b>Big races won: ${SLAM.filter(n => (h.bigWins || []).includes(n)).length}/12</b>${slamDone(h) ? ' <b style="color:var(--gold)">GOTTA WIN \'EM ALL!</b>' : ''}<br>${SLAM.map(n => `${(h.bigWins || []).includes(n) ? '✅' : '⬜'} ${n}`).join(' · ')}${(h.bigWins || []).includes('Valentine Fillies Sprint') ? ' · ✅ Valentine Fillies Sprint (bonus)' : ''}</p>`}
     ${market ? '' : `<button class="btn ghost" data-tree="${h.id}">🌳 Family tree</button><button class="btn" data-edit="${h.id}">🎨 Edit name & looks</button>${h.wins >= 3 ? `<button class="btn ghost" data-retire="${h.id}">🏅 Retire to Hall of Fame (leaves your stable)</button>` : ''}<button class="btn ghost" data-sell="${h.id}">${sellPrice(h) ? `💰 Sell for ${money(sellPrice(h))}` : '🏡 Rehome (free)'}</button>`}
     <button class="btn" data-close>Close</button>`);
 }
