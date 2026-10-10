@@ -39,6 +39,8 @@
   #endRow{display:flex;gap:8px;align-items:center;padding:8px 12px 2px}
   #endBtn{flex:none;background:linear-gradient(135deg,#ffb347,#ff5d8a);color:#fff;font-weight:900;font-size:15px;padding:11px 16px;border-radius:12px;box-shadow:0 3px 0 #a0305a}
   #endBtn:disabled{opacity:.45}
+  #ffBtn{flex:none;background:var(--card2);color:var(--text);font-weight:900;font-size:13px;padding:11px 10px;border-radius:12px}
+  #ffBtn:disabled{opacity:.45}
   #planSum{flex:1;font-size:11.5px;color:var(--dim);line-height:1.35;min-width:0}
   #glance{display:none;background:var(--panel);border-radius:12px;padding:12px 14px;font-size:13.5px;color:var(--dim);line-height:1.6}
   #glance b{color:var(--text)} #glance h4{margin:0 0 4px;color:var(--gold);font-size:14px}
@@ -196,7 +198,7 @@
     <span class="chip" id="cash">$0</span><span class="chip" id="fame">⭐ 0</span><span class="chip" id="rank">🏆 #6</span><span class="chip" id="date">Jan, Y1</span><button class="chip" id="endBtn2" title="End Month">End Month ▶</button><button class="chip" id="menuBtn" title="Menu">⚙️</button>
   </div>
   <div id="sceneWrap"><canvas id="scene"></canvas><div id="sceneBtns"></div></div>
-  <div id="endRow"><div id="planSum"></div><button id="endBtn">End Month ▶</button><div id="glance"></div></div>
+  <div id="endRow"><div id="planSum"></div><button id="endBtn">End Month ▶</button><button id="ffBtn" title="Skip ahead several months">⏩ Skip</button><div id="glance"></div></div>
   <nav id="tabs">
     <button data-tab="stable"><b>🐎</b>Stable<i class="dot"></i></button>
     <button data-tab="nursery"><b>🍼</b>Nursery<i class="dot"></i></button>
@@ -682,8 +684,8 @@ function betModal(h){
 //  END OF MONTH
 // =====================================================================
 let REPORT = null;
-function endMonth(){
-  try{ localStorage.setItem(UNDO_KEY, JSON.stringify(S)); }catch(e){} // snapshot for ⏪ Undo last month
+function endMonth(opt = {}){
+  if(!opt.quiet) try{ localStorage.setItem(UNDO_KEY, JSON.stringify(S)); }catch(e){} // snapshot for ⏪ Undo last month
   R.sell = null; autoStud();
   if(S.pending){ showEvent(); return; }
   R.freeze = {cash:S.cash, fame:S.fame, t:S.t, yearEarn:S.yearEarn, rivals:S.rivals.map(r => r.earn)}; R.toastQ = []; // no spoilers until the report
@@ -774,6 +776,7 @@ function endMonth(){
   S.log.unshift(...rep.races.flatMap(r => r.field.filter(f => f.mine).map(f => ({m:rep.month, race:r.race.n, horse:f.name, place:f.place, prize:f.prize})))); S.log.length = Math.min(S.log.length, 40);
   if(S.cash < 0) rep.notes.push(`⚠️ You're ${money(-S.cash)} in debt! Sell a horse or win some races.`);
   persist();
+  if(opt.quiet) return rep; // ⏩ skip: no race playback
   REPORT = rep;
   startPlayback(rep);
 }
@@ -1287,6 +1290,28 @@ function rewindMonths(k, clearCrownYear){ // move the calendar back k months (ho
   try{ localStorage.removeItem(UNDO_KEY); }catch(e){}
   makeCard(); refreshMarket(); refreshStuds(); autoStud(); $('modal').hidden = true; R.walkers = []; updateTop(); renderPanel();
 }
+// ---- ⏩ skip ahead: run several months without race playback, then one summary ----
+function autoEvent(){ const e = S.pending; if(!e) return; const c = e.choices.find(c => c[1] === 'no') || e.choices.find(c => c[1] === 'ok') || e.choices[0]; resolveEvent(c[1]); if(S.pending === e) S.pending = null; }
+function skipMonths(n){
+  if(R.play || R.freeze) return;
+  try{ localStorage.setItem(UNDO_KEY, JSON.stringify(S)); }catch(e){} // ⏪ Undo goes back to before the skip
+  const c0 = S.cash, f0 = S.fame, w0 = S.stats.wins, r0 = S.stats.races, from = S.t, births = [], deaths = [], notes = [], years = [];
+  for(let i = 0; i < n; i++){
+    if(S.pending) autoEvent();
+    for(const h of S.horses) if(h.plan.t === 'race' && !S.card.some(r => r.id === h.plan.r)) h.plan = {t:'train', f:'bal'};
+    const rep = endMonth({quiet:true}); births.push(...rep.births); deaths.push(...rep.deaths); if(rep.year) years.push(rep.year);
+    notes.push(...rep.notes.filter(x => /👑|✨|🛡️|🎓|LEGEND|Triple Crown|TRIPLE/.test(x)).map(x => `${monthName(rep.month)}: ${x}`));
+  }
+  $('modal').hidden = true; R.walkers = []; persist(); updateTop(); renderPanel();
+  showModal(`<h2>⏩ Skipped ${n} month${n > 1 ? 's' : ''}</h2><p>${monthName(from)} → <b>${monthName(S.t)}</b></p>
+    <div class="ledger"><div><span>Money</span><b class="${S.cash >= c0 ? 'pos' : 'neg'}">${S.cash >= c0 ? '+' : ''}${money(S.cash - c0)}</b></div><div><span>Fame</span><b class="pos">+${Math.round(S.fame - f0)} ⭐</b></div><div><span>Races / wins</span><b>${S.stats.races - r0} / ${S.stats.wins - w0}</b></div><div><span>Foals born</span><b>${births.length}</b></div>${deaths.length ? `<div><span>Passed away</span><b>${deaths.map(d => d.name).join(', ')}</b></div>` : ''}</div>
+    ${births.length ? `<p style="text-align:left;font-size:13px">🍼 ${births.map(f => `<b>${f.name}</b> ${stars(grade(f))}${f.breed === 'legend' ? ' ✨' : ''}`).join(', ')}</p>` : ''}
+    ${years.map(Y => `<p>🏆 Year ${Y.yr}: you finished <b>#${Y.pos}</b>${Y.bonus ? ` (+${money(Y.bonus)})` : ''}</p>`).join('')}
+    ${notes.length ? `<p style="text-align:left;font-size:12px">${notes.slice(0, 12).join('<br>')}</p>` : ''}
+    <p style="font-size:11px;color:var(--dim)">Horses kept their plans (training, breeding, stud). Event cards were declined. ⚙️ → ⏪ Undo takes you back to before the skip.</p>
+    <button class="btn" data-close>OK</button>`);
+  if(S.pending) setTimeout(() => { if($('modal').hidden) showEvent(); }, 50);
+}
 function stablesFull(why){ // full stalls: let the player pick horses to sell instead of just saying no
   const hs = S.horses.filter(h => !autoStudHorse(h)).sort((a, b) => sellPrice(b) - sellPrice(a)); // studs don't take stalls
   R.sell = R.sell || new Set();
@@ -1430,12 +1455,12 @@ function updateTop(){
       <br>🏁 Entered: ${ent.length ? ent.map(h => `<b>${h.name}</b> <span style="opacity:.75">(${S.card.find(r => r.id === h.plan.r).n})</span>`).join(', ') : 'none yet'}
       <br>🎟️ Bets: ${bt ? `<b>${money(bt)}</b> on ${S.bets.length} ticket${S.bets.length > 1 ? 's' : ''}` : 'none'}
       <br>🏆 Year standing: <b>#${(() => { const ye = Z ? Z.yearEarn : S.yearEarn, tb = [...(Z ? Z.rivals : S.rivals.map(r => r.earn)), ye].sort((a, b) => b - a); return tb.indexOf(ye) + 1; })()}</b> with ${money(Z ? Z.yearEarn : S.yearEarn)} won · ${usedStalls()}/${capacity()} stalls used`; }
-  if(Z){ $('planSum').innerHTML = '🏁 <b>Race day!</b> Watch your races, or tap Skip.<br>Results and money come with the month report.'; $('endBtn').disabled = $('endBtn2').disabled = true; return; }
+  if(Z){ $('planSum').innerHTML = '🏁 <b>Race day!</b> Watch your races, or tap Skip.<br>Results and money come with the month report.'; $('endBtn').disabled = $('endBtn2').disabled = $('ffBtn').disabled = true; return; }
   const n = k => S.horses.filter(h => h.plan.t === k && !h.inj && !h.preg).length;
   const fees = S.card.reduce((s, r) => s + r.fee * runnersFor(r).length, 0);
   const bt = (S.bets || []).reduce((s, b) => s + b.amt, 0);
   $('planSum').innerHTML = `This month: 🏋️ ${n('train')} train · 🏁 ${n('race')} race · 😴 ${n('rest')} rest${n('breed') ? ` · 💞 ${n('breed')} breed` : ''}${bt ? ` · 🎟️ ${money(bt)} bet` : ''}<br>Bills: upkeep ${money(Math.round(UPKEEP * S.horses.length * (1 - 0.05 * S.fac.pasture)))}${fees ? ` + fees ${money(fees)}` : ''}`;
-  $('endBtn').disabled = $('endBtn2').disabled = !!R.play;
+  $('endBtn').disabled = $('endBtn2').disabled = $('ffBtn').disabled = !!R.play;
   const tabs = Object.fromEntries([...document.querySelectorAll('#tabs button')].map(b => [b.dataset.tab, b]));
   tabs.races.classList.toggle('alert', S.card.some(r => r.big && S.horses.some(h => !eligible(h, r))) && !S.card.some(r => r.big && runnersFor(r).length));
   tabs.ranch.classList.toggle('alert', FAC.some(f => S.fac[f.id] < f.max && S.cash >= facCost(f, S.fac[f.id]) && S.cash > 20000));
@@ -1629,7 +1654,12 @@ document.addEventListener('click', ev => {
   if(t.id === 'keepBreed'){ R.keepBreed = !R.keepBreed; breedPicker(S.horses.find(x => x.id === +d.h), true); return; }
   if(t.id === 'fullCancel'){ R.sell = null; $('modal').hidden = true; renderPanel(); if(S.pending) showEvent(); return; } // back to the event card if one was waiting
   if(t.id === 'fullBtn'){ stablesFull('You have more horses than stalls'); return; }
+  if(t.id === 'ffBtn'){ if(R.play) return; const m = S.t % 12, toMay = (4 - m + 12) % 12 || 12;
+    showModal(`<h2>⏩ Skip ahead</h2><p>Runs the months without race animations. Horses keep their plans (training, breeding, stud); races only run for horses already entered this month. Event cards are declined.</p>
+      ${[1, 3, 6, 12].map(k => `<button class="btn ghost" data-ff="${k}">⏩ ${k} month${k > 1 ? 's' : ''} → ${monthName(S.t + k)}</button>`).join('')}<button class="btn ghost" data-ff="${toMay}">👑 To the next Triple Crown (${monthName(S.t + toMay)})</button>
+      <p style="font-size:11px;color:var(--dim)">You can undo the whole skip with ⚙️ → ⏪ Undo.</p><button class="btn" data-close>Cancel</button>`); return; }
   if(t.id === 'endBtn2'){ $('endBtn').click(); return; }
+  if(d.ff){ skipMonths(+d.ff); return; }
   if(d.tab){ if(R.freeze){ toast('🏁 Finish watching the races first (or tap Skip)'); return; } if(d.tab !== tab) R.sell = null; tab = d.tab; if(innerWidth >= 900 && scrollY > $('panel').offsetTop) scrollTo({top:$('panel').offsetTop - 70}); renderPanel(); $('panel').scrollTop = 0; return; }
   if(t.id === 'endBtn'){ if(R.play) return; if(!S.noBetWin && !S.pending && S.card.some(r => runnersFor(r).length)){ betWindow(); return; } endMonth(); if(R.freeze) updateTop(); else renderPanel(); return; }
   if(t.id === 'runRaces'){ R.betWin = false; $('modal').hidden = true; endMonth(); if(R.freeze) updateTop(); else renderPanel(); return; }
