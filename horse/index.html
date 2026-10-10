@@ -1578,7 +1578,7 @@ document.addEventListener('click', ev => {
   if(d.stopbreed){ const h = S.horses.find(x => x.id === +d.stopbreed); if(h){ h.rebreed = false; toast(`🔁 ${h.name}: continuous breeding off`); persist(); renderPanel(); } return; }
   if(d.bsort || d.bsrc){ if(d.bsort) R.bsort = d.bsort; if(d.bsrc) R.bsrc = d.bsrc; const h = S.horses.find(x => x.id === +d.h); if(h){ const sc = $('modalBox').scrollTop; breedPicker(h, true); $('modalBox').scrollTop = sc; } return; }
   if(t.id === 'keepBreed'){ R.keepBreed = !R.keepBreed; breedPicker(S.horses.find(x => x.id === +d.h), true); return; }
-  if(t.id === 'fullCancel'){ R.sell = null; $('modal').hidden = true; renderPanel(); return; }
+  if(t.id === 'fullCancel'){ R.sell = null; $('modal').hidden = true; renderPanel(); if(S.pending) showEvent(); return; } // back to the event card if one was waiting
   if(t.id === 'fullBtn'){ stablesFull('You have more horses than stalls'); return; }
   if(t.id === 'endBtn2'){ $('endBtn').click(); return; }
   if(d.tab){ if(R.freeze){ toast('🏁 Finish watching the races first (or tap Skip)'); return; } if(d.tab !== tab) R.sell = null; tab = d.tab; if(innerWidth >= 900 && scrollY > $('panel').offsetTop) scrollTo({top:$('panel').offsetTop - 70}); renderPanel(); $('panel').scrollTop = 0; return; }
@@ -1623,7 +1623,7 @@ document.addEventListener('click', ev => {
       <p>This can't be undone. Any bets on them are refunded.</p><button class="btn" data-sellall="1">✅ Confirm sale</button><button class="btn ghost" data-close>Go back</button>`); return; }
   if(d.sellall){ const hs = S.horses.filter(h => R.sell && R.sell.has(h.id)); let tot = 0;
     for(const h of hs){ refundBets(h); freeMares(h); const v = sellPrice(h); tot += v; S.cash += v; if(!v) S.fame += 1; S.stats.sold++; S.horses = S.horses.filter(x => x !== h); }
-    R.sell = null; $('modal').hidden = true; toast(`💰 Sold ${hs.length} horse${hs.length > 1 ? 's' : ''} for ${money(tot)}`); persist(); renderPanel(); return; }
+    R.sell = null; $('modal').hidden = true; if(S.pending) setTimeout(showEvent, 50); toast(`💰 Sold ${hs.length} horse${hs.length > 1 ? 's' : ''} for ${money(tot)}`); persist(); renderPanel(); return; }
   if(d.sell){ const h = S.horses.find(x => x.id === +d.sell); if(!h) return;
     const v = sellPrice(h), up = Math.round(UPKEEP * (1 - 0.05 * S.fac.pasture));
     showModal(v ? `<h2>Sell ${h.name}?</h2><p>You'll get <b>${money(v)}</b>${h.age >= 144 ? (breedable(h) ? ' as breeding stock' : '') : ''} and save ${money(up)}/month upkeep.</p><button class="btn" data-sellyes="${h.id}">Sell</button><button class="btn ghost" data-close>Keep</button>`
