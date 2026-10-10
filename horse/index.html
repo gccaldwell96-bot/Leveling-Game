@@ -134,6 +134,7 @@
   .slrow{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;margin-top:6px}
   .sl{display:inline-block;text-align:center;font-size:9.5px;font-weight:800;padding:4px 1px;border-radius:5px;white-space:nowrap;overflow:hidden}
   .sl-won{background:#2f6b3f;color:#c8ffd6}.sl-open{background:var(--card2);color:var(--dim)}.sl-missed{background:#4a2030;color:#ff9aa8;text-decoration:line-through}
+  .plans .slambtn{background:#1f4a2c;color:#9dffb0}
   .sl-tc{box-shadow:inset 0 0 0 1.5px #ffd24a}
   .sl-now{background:#ffd24a;color:#2a1400;animation:tcglow 2s infinite;box-shadow:0 0 8px #ffd24a}.sl-last{background:#ff8a3d;color:#2a0a00;animation:tcglow 1.2s infinite;box-shadow:0 0 10px #ff8a3d}
   .card > .sl{padding:2px 6px;margin:0 2px}
@@ -1292,7 +1293,7 @@ function horseCard(h){
       <span>FORM</span>${bar(h.form * 1.5, 150, 'form')}<span>${Math.round(h.form)}%</span></div>
     <div class="hsub" style="margin-top:3px">🔢 Total skill <b style="color:var(--text)">${totSt(h)}</b> / ${totPot(h)} potential</div></div></div>
     ${st && !busy ? `<div class="hsub" style="margin-top:4px">${st}</div>` : ''}${banner}
-    <div class="plans">${plans}${R.sell ? '' : `<button data-edit="${h.id}">🎨 Edit</button>`}</div></div>`;
+    <div class="plans">${plans}${R.sell ? '' : `${h.age >= 12 ? `<button data-slam="${h.id}" class="${(h.bigWins || []).length && slamAlive(h) ? 'slambtn' : ''}">🎯 ${SLAM.filter(n => (h.bigWins || []).includes(n)).length}/12</button>` : ''}<button data-edit="${h.id}">🎨 Edit</button>`}</div></div>`;
 }
 function marketCard(h, i){
   const can = S.cash >= h.price;
@@ -1465,6 +1466,16 @@ function slamStatus(h, f){ // 'won' | 'open' | 'now' (running this month) | 'las
   return 'open';
 }
 const slamAlive = h => !FEATURES.filter(f => !f.sex).some(f => slamStatus(h, f) === 'missed');
+function slamCard(h){ // per-horse Gotta Win 'Em All checklist
+  const F = FEATURES.filter(f => !f.sex), won = SLAM.filter(n => (h.bigWins || []).includes(n)).length, alive = slamAlive(h);
+  const lbl = {won:'✅ Won', open:'⬜ To win', now:'🟨 This month!', last:'🟧 LAST CHANCE', missed:'❌ Missed'};
+  const when = f => f.age2 ? 'age 2 only' : f.age3 ? 'age 3 only' : f.vet ? 'age 7+' : 'any age';
+  showModal(`${pimg(h, 90)}<h2>🎯 ${h.name}</h2><p><b style="color:${won === 12 ? 'var(--gold)' : alive ? 'var(--good)' : 'var(--dim)'}">${won}/12 big races ${won === 12 ? "🏆 GOTTA WIN 'EM ALL!" : alive ? '🔥 still on track' : '✖ can no longer complete the set'}</b><br><small>${ageTxt(h.age)} · races as ${raceAge(h)}yo</small></p>
+    <div style="text-align:left">${F.map(f => { const st = slamStatus(h, f), r = S.card.find(c => c.n === f.n), why = r && eligible(h, r), ins = r && h.plan.t === 'race' && h.plan.r === r.id;
+      return `<div class="stat" style="align-items:center"><span>${f.crown ? '👑 ' : ''}<b>${f.n}</b><br><small style="color:var(--dim)">${MONTHS[f.m]} · ${DIST[f.dist].n} · ${when(f)}</small></span><span style="text-align:right"><b class="sl sl-${st === 'open' ? 'open' : st}" style="padding:3px 7px">${lbl[st]}</b>${(st === 'now' || st === 'last') && r ? (ins ? '<br><small style="color:var(--good)">entered</small>' : why ? `<br><small style="color:#ffb0b0">${why}</small>` : `<br><button class="sbtn" style="min-width:0;padding:2px 8px;margin-top:3px" data-pickrace="${r.id}" data-h="${h.id}">🏁 Enter</button>`) : ''}</span></div>`; }).join('')}
+    ${(h.bigWins || []).includes('Valentine Fillies Sprint') ? '<div class="stat"><span>Valentine Fillies Sprint <small>(bonus, not required)</small></span><b>✅</b></div>' : ''}</div>
+    <button class="btn" data-close>Close</button>`);
+}
 function slamAlert(){ // Stable tab: this month's slam race and the on-track horses that still need it
   const out = [];
   for(const f of FEATURES.filter(f => !f.sex && f.m === S.t % 12)){ const r = S.card.find(c => c.n === f.n); if(!r) continue;
@@ -1641,6 +1652,7 @@ document.addEventListener('click', ev => {
     showModal(`<h2>🩺 Call the doctor for ${h.name}?</h2><p>The doctor fixes the injury today, so ${h.name} can train, race or breed this month instead of resting ${h.inj} more month${h.inj > 1 ? 's' : ''}.</p><p>Cost <b>${money(c)}</b><br><small style="color:var(--dim)">Price depends on the months left, the horse's potential and its stud value.</small></p><p style="color:var(--gold)">⚠️ Each horse can see the doctor only <b>once</b> in its life.</p><button class="btn" data-docyes="${h.id}">🩺 Pay ${money(c)}</button><button class="btn ghost" data-close>Not now</button>`); return; }
   if(d.docyes){ const h = S.horses.find(x => x.id === +d.docyes); if(!h || !h.inj || h.doc) return; const c = docCost(h); if(S.cash < c) return;
     S.cash -= c; h.inj = 0; h.doc = true; h.plan = canRace(h) ? {t:'train', f:'bal'} : {t:'rest'}; $('modal').hidden = true; toast(`🩺 ${h.name} is fit again! (−${money(c)})`); persist(); updateTop(); renderPanel(); return; }
+  if(d.slam){ const h = S.horses.find(x => x.id === +d.slam); if(h) slamCard(h); return; }
   if(d.tree){ const r = findRec(+d.tree); if(r) familyTree(r); return; }
   if(d.wf){ R.wfilter = d.wf; renderPanel(); return; }
   if(d.rtab){ R.rtab = d.rtab; renderPanel(); return; }
