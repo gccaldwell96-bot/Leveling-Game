@@ -434,7 +434,7 @@ async function loadCode(code){
   try{ const o = await decodeSave(code); localStorage.setItem(SAVE_KEY, JSON.stringify(o)); localStorage.removeItem(UNDO_KEY); toast('📥 Save loaded!'); setTimeout(() => location.replace(location.pathname), 400); }
   catch(e){ toast('❌ That save code didn\'t work. Copy the whole code and try again.'); }
 }
-document.addEventListener('change', ev => { if(ev.target.id === 'xOpen' && ev.target.files[0]) ev.target.files[0].text().then(loadCode); });
+document.addEventListener('change', ev => { if(ev.target.id === 'ffM' || ev.target.id === 'ffY') ffPick(); if(ev.target.id === 'xOpen' && ev.target.files[0]) ev.target.files[0].text().then(loadCode); });
 // ---- records: every horse you've owned (for family trees), big-race winners, yearly champions ----
 const recOf = h => ({id:h.id, name:h.name, sex:h.sex, breed:h.breed, pref:h.pref, pot:{...h.pot}, coat:h.coat, mark:h.mark, socks:h.socks, sire:h.sire || null, dam:h.dam || null, sireId:h.sireId ?? null, damId:h.damId ?? null,
   wins:h.wins || 0, starts:h.starts || 0, gw:h.gw || 0, crown:(h.crown || []).slice(), bigWins:(h.bigWins || []).slice(), earned:h.earned || 0, gen:h.gen || 0, born:h.age != null ? S.t - h.age : null, stud:!!h.outside});
@@ -1292,6 +1292,11 @@ function rewindMonths(k, clearCrownYear){ // move the calendar back k months (ho
 }
 // ---- ⏩ skip ahead: run several months without race playback, then one summary ----
 function autoEvent(){ const e = S.pending; if(!e) return; const c = e.choices.find(c => c[1] === 'no') || e.choices.find(c => c[1] === 'ok') || e.choices[0]; resolveEvent(c[1]); if(S.pending === e) S.pending = null; }
+const ffTarget = () => { const m = $('ffM'), y = $('ffY'); return m && y ? (+y.value - 1) * 12 + +m.value - S.t : 0; };
+function ffPick(){ // live label for the month/year picker
+  const b = $('ffGo'); if(!b) return; const n = ffTarget();
+  b.disabled = n < 1; b.textContent = n < 1 ? '📅 That month has already passed' : `⏩ Skip to ${monthName(S.t + n)} (${n} month${n > 1 ? 's' : ''})`;
+}
 function skipMonths(n){
   if(R.play || R.freeze) return;
   try{ localStorage.setItem(UNDO_KEY, JSON.stringify(S)); }catch(e){} // ⏪ Undo goes back to before the skip
@@ -1656,8 +1661,10 @@ document.addEventListener('click', ev => {
   if(t.id === 'fullBtn'){ stablesFull('You have more horses than stalls'); return; }
   if(t.id === 'ffBtn'){ if(R.play) return; const m = S.t % 12, toMay = (4 - m + 12) % 12 || 12;
     showModal(`<h2>⏩ Skip ahead</h2><p>Runs the months without race animations. Horses keep their plans (training, breeding, stud); races only run for horses already entered this month. Event cards are declined.</p>
-      ${[1, 3, 6, 12].map(k => `<button class="btn ghost" data-ff="${k}">⏩ ${k} month${k > 1 ? 's' : ''} → ${monthName(S.t + k)}</button>`).join('')}<button class="btn ghost" data-ff="${toMay}">👑 To the next Triple Crown (${monthName(S.t + toMay)})</button>
-      <p style="font-size:11px;color:var(--dim)">You can undo the whole skip with ⚙️ → ⏪ Undo.</p><button class="btn" data-close>Cancel</button>`); return; }
+      <div class="card" style="text-align:left;margin:8px 0"><h3>📅 Skip to a specific month</h3><div style="display:grid;grid-template-columns:minmax(0,1fr) 104px;gap:6px;margin:6px 0"><select id="ffM" style="width:100%;min-width:0;padding:9px;border-radius:10px;background:var(--card2);color:var(--text);border:1px solid #fff3;font:inherit">${MONTHS.map((x, i) => { const f = FEATURES.filter(r => r.m === i); return `<option value="${i}" ${i === (m + 1) % 12 ? 'selected' : ''}>${x}${f.length ? ' · ' + f.map(r => (r.crown ? '👑 ' : '') + r.n).join(' + ') : ''}</option>`; }).join('')}</select><select id="ffY" style="width:100%;padding:9px;border-radius:10px;background:var(--card2);color:var(--text);border:1px solid #fff3;font:inherit">${Array.from({length:11}, (_, i) => Math.floor(S.t / 12) + 1 + i).map(y => `<option value="${y}" ${y === Math.floor((S.t + 1) / 12) + 1 ? 'selected' : ''}>Year ${y}</option>`).join('')}</select></div><button class="btn" id="ffGo"></button><small style="color:var(--dim)">You arrive at the start of that month, before its races, so you can enter your horses.</small></div>
+      <div class="sec">Quick picks</div>${[1, 3, 6, 12].map(k => `<button class="btn ghost" data-ff="${k}">⏩ ${k} month${k > 1 ? 's' : ''} → ${monthName(S.t + k)}</button>`).join('')}<button class="btn ghost" data-ff="${toMay}">👑 To the next Triple Crown (${monthName(S.t + toMay)})</button>
+      <p style="font-size:11px;color:var(--dim)">You can undo the whole skip with ⚙️ → ⏪ Undo.</p><button class="btn" data-close>Cancel</button>`); ffPick(); return; }
+  if(t.id === 'ffGo'){ const n = ffTarget(); if(n > 0) skipMonths(n); return; }
   if(t.id === 'endBtn2'){ $('endBtn').click(); return; }
   if(d.ff){ skipMonths(+d.ff); return; }
   if(d.tab){ if(R.freeze){ toast('🏁 Finish watching the races first (or tap Skip)'); return; } if(d.tab !== tab) R.sell = null; tab = d.tab; if(innerWidth >= 900 && scrollY > $('panel').offsetTop) scrollTo({top:$('panel').offsetTop - 70}); renderPanel(); $('panel').scrollTop = 0; return; }
