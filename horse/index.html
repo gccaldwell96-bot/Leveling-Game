@@ -1538,7 +1538,7 @@ function detail(h, market){
     <p>Potential ${h.pot.spd}/${h.pot.sta}/${h.pot.acc} · Record ${h.wins}W ${h.places}P ${h.starts}R · Earned ${money(h.earned)}${h.crown && h.crown.length ? ' · 👑 ' + h.crown.length + ' classics' : ''}</p>
     <p>Value ≈ <b>${money(value(h))}</b></p>
     ${market ? '' : `<p style="font-size:12px;text-align:left">🏆 <b>Big races won: ${SLAM.filter(n => (h.bigWins || []).includes(n)).length}/12</b>${slamDone(h) ? ' <b style="color:var(--gold)">GOTTA WIN \'EM ALL!</b>' : ''}<br>${SLAM.map(n => `${(h.bigWins || []).includes(n) ? '✅' : '⬜'} ${n}`).join(' · ')}${(h.bigWins || []).includes('Valentine Fillies Sprint') ? ' · ✅ Valentine Fillies Sprint (bonus)' : ''}</p>`}
-    ${market ? '' : `<button class="btn ghost" data-tree="${h.id}">🌳 Family tree</button><button class="btn" data-edit="${h.id}">🎨 Edit name & looks</button>${h.wins >= 3 ? `<button class="btn ghost" data-retire="${h.id}">🏅 Retire to Hall of Fame (leaves your stable)</button>` : ''}<button class="btn ghost" data-sell="${h.id}">${sellPrice(h) ? `💰 Sell for ${money(sellPrice(h))}` : '🏡 Rehome (free)'}</button>`}
+    ${market ? '' : `<button class="btn" data-slam="${h.id}">🎯 Big race checklist (${SLAM.filter(n => (h.bigWins || []).includes(n)).length}/12)</button><button class="btn ghost" data-tree="${h.id}">🌳 Family tree</button><button class="btn" data-edit="${h.id}">🎨 Edit name & looks</button>${h.wins >= 3 ? `<button class="btn ghost" data-retire="${h.id}">🏅 Retire to Hall of Fame (leaves your stable)</button>` : ''}<button class="btn ghost" data-sell="${h.id}">${sellPrice(h) ? `💰 Sell for ${money(sellPrice(h))}` : '🏡 Rehome (free)'}</button>`}
     <button class="btn" data-close>Close</button>`);
 }
 
