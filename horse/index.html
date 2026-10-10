@@ -415,7 +415,7 @@ async function loadCode(code){
 }
 document.addEventListener('change', ev => { if(ev.target.id === 'xOpen' && ev.target.files[0]) ev.target.files[0].text().then(loadCode); });
 // ---- records: every horse you've owned (for family trees), big-race winners, yearly champions ----
-const recOf = h => ({id:h.id, name:h.name, sex:h.sex, breed:h.breed, pot:{...h.pot}, coat:h.coat, mark:h.mark, socks:h.socks, sire:h.sire || null, dam:h.dam || null, sireId:h.sireId ?? null, damId:h.damId ?? null,
+const recOf = h => ({id:h.id, name:h.name, sex:h.sex, breed:h.breed, pref:h.pref, pot:{...h.pot}, coat:h.coat, mark:h.mark, socks:h.socks, sire:h.sire || null, dam:h.dam || null, sireId:h.sireId ?? null, damId:h.damId ?? null,
   wins:h.wins || 0, gw:h.gw || 0, crown:(h.crown || []).slice(), earned:h.earned || 0, gen:h.gen || 0, born:h.age != null ? S.t - h.age : null, stud:!!h.outside});
 function archiveAll(){ const A = S.archive = S.archive || []; const idx = new Map(A.map((r, i) => [r.id, i]));
   for(const h of S.horses){ const r = recOf(h); if(idx.has(h.id)) A[idx.get(h.id)] = r; else { idx.set(h.id, A.length); A.push(r); } }
@@ -674,7 +674,7 @@ function endMonth(){
         rep.notes.push(legs.length === race.crown ? `👑 ${h.name} wins the ${race.n}! Triple Crown ${race.crown} of 3. Next: ${CROWN[race.crown].n} in ${MONTHS[CROWN[race.crown].m]}.` : `👑 ${h.name} wins the ${race.n}!`);
         rep.notes.push(`📈 Classic winner: ${h.name}'s ${h.sex === 'M' ? `stud fee is now <b>${money(studFee(h))}</b>/mare` : `value is now <b>${money(value(h))}</b>`}.`); }
       if(race.crown && f.place > 1){ const yr = Math.floor(S.t / 12); if(race.crown > 1 && [...Array(race.crown - 1)].every((_, i) => h.crown.includes((i + 1) + '@' + yr))) rep.notes.push(`💔 ${h.name} finished ${ord(f.place)} in the ${race.n}: the Triple Crown dream is over this year.`); }
-      if(race.crown === 3){ const yr = Math.floor(S.t / 12); if([1, 2, 3].every(c => h.crown.includes(c + '@' + yr))){ rep.crownWin = h; res.sweep = true; led('Triple Crown bonus', 5e6); S.fame += 500; goal('crown'); } }
+      if(race.crown === 3){ const yr = Math.floor(S.t / 12); if([1, 2, 3].every(c => h.crown.includes(c + '@' + yr))){ rep.crownWin = h; res.sweep = true; if(h.pref === 'sprint') goal('tcsprint'); led('Triple Crown bonus', 5e6); S.fame += 500; goal('crown'); } }
       if(Math.random() < injuryRisk(h, true)){ h.inj = irand(1, 3); fresh.add(h); rep.notes.push(`🤕 ${h.name} came back sore: out ${h.inj} month${h.inj > 1 ? 's' : ''}.`); }
       if(f.place === 1){ goal('win1'); if(race.cls >= 3 || race.big) goal('stakes'); if(race.cls >= 4 || race.big) goal('graded'); if(race.big && race.n === 'Golden Derby') goal('derby'); if(race.big && race.n === 'World Championship') goal('world'); }
     }
@@ -854,6 +854,7 @@ const GOALS = [
   {id:'nw100m', n:'Net worth $100M',                    r:3000000, chk:() => netWorth() >= 1e8},
   {id:'legend', n:'Breed a ✨ Legend',                    r:5000000, chk:() => S.horses.some(h => h.breed === 'legend')},
   {id:'gen10',  n:'Breed a 10th-generation horse',      r:1000000, chk:() => S.horses.some(h => (h.gen || 0) >= 10)},
+  {id:'tcsprint', n:'Win the Triple Crown with a ⚡ Sprinter', r:5000000, chk:() => allRecs().some(h => h.pref === 'sprint' && sweeps(h).length)},
   {id:'crown3', n:'Win 3 Triple Crowns',                r:10000000, chk:() => tcCount() >= 3},
 ];
 function goal(id){ if(S.goals[id]) return; const g = GOALS.find(x => x.id === id); if(!g) return; S.goals[id] = true; (S.goalT = S.goalT || {})[id] = S.t; S.cash += g.r; const msg = `🎯 Goal: ${g.n}! +${money(g.r)}`; if(R.freeze){ R.toastQ.push(msg); return; } setTimeout(() => toast(msg), 400); }
