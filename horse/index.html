@@ -138,6 +138,7 @@
   .slamtag{display:inline-block;font-size:9.5px;font-weight:900;letter-spacing:.5px;padding:1px 6px;border-radius:99px;background:#5fd08a;color:#0f2a18;margin-right:5px;vertical-align:1px}
   .plans .slambtn{background:#1f4a2c;color:#9dffb0}
   .sl-mare{box-shadow:inset 0 0 0 1.5px #ff9ad8}
+  .tc.tc3{background:linear-gradient(90deg,#c8e6ff,#9dffb0)}
   .tc.tc2{background:linear-gradient(90deg,#ffe27a,#ff9ad8)}
   .sl-tc{box-shadow:inset 0 0 0 1.5px #ffd24a}
   .sl-now{background:#ffd24a;color:#2a1400;animation:tcglow 2s infinite;box-shadow:0 0 8px #ffd24a}.sl-last{background:#ff8a3d;color:#2a0a00;animation:tcglow 1.2s infinite;box-shadow:0 0 10px #ff8a3d}
@@ -432,7 +433,7 @@ async function loadCode(code){
 document.addEventListener('change', ev => { if(ev.target.id === 'xOpen' && ev.target.files[0]) ev.target.files[0].text().then(loadCode); });
 // ---- records: every horse you've owned (for family trees), big-race winners, yearly champions ----
 const recOf = h => ({id:h.id, name:h.name, sex:h.sex, breed:h.breed, pref:h.pref, pot:{...h.pot}, coat:h.coat, mark:h.mark, socks:h.socks, sire:h.sire || null, dam:h.dam || null, sireId:h.sireId ?? null, damId:h.damId ?? null,
-  wins:h.wins || 0, gw:h.gw || 0, crown:(h.crown || []).slice(), bigWins:(h.bigWins || []).slice(), earned:h.earned || 0, gen:h.gen || 0, born:h.age != null ? S.t - h.age : null, stud:!!h.outside});
+  wins:h.wins || 0, starts:h.starts || 0, gw:h.gw || 0, crown:(h.crown || []).slice(), bigWins:(h.bigWins || []).slice(), earned:h.earned || 0, gen:h.gen || 0, born:h.age != null ? S.t - h.age : null, stud:!!h.outside});
 function archiveAll(){ const A = S.archive = S.archive || []; const idx = new Map(A.map((r, i) => [r.id, i]));
   for(const h of S.horses){ const r = recOf(h); if(idx.has(h.id)) A[idx.get(h.id)] = r; else { idx.set(h.id, A.length); A.push(r); } }
   if(A.length > 900) S.archive = A.slice(-900); }
@@ -593,6 +594,8 @@ const mommyDone = h => h.sex === 'F' && SLAM_ALL.every(n => (h.bigWins || []).in
 const slamList = h => h.sex === 'F' ? FEATURES : FEATURES.filter(f => !f.sex); // mares chase all 13
 const slamWon = h => slamList(h).filter(f => (h.bigWins || []).includes(f.n)).length;
 const slamTitle = h => h.sex === 'F' ? 'Grandmommy of Them All' : 'Granddaddy of Them All';
+const unbeaten = h => (h.starts || 0) > 0 && h.wins === h.starts; // every start a win (missed months and injuries don't count)
+const careerOver = h => !S.horses.includes(h) || h.age >= 144 || !!h.retired;
 const isPegasus = h => !!h.pot && STATS.every(s => h.pot[s] >= LEGEND_CAP) && (slamDone(h) || mommyDone(h)); // 🦄 the ultimate horse
 const ggParents = h => { const s = findRec(h.sireId, h.sire, 'M', h), d = findRec(h.damId, h.dam, 'F', h); return !!(s && d && slamDone(s) && mommyDone(d)); }; // sire a Granddaddy, dam a Grandmommy
 const ggDynasty = h => (slamDone(h) || mommyDone(h)) && ggParents(h);
@@ -698,6 +701,7 @@ function endMonth(){
       for(const s of STATS) h.st[s] = Math.min(h.pot[s], h.st[s] + 0.6 * trainGain(h));
       if(f.place === 1){ h.wins++; S.stats.wins++; S.yearWins = (S.yearWins || 0) + 1; if(race.cls >= 4 || race.big) h.gw++; if(race.crown) h.crown.push(race.crown + '@' + Math.floor(S.t / 12)); if(SLAM_ALL.includes(race.n) && !(h.bigWins = h.bigWins || []).includes(race.n)){ h.bigWins.push(race.n); if(slamDone(h)) goal('slam'); if(mommyDone(h)) goal('mommy'); if(isPegasus(h)) goal('pegasus'); if((slamDone(h) || mommyDone(h)) && h.pref !== 'mile') goal('ggspec'); if(ggDynasty(h)) goal('ggdyn'); } }
       if(f.place <= 3) h.places++;
+      if(f.place > 1 && h.starts - 1 >= 3 && h.wins === h.starts - 1) rep.notes.push(`🛡️ ${h.name}'s unbeaten run ends at ${h.wins}-0.`);
       if(f.prize){ h.earned += f.prize; led(`${f.place === 1 ? '🥇' : f.place === 2 ? '🥈' : f.place === 3 ? '🥉' : '🎗️'} ${h.name}: ${race.n}`, f.prize); }
       const fm = f.place === 1 ? race.fame : f.place === 2 ? race.fame * 0.4 : f.place === 3 ? race.fame * 0.2 : 0; S.fame += Math.round(fm);
       if(race.crown && f.place === 1 && race.crown < 3){ const yr = Math.floor(S.t / 12), legs = [1, 2, 3].filter(c => h.crown.includes(c + '@' + yr));
@@ -896,6 +900,7 @@ const GOALS = [
   {id:'perf150', n:'💯 Perfect Bloodline: a horse with 150/150/150 potential', r:10000000, chk:() => allRecs().some(h => h.pot && STATS.every(s => h.pot[s] >= POT_CAP))},
   {id:'perf175', n:'✨ Beyond Perfect: a Legend with 175/175/175 potential', r:100000000, chk:() => allRecs().some(h => h.pot && STATS.every(s => h.pot[s] >= LEGEND_CAP))},
   {id:'pegasus', n:'🦄 Pegasus, the ultimate horse: a 175/175/175 Legend that also wins them all (Granddaddy or Grandmommy)', r:500000000, chk:() => allRecs().some(isPegasus)},
+  {id:'undefeated', n:'🛡️ Undefeated: a horse ends its racing career without a single loss (50+ starts; injuries and missed months are fine)', r:50000000, chk:() => allRecs().some(h => careerOver(h) && unbeaten(h) && h.starts >= 50)},
   {id:'crown3', n:'Win 3 Triple Crowns',                r:10000000, chk:() => tcCount() >= 3},
 ];
 function goal(id){ if(S.goals[id]) return; const g = GOALS.find(x => x.id === id); if(!g) return; S.goals[id] = true; (S.goalT = S.goalT || {})[id] = S.t; S.cash += g.r; const msg = `🎯 Goal: ${g.n}! +${money(g.r)}`; if(R.freeze){ R.toastQ.push(msg); return; } setTimeout(() => toast(msg), 400); }
@@ -1308,7 +1313,7 @@ function horseCard(h){
   const er = p.t === 'race' && canRace(h) ? S.card.find(r => r.id === p.r) : null, eb = er ? betsOn(h) : [];
   const banner = er ? `<div class="entered ${er.crown ? 'crown' : isSlam(er) ? 'slam' : ''}">🏁 Entered in <b>${RN(er)}</b> · ${DIST[er.dist].n}${h.pref === er.dist ? ' ✓' : ''} · purse ${money(er.purse)} · win odds <b style="color:var(--gold)">${xs(odds(er, h).win.x)}</b>${eb.length ? ` · 🎟️ ${money(eb.reduce((a, b) => a + b.amt, 0))} bet` : ''}</div>` : '';
   return `<div data-hid="${h.id}" class="horse mine ${er ? 'racing' : ''} ${R.sell && R.sell.has(h.id) ? 'picked' : ''}">${pick}<div class="hrow"><div class="por d-${h.pref}" data-detail="${h.id}" title="${PREF_ICON[h.pref]} specialist"><span class="dt">${DICON[h.pref]}</span><img src="${portrait(h)}"></div>
-    <div class="hinfo"><div class="hname">${(S.sortBy || 'custom') === 'custom' && h.age >= 24 ? `<span class="mv"><span class="grip" data-grip="${h.id}" title="Drag to move">⠿</span><button data-mv="${h.id}" data-dir="-1" title="Move up">▲</button><button data-mv="${h.id}" data-dir="1" title="Move down">▼</button></span>` : ''}${h.sex === 'M' ? '♂' : '♀'} ${h.name} <span class="st">${stars(grade(h))}</span>${isPegasus(h) ? ' <span class="tc" style="background:linear-gradient(90deg,#ffd6f6,#c8f0ff,#fff3a8)">🦄 PEGASUS</span>' : h.breed === 'legend' ? ' <span class="tc" style="background:linear-gradient(90deg,#c8f0ff,#d6a8ff)">✨ LEGEND</span>' : ''}${tcWinner(h) ? ' <span class="tc">👑 TRIPLE CROWN</span>' : ''}${tcParents(h) ? ' <span class="tc tc2">👑×2 BABY</span>' : ''}${er ? ' <span class="rtag">🏁 RACING</span>' : ''}</div>
+    <div class="hinfo"><div class="hname">${(S.sortBy || 'custom') === 'custom' && h.age >= 24 ? `<span class="mv"><span class="grip" data-grip="${h.id}" title="Drag to move">⠿</span><button data-mv="${h.id}" data-dir="-1" title="Move up">▲</button><button data-mv="${h.id}" data-dir="1" title="Move down">▼</button></span>` : ''}${h.sex === 'M' ? '♂' : '♀'} ${h.name} <span class="st">${stars(grade(h))}</span>${isPegasus(h) ? ' <span class="tc" style="background:linear-gradient(90deg,#ffd6f6,#c8f0ff,#fff3a8)">🦄 PEGASUS</span>' : h.breed === 'legend' ? ' <span class="tc" style="background:linear-gradient(90deg,#c8f0ff,#d6a8ff)">✨ LEGEND</span>' : ''}${tcWinner(h) ? ' <span class="tc">👑 TRIPLE CROWN</span>' : ''}${tcParents(h) ? ' <span class="tc tc2">👑×2 BABY</span>' : ''}${unbeaten(h) && h.starts >= 3 ? ` <span class="tc tc3">🛡️ ${careerOver(h) ? 'UNDEFEATED' : 'UNBEATEN'} ${h.wins}-0</span>` : ''}${er ? ' <span class="rtag">🏁 RACING</span>' : ''}</div>
     <div class="hsub">${ageTxt(h.age)}${h.age >= 12 ? ` <span title="Racing age: every horse turns a year older on January 1">(races as ${raceAge(h)}yo)</span>` : ''} · ${BREEDS[h.breed].n} · ${PREF_ICON[h.pref]} · ${h.wins}W/${h.starts}R${h.gw ? ` · ${h.gw} graded` : ''}</div>
     <div class="stats"><span>SPD</span>${bar(h.st.spd, h.pot.spd, '')}<span>${Math.round(h.st.spd)}/${h.pot.spd}</span>
       <span>STA</span>${bar(h.st.sta, h.pot.sta, 'sta')}<span>${Math.round(h.st.sta)}/${h.pot.sta}</span>
