@@ -1395,12 +1395,24 @@ function racePicker(h){
     <p>${cur ? `Currently entered in <b style="color:var(--gold)">${cur.n}</b>. Tap another race to switch.` : 'Not entered in a race yet this month.'}</p>
     <div class="pick">${opts}</div>${cur ? `<button class="btn ghost" data-withdraw="${h.id}">✖ Withdraw from ${cur.n}</button>` : ''}<button class="btn ghost" data-close>Cancel</button>`);
 }
+const BSORTS = [['foal', '🍼 Best foal'], ['stats', '💪 Stallion potential'], ['dist', '📏 Same distance first'], ['fee', '💲 Cheapest']];
+const BSRC = [['all', 'All'], ['own', '🐎 Mine'], ['book', '📖 Stud book']];
 function breedPicker(h, keep){
   if(keep === undefined) R.keepBreed = !!h.rebreed;
-  const own = S.horses.filter(x => x !== h && canStud(x) && x.plan.t !== 'race');
-  const opt = (x, isOwn) => { const exp = STATS.map(s => Math.round((h.pot[s] + x.pot[s]) / 2)).join('/');
-    return `<button data-pickstud="${x.id}" data-own="${isOwn ? 1 : 0}" data-h="${h.id}" style="display:flex;gap:10px;align-items:center">${pimg(x, 78)}<span style="flex:1;min-width:0"><b>${x.name}</b> ${stars(grade(x))}${x.breed === 'legend' ? ' <span class="tc" style="background:linear-gradient(90deg,#c8f0ff,#d6a8ff)">✨ LEGEND</span>' : ''}<br>${isOwn ? 'your stallion (free)' : money(x.fee)} · ${PREF_ICON[x.pref]} · ${COAT[x.coat].n}${legendPair(h, x) ? `<br><b style="color:#d6a8ff">✨ LEGEND foal! (${legendWhy(h, x)})</b>` : ''}<small>Potential ${x.pot.spd}/${x.pot.sta}/${x.pot.acc} → expected foal ≈ ${exp} (SPD/STA/ACC)</small></span></button>`; };
-  showModal(`${pimg(h, 110)}<h2>💞 Breed ${h.name}</h2><p>${PREF_ICON[h.pref]} · her potential: ${h.pot.spd}/${h.pot.sta}/${h.pot.acc} · fertility ${Math.round(fertility(h) * 100)}%</p><button class="pickbox ${R.keepBreed ? 'on' : ''}" id="keepBreed" data-h="${h.id}"><span class="cb">${R.keepBreed ? '✓' : ''}</span><span>🔁 <b>Keep breeding</b>: breed her to the same stallion again every time a foal is born</span></button><div class="pick">${own.map(x => opt(x, true)).join('')}${S.studs.map(x => opt(x, false)).join('')}</div><button class="btn ghost" data-close>Cancel</button>`);
+  const sort = R.bsort || 'foal', src = R.bsrc || 'all';
+  const expOf = x => { const cap = legendPair(h, x) ? LEGEND_CAP : POT_CAP; return STATS.map(s => Math.min(cap, Math.round((h.pot[s] + x.pot[s]) / 2))); }; // average of both parents (before mutations)
+  const list = [...(src === 'book' ? [] : S.horses.filter(x => x !== h && canStud(x)).map(x => ({x, own:true}))), ...(src === 'own' ? [] : S.studs.map(x => ({x, own:false})))];
+  const tot = a => a[0] + a[1] + a[2], fee = o => o.own ? 0 : o.x.fee;
+  const cmp = {foal:(a, b) => tot(expOf(b.x)) - tot(expOf(a.x)) || fee(a) - fee(b), stats:(a, b) => totPot(b.x) - totPot(a.x),
+    dist:(a, b) => (b.x.pref === h.pref) - (a.x.pref === h.pref) || tot(expOf(b.x)) - tot(expOf(a.x)), fee:(a, b) => fee(a) - fee(b) || tot(expOf(b.x)) - tot(expOf(a.x))}[sort];
+  list.sort(cmp);
+  const opt = ({x, own}) => { const e = expOf(x), racing = own && x.plan.t === 'race';
+    return `<button data-pickstud="${x.id}" data-own="${own ? 1 : 0}" data-h="${h.id}" style="display:flex;gap:10px;align-items:center">${pimg(x, 78)}<span style="flex:1;min-width:0"><b>${x.name}</b> ${stars(grade(x))}${x.breed === 'legend' ? ' <span class="tc" style="background:linear-gradient(90deg,#c8f0ff,#d6a8ff)">✨ LEGEND</span>' : ''}${sweeps(x).length ? ' 👑' : ''}<br>${own ? `your stallion (free)${racing ? ' · racing this month (still fine)' : ''}` : money(x.fee)} · ${PREF_ICON[x.pref]}${x.pref === h.pref ? ' <span class="pos">✓ same distance</span>' : ''}${legendPair(h, x) ? `<br><b style="color:#d6a8ff">✨ LEGEND foal! (${legendWhy(h, x)})</b>` : ''}<small>Stallion ${x.pot.spd}/${x.pot.sta}/${x.pot.acc} (total ${totPot(x)}) → foal ≈ <b style="color:var(--gold)">${e.join('/')}</b> (total <b style="color:var(--gold)">${tot(e)}</b>)</small></span></button>`; };
+  showModal(`${pimg(h, 110)}<h2>💞 Breed ${h.name}</h2><p>${PREF_ICON[h.pref]} · her potential: ${h.pot.spd}/${h.pot.sta}/${h.pot.acc} (total ${totPot(h)}) · fertility ${Math.round(fertility(h) * 100)}%</p>
+    <button class="pickbox ${R.keepBreed ? 'on' : ''}" id="keepBreed" data-h="${h.id}"><span class="cb">${R.keepBreed ? '✓' : ''}</span><span>🔁 <b>Keep breeding</b>: breed her to the same stallion again every time a foal is born</span></button>
+    <div class="arr" style="justify-content:center"><b>Sort</b>${BSORTS.map(([id, n]) => `<button class="sbtn ${sort === id ? 'on' : ''}" data-bsort="${id}" data-h="${h.id}">${n}</button>`).join('')}</div>
+    <div class="arr" style="justify-content:center;margin:4px 0 6px"><b>Show</b>${BSRC.map(([id, n]) => `<button class="sbtn ${src === id ? 'on' : ''}" data-bsrc="${id}" data-h="${h.id}">${n}</button>`).join('')}</div>
+    <div class="pick">${list.map(opt).join('') || '<p>No stallions available.</p>'}</div><p style="font-size:11px;color:var(--dim)">Foal ≈ the average of both parents' potential; mutations can push it higher.</p><button class="btn ghost" data-close>Cancel</button>`);
 }
 // ---- Horse Editor: pricey cosmetic changes (looks and a one-time rename) ----
 const EDIT_COST = {coat:2e6, rare:1e7, face:5e5, socks:5e5, rename:1e6}; // looks and name only
@@ -1514,6 +1526,7 @@ document.addEventListener('click', ev => {
   const t = ev.target.closest('button,.por'); if(!t || t.disabled) return;
   const d = t.dataset;
   if(d.stopbreed){ const h = S.horses.find(x => x.id === +d.stopbreed); if(h){ h.rebreed = false; toast(`🔁 ${h.name}: continuous breeding off`); persist(); renderPanel(); } return; }
+  if(d.bsort || d.bsrc){ if(d.bsort) R.bsort = d.bsort; if(d.bsrc) R.bsrc = d.bsrc; const h = S.horses.find(x => x.id === +d.h); if(h){ const sc = $('modalBox').scrollTop; breedPicker(h, true); $('modalBox').scrollTop = sc; } return; }
   if(t.id === 'keepBreed'){ R.keepBreed = !R.keepBreed; breedPicker(S.horses.find(x => x.id === +d.h), true); return; }
   if(t.id === 'fullCancel'){ R.sell = null; $('modal').hidden = true; renderPanel(); return; }
   if(t.id === 'fullBtn'){ stablesFull('You have more horses than stalls'); return; }
