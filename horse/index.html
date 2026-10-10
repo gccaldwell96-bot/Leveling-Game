@@ -141,6 +141,8 @@
   .sl-tc{box-shadow:inset 0 0 0 1.5px #ffd24a}
   .sl-now{background:#ffd24a;color:#2a1400;animation:tcglow 2s infinite;box-shadow:0 0 8px #ffd24a}.sl-last{background:#ff8a3d;color:#2a0a00;animation:tcglow 1.2s infinite;box-shadow:0 0 10px #ff8a3d}
   .card > .sl{padding:2px 6px;margin:0 2px}
+  .howto{text-align:left;margin:6px 0}.howto details{background:var(--card);border-radius:10px;margin:5px 0;padding:7px 10px;font-size:13px;line-height:1.5;color:var(--dim)}
+  .howto summary{cursor:pointer;font-weight:900;color:var(--text);font-size:14px}.howto details[open] summary{margin-bottom:5px}.howto b{color:var(--text)}
   .tc{display:inline-block;font-size:10px;font-weight:900;letter-spacing:.8px;padding:2px 7px;border-radius:99px;background:linear-gradient(90deg,#ffe27a,#f5a623);color:#3a1600;margin-right:4px;vertical-align:1px;white-space:nowrap}
   .tag{display:inline-block;font-size:10px;font-weight:900;padding:1px 6px;border-radius:99px;background:var(--card2);color:var(--text);margin-left:4px}
   .tag.win{background:var(--gold);color:#2a1400}
@@ -1716,6 +1718,22 @@ document.addEventListener('click', ev => {
 
 const HOWTO = `<h2>🐎 Derby Dynasty</h2><p>Build a racing dynasty, one month at a time.</p>
     <p style="text-align:left">🏋️ Give each horse a <b>plan</b>: train a stat, rest, race or breed.<br>▶ Press <b>End Month</b> to see what happens: races, foals, bills and surprises.<br>💞 Build a <b>Breeding Barn</b> to breed better and better horses.<br>🏆 Beat the rival stables and win the <b>Triple Crown</b>!</p>
+    <div class="howto">
+    <details><summary>📅 Turns & time</summary>Every turn is one month. Set plans for your horses, then press <b>End Month</b>: races run, horses train, foals arrive and bills are paid. Each horse can do <b>one</b> thing a month. Made a mistake? ⚙️ → <b>⏪ Undo last month</b>.</details>
+    <details><summary>🎂 Aging & life stages</summary>
+      <b>0–2 years · Foal (🍼 Nursery):</b> trains itself from 6 months old, can't race yet.<br>
+      <b>2 years:</b> moves to your Stable and can start racing.<br>
+      <b>2–5 years · Prime:</b> learns fastest (training is strongest when young).<br>
+      <b>5–8 years:</b> training slows down; still racing well.<br>
+      <b>8+ years:</b> stats slowly fade every month and injuries get more likely.<br>
+      <b>12 years · Retirement:</b> racing ends; the horse moves to the 🌾 Pasture. Stallions stand at stud automatically (stud barn, no stall). You can also retire a stallion to stud early.<br>
+      <b>Old age:</b> horses pass away from about 22 (most live to 23–27, none past 32).</details>
+    <details><summary>🏇 Racing age (January 1)</summary>Like real racing, every horse officially turns a year older on <b>January 1</b>, whatever month it was born. Age races use this racing age: the Juvenile Futurity (2-year-olds), the Triple Crown (3-year-olds) and the Veterans' Crown (7+). Cards show it as "races as 3yo". Foals born <b>January–April</b> are the oldest in their crop and the only ones who can run the Juvenile Futurity.</details>
+    <details><summary>💪 Stats, potential & form</summary><b>Speed, Stamina, Accel</b> grow with training up to the horse's <b>potential</b> (the faint bar), which never changes. <b>Form</b> is energy: racing and training use it, resting refills it. Low form means slower races and more injuries. Sprints reward Speed+Accel, Miles mostly Speed, Routes Stamina+Speed. Each horse has a favorite distance: +6% there, −8% at the opposite one.</details>
+    <details><summary>🏁 Races, fame & money</summary>Races go from Maiden → Claiming → Allowance → Stakes → Grade III/II/I, plus big named races and High Stakes. Prize split: 60/20/10/5%. Wins earn <b>⭐ fame</b>, which unlocks bigger races. Every horse costs upkeep each month, so sell or rehome horses you don't need.</details>
+    <details><summary>💞 Breeding</summary>Mares can breed from age 3 (fertility fades after 18, ends at 25). A foal arrives about <b>4 months</b> after breeding. It inherits the <b>average potential</b> of both parents, with a chance to mutate higher (bigger Breeding Barn = more mutations). It gets one parent's favorite distance about 90% of the time. Two horses with <b>150 in the same stat</b> make a ✨ <b>Legend</b> (up to 175). Breed in Sep–Dec for Jan–Apr foals.</details>
+    <details><summary>👑 Big goals</summary><b>Triple Crown</b>: win the Golden Derby, Royal Stakes and Crown Classic with one 3-year-old in one year. <b>Granddaddy of Them All</b>: one horse wins all 12 open big races (mares: all 13 for the Grandmommy). Track it all in 🏆 Rankings.</details>
+    </div>
     <p>You start with $30K and two horses. Watch your bills!</p><button class="btn" data-close>Let's ride</button>`;
 // =====================================================================
 //  MAIN LOOP
