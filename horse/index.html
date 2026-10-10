@@ -426,7 +426,8 @@ const canBreedMare = h => h.sex === 'F' && h.age >= 36 && h.age < 300 && !h.preg
 const fertility = h => Math.min(1, 0.7 + 0.03 * S.fac.barn) * (h.age < 216 ? 1 : Math.max(0.15, 1 - (h.age - 216) / 100)); // drops after 18, none after 25
 const breedable = h => h.sex === 'F' ? h.age < 240 : h.age < 264; // still worth something as breeding stock
 const docCost = h => Math.round(h.inj * (20000 + 600 * totPot(h) + 3 * studFee(h)) / 1000) * 1000; // the doctor: pricier for better horses (potential & stud value), per month left
-const autoStudHorse = h => h.sex === 'M' && (h.age >= 144 || h.retired) && S.fac.barn > 0; // retired stallions (at 12, or early by choice) // retired stallions stand at stud on their own (they still use a stall)
+const autoStudHorse = h => h.sex === 'M' && (h.age >= 144 || h.retired) && S.fac.barn > 0; // retired stallions (at 12, or early by choice) stand at stud on their own, in the stud barn (no stall)
+const usedStalls = () => S.horses.filter(h => !autoStudHorse(h)).length; // stallions at stud live in the stud barn: no stall needed
 function autoStud(){ for(const h of S.horses) if(autoStudHorse(h) && h.plan.t !== 'stud') h.plan = {t:'stud'}; }
 const canStud = h => h.sex === 'M' && h.age >= 36 && !h.inj;
 const capacity = () => 4 + 2 * S.fac.stables;
@@ -688,7 +689,7 @@ function endMonth(){
   for(const h of S.horses){ h.age++;
     if(h.age > 96) for(const s of STATS) h.st[s] = Math.max(5, h.st[s] - rand(0.3, 1.2));
     if(h.age === 24){ h.plan = {t:'train', f:autoFocus(h)}; rep.notes.push(`🎉 ${h.name} just turned 2 and is ready to race! Moved from the Nursery to your main stable.`); }
-    if(h.age === 144) rep.notes.push(h.sex === 'M' && S.fac.barn ? `🎓 ${h.name} is 12 and retires from racing. He now stands at stud automatically (${money(studFee(h))}/mare) and still uses a stall.` : `🎓 ${h.name} is 12 and retires from racing. Keep them for breeding, sell them, or rehome them.`);
+    if(h.age === 144) rep.notes.push(h.sex === 'M' && S.fac.barn ? `🎓 ${h.name} is 12 and retires from racing. He now stands at stud automatically (${money(studFee(h))}/mare) in the stud barn, so he no longer uses a stall.` : `🎓 ${h.name} is 12 and retires from racing. Keep them for breeding, sell them, or rehome them.`);
     if(h.age === 216 && h.sex === 'F') rep.notes.push(`🌅 ${h.name} is 18: her fertility is starting to fade.`); }
   autoStud();
   for(const h of S.horses.slice()){ const y = h.age / 12; // old age: most horses live to about 25–28, none past 32
@@ -790,7 +791,7 @@ function showEvent(){
 function resolveEvent(a){
   const e = S.pending; if(!e) return; const h = e.h && S.horses.find(x => x.id === e.h);
   if(e.cost && a !== 'no' && S.cash < e.cost){ toast('💸 Not enough cash'); return; }
-  if(a === 'mystery' && S.horses.length >= capacity()){ stablesFull('No free stall for the yearling'); return; }
+  if(a === 'mystery' && usedStalls() >= capacity()){ stablesFull('No free stall for the yearling'); return; }
   S.pending = null; $('modal').hidden = true;
   if(a === 'ok'){ if(e.fx === 'cash') S.cash += e.v; if(e.fx === 'fame') S.fame += e.v; if(e.fx === 'form' && h) h.form = 100; }
   if(a === 'sell' && h){ S.cash += e.offer; S.horses = S.horses.filter(x => x !== h); S.stats.sold++; toast(`💰 Sold ${h.name} for ${money(e.offer)}`); }
@@ -1074,7 +1075,7 @@ function render(){
   cg.setTransform(DPR, 0, 0, DPR, 0, 0);
   if(R.play) drawRaceOverlay();
   else { cg.font = '900 11px system-ui'; cg.textAlign = 'left'; cg.lineWidth = 3; cg.strokeStyle = 'rgba(0,0,0,.6)'; cg.fillStyle = '#fff';
-    const txt = `🏡 Your ranch · ${S.horses.length}/${capacity()} horses`; cg.strokeText(txt, 8, 15); cg.fillText(txt, 8, 15); }
+    const txt = `🏡 Your ranch · ${usedStalls()}/${capacity()} horses`; cg.strokeText(txt, 8, 15); cg.fillText(txt, 8, 15); }
 }
 function drawRaceOverlay(){
   const P = R.play, t = Math.max(0, P.t), L = P.len, race = P.res.race;
@@ -1197,11 +1198,11 @@ function stableList(){
   return cmp ? L.slice().sort(cmp) : L;
 }
 function stablesFull(why){ // full stalls: let the player pick horses to sell instead of just saying no
-  const hs = S.horses.slice().sort((a, b) => sellPrice(b) - sellPrice(a));
+  const hs = S.horses.filter(h => !autoStudHorse(h)).sort((a, b) => sellPrice(b) - sellPrice(a)); // studs don't take stalls
   R.sell = R.sell || new Set();
   const row = h => `<button class="pickbox ${R.sell.has(h.id) ? 'on' : ''}" data-fullpick="${h.id}" data-why="${why}"><span class="cb">${R.sell.has(h.id) ? '✓' : ''}</span><span style="flex:1;min-width:0">${h.sex === 'M' ? '♂' : '♀'} <b>${h.name}</b> <small style="color:var(--dim)">${ageTxt(h.age)}${inPasture(h) ? ' · retired' : h.age < 24 ? ' · foal' : ''} · ${stars(grade(h))}</small></span><b style="color:var(--good)">${sellPrice(h) ? money(sellPrice(h)) : 'rehome'}</b></button>`;
   const sel = S.horses.filter(h => R.sell.has(h.id)), tot = sel.reduce((a, h) => a + sellPrice(h), 0);
-  showModal(`<h2>🏠 Stables full (${S.horses.length}/${capacity()})</h2><p>${why}. Tick horses to sell and free up stalls, or build more stalls on the Ranch tab.</p>
+  showModal(`<h2>🏠 Stables full (${usedStalls()}/${capacity()})</h2><p>${why}. Tick horses to sell and free up stalls, or build more stalls on the Ranch tab.</p>
     <div style="max-height:46vh;overflow:auto;text-align:left">${hs.map(row).join('')}</div>
     <button class="btn" data-sellconfirm="1" ${sel.length ? '' : 'disabled style="opacity:.45"'}>💰 Sell ${sel.length || ''} ${sel.length === 1 ? 'horse' : 'horses'}${sel.length ? ` for ${money(tot)}` : ''}</button><button class="btn ghost" id="fullCancel">Cancel</button>`);
 }
@@ -1219,7 +1220,7 @@ function freeMares(st){ // mares booked to a stallion that leaves the ranch go b
 }
 function horseCard(h){
   const st = statusTxt(h), p = h.plan, busy = h.preg || h.inj;
-  const plans = h.age < 24 ? `<span class="note">🤖 Auto-training${h.age >= 6 ? `: <b style="color:var(--text)">${STAT_N[autoFocus(h)] || 'All-round'}</b> (most room to grow)` : ' starts at 6 months (resting for now)'}</span>` : autoStudHorse(h) && !busy ? `<span class="note">🐎 ${h.retired && h.age < 144 ? 'Retired early' : 'Retired'} · at stud automatically: <b style="color:var(--text)">${money(studFee(h))}</b>/mare (still uses a stall)</span>` : busy ? `<span class="note">${st}</span>${h.preg && h.rebreed ? `<button data-stopbreed="${h.id}">⏹ Stop 🔁</button>` : ''}${h.inj ? (h.doc ? '<span class="note">🩺 Doctor already used</span>' : `<button data-doc="${h.id}" ${S.cash < docCost(h) ? 'disabled style="opacity:.45"' : ''}>🩺 Call the doctor ${money(docCost(h))}</button>`) : ''}` : `
+  const plans = h.age < 24 ? `<span class="note">🤖 Auto-training${h.age >= 6 ? `: <b style="color:var(--text)">${STAT_N[autoFocus(h)] || 'All-round'}</b> (most room to grow)` : ' starts at 6 months (resting for now)'}</span>` : autoStudHorse(h) && !busy ? `<span class="note">🐎 ${h.retired && h.age < 144 ? 'Retired early' : 'Retired'} · at stud automatically: <b style="color:var(--text)">${money(studFee(h))}</b>/mare · 🏠 stud barn (no stall)</span>` : busy ? `<span class="note">${st}</span>${h.preg && h.rebreed ? `<button data-stopbreed="${h.id}">⏹ Stop 🔁</button>` : ''}${h.inj ? (h.doc ? '<span class="note">🩺 Doctor already used</span>' : `<button data-doc="${h.id}" ${S.cash < docCost(h) ? 'disabled style="opacity:.45"' : ''}>🩺 Call the doctor ${money(docCost(h))}</button>`) : ''}` : `
     ${h.age >= 6 ? STATS.concat(['bal']).map(f => `<button class="${p.t === 'train' && p.f === f ? 'on' : ''}" data-plan="${h.id}" data-p="train" data-f="${f}">🏋️ ${f === 'bal' ? 'All' : STAT_N[f]}</button>`).join('') : ''}
     <button class="${p.t === 'rest' ? 'on' : ''}" data-plan="${h.id}" data-p="rest">😴 Rest</button>
     ${canRace(h) ? `<button class="${p.t === 'race' ? 'on' : ''}" data-plan="${h.id}" data-p="race">🏁 ${p.t === 'race' ? planLabel(h).slice(3) : 'Race…'}</button>` : ''}
@@ -1256,21 +1257,21 @@ function renderPanel(){
   for(const b of document.querySelectorAll('#tabs button')) b.classList.toggle('active', b.dataset.tab === tab);
   if(tab === 'stable'){
     const ent = S.horses.filter(h => h.plan.t === 'race' && canRace(h) && S.card.some(r => r.id === h.plan.r));
-    P.innerHTML = sellTop() + (S.horses.length > capacity() ? `<div class="card" style="border:1px solid var(--bad)">🏠 <b>Too many horses: ${S.horses.length}/${capacity()} stalls.</b> Pick some to sell, or build more stalls. <button class="sbtn" style="min-width:0;padding:4px 10px;margin-left:6px" id="fullBtn">💰 Choose horses to sell</button></div>` : '') + crownAlert() + (ent.length ? `<div class="card" style="padding:9px 12px">🏁 <b>${ent.length} horse${ent.length > 1 ? 's' : ''} entered this month:</b> ${ent.map(h => `${h.name} <span style="color:var(--dim)">(${S.card.find(r => r.id === h.plan.r).n})</span>`).join(', ')}</div>` : '') +
+    P.innerHTML = sellTop() + (usedStalls() > capacity() ? `<div class="card" style="border:1px solid var(--bad)">🏠 <b>Too many horses: ${usedStalls()}/${capacity()} stalls.</b> Pick some to sell, or build more stalls. <button class="sbtn" style="min-width:0;padding:4px 10px;margin-left:6px" id="fullBtn">💰 Choose horses to sell</button></div>` : '') + crownAlert() + (ent.length ? `<div class="card" style="padding:9px 12px">🏁 <b>${ent.length} horse${ent.length > 1 ? 's' : ''} entered this month:</b> ${ent.map(h => `${h.name} <span style="color:var(--dim)">(${S.card.find(r => r.id === h.plan.r).n})</span>`).join(', ')}</div>` : '') +
       `<div class="card" style="padding:7px 12px;font-size:12px">Portrait color = favorite distance: <span class="pimg d-sprint" style="padding:1px 7px;border-radius:6px;color:#fff">⚡ Sprint</span> <span class="pimg d-mile" style="padding:1px 7px;border-radius:6px;color:#fff">🎯 Mile</span> <span class="pimg d-long" style="padding:1px 7px;border-radius:6px;color:#fff">🛤️ Route</span></div>` +
       (S.horses.some(h => h.age < 24) ? `<div class="card" style="padding:8px 12px">🍼 <b>${S.horses.filter(h => h.age < 24).length} foal${S.horses.filter(h => h.age < 24).length > 1 ? 's' : ''}</b> growing up in the Nursery (auto-training) <button class="sbtn" style="min-width:0;padding:4px 10px;margin-left:6px" data-tab="nursery">Open Nursery ▸</button></div>` : '') +
       (S.horses.some(inPasture) ? `<div class="card" style="padding:8px 12px">🌾 <b>${S.horses.filter(inPasture).length} retired horse${S.horses.filter(inPasture).length > 1 ? 's' : ''}</b> in the Pasture <button class="sbtn" style="min-width:0;padding:4px 10px;margin-left:6px" data-tab="pasture">Open Pasture ▸</button></div>` : '') +
-      `<div class="sec"><span>Stalls used ${S.horses.length}/${capacity()}${S.horses.some(h => h.age < 24) ? ` (incl. ${S.horses.filter(h => h.age < 24).length} foal${S.horses.filter(h => h.age < 24).length > 1 ? 's' : ''})` : ''}</span><span style="text-transform:none;letter-spacing:0">Upkeep ${money(UPKEEP * (1 - 0.05 * S.fac.pasture))}/horse/mo</span></div>` +
+      `<div class="sec"><span>Stalls used ${usedStalls()}/${capacity()}${S.horses.some(h => h.age < 24) ? ` (incl. ${S.horses.filter(h => h.age < 24).length} foal${S.horses.filter(h => h.age < 24).length > 1 ? 's' : ''})` : ''}</span><span style="text-transform:none;letter-spacing:0">Upkeep ${money(UPKEEP * (1 - 0.05 * S.fac.pasture))}/horse/mo</span></div>` +
       `<div class="card" style="padding:8px 12px"><div class="arr"><b>Sort</b>${SORTS.map(([id, n]) => `<button class="sbtn ${(S.sortBy || 'custom') === id ? 'on' : ''}" data-sort="${id}">${n}</button>`).join('')}</div>
         <div class="arr" style="margin-top:5px"><b>Show</b>${FILTERS.map(([id, n, f]) => `<button class="sbtn ${id === 'all' ? (activeFilters().length ? '' : 'on') : activeFilters().includes(id) ? 'on' : ''}" data-filter="${id}">${n} (${S.horses.filter(h => h.age >= 24 && !inPasture(h) && f(h)).length})</button>`).join('')}${activeFilters().length ? `<span style="font-size:12px;color:var(--dim);align-self:center">→ showing ${stableList().length}</span>` : ''}</div>${sellBar()}</div>` +
       stableList().map(horseCard).join('') + (S.horses.length ? (stableList().length ? '' : '<div class="card">No horses match this filter.</div>') : '<div class="card">No horses! Buy one in the Market.</div>');
   } else if(tab === 'pasture'){
     const ret = S.horses.filter(inPasture), studs = ret.filter(autoStudHorse);
-    P.innerHTML = sellTop() + `<div class="card"><h3>🌾 Pasture: ${ret.length} retired horse${ret.length === 1 ? '' : 's'}</h3>Retired horses graze here. Stallions stand at stud automatically${studs.length ? ` (${studs.length} earning up to <b>${money(studs.reduce((a, h) => a + studFee(h) * 3, 0))}</b>/month)` : ''}, and mares can still be bred while they're fertile. They still use a stall (${S.horses.length}/${capacity()} used).${ret.length ? sellBar() : ''}</div>` +
+    P.innerHTML = sellTop() + `<div class="card"><h3>🌾 Pasture: ${ret.length} retired horse${ret.length === 1 ? '' : 's'}</h3>Retired horses graze here. Stallions stand at stud automatically${studs.length ? ` (${studs.length} earning up to <b>${money(studs.reduce((a, h) => a + studFee(h) * 3, 0))}</b>/month)` : ''}, and live in the <b>stud barn</b>, which doesn't use stalls. Retired mares can still be bred while they're fertile and do use a stall (${usedStalls()}/${capacity()} stalls used).${ret.length ? sellBar() : ''}</div>` +
       (ret.length ? ret.map(horseCard).join('') : '<div class="card">No retired horses yet. Stallions can retire to stud early with 🎓 Retire to stud, and every horse retires from racing at 12.</div>');
   } else if(tab === 'nursery'){
     const all = S.horses.filter(h => h.age < 24), foals = nurseryList();
-    P.innerHTML = sellTop() + `<div class="card"><h3>🍼 Nursery: ${all.length} foal${all.length === 1 ? '' : 's'}</h3>Foals train themselves: from 6 months old they work on whichever stat has the most room to grow, every month. At 2 years old they move to your main stable, ready to race. Foals use a stall like any horse (${S.horses.length}/${capacity()} stalls used).</div>` +
+    P.innerHTML = sellTop() + `<div class="card"><h3>🍼 Nursery: ${all.length} foal${all.length === 1 ? '' : 's'}</h3>Foals train themselves: from 6 months old they work on whichever stat has the most room to grow, every month. At 2 years old they move to your main stable, ready to race. Foals use a stall like any horse (${usedStalls()}/${capacity()} stalls used).</div>` +
       (all.length > 1 ? `<div class="card" style="padding:8px 12px"><div class="arr"><b>Sort</b>${NSORTS.map(([id, n]) => `<button class="sbtn ${(S.nSort || 'old') === id ? 'on' : ''}" data-nsort="${id}">${n}</button>`).join('')}</div>
         <div class="arr" style="margin-top:5px"><b>Show</b>${NFILTERS.map(([id, n, f]) => `<button class="sbtn ${(S.nFilter || 'all') === id ? 'on' : ''}" data-nfilter="${id}">${n} (${all.filter(f).length})</button>`).join('')}</div>${sellBar()}</div>` : all.length ? `<div class="card" style="padding:8px 12px">${sellBar()}</div>` : '') +
       (foals.length ? foals.map(horseCard).join('') : all.length ? '<div class="card">No foals match this filter.</div>' : '<div class="card">No foals right now. Breed a mare on the Breeding tab!</div>');
@@ -1338,7 +1339,7 @@ function updateTop(){
       ${feats.map(r => `👑 <b>${r.n}</b> · ${DIST[r.dist].n} · ${money(r.purse)}${r.req && S.fame < r.req ? ` <span style="color:var(--bad)">(needs ⭐ ${r.req})</span>` : ` · ${S.horses.filter(h => !eligible(h, r)).length} of yours eligible`}`).join('<br>')}
       <br>🏁 Entered: ${ent.length ? ent.map(h => `<b>${h.name}</b> <span style="opacity:.75">(${S.card.find(r => r.id === h.plan.r).n})</span>`).join(', ') : 'none yet'}
       <br>🎟️ Bets: ${bt ? `<b>${money(bt)}</b> on ${S.bets.length} ticket${S.bets.length > 1 ? 's' : ''}` : 'none'}
-      <br>🏆 Year standing: <b>#${(() => { const ye = Z ? Z.yearEarn : S.yearEarn, tb = [...(Z ? Z.rivals : S.rivals.map(r => r.earn)), ye].sort((a, b) => b - a); return tb.indexOf(ye) + 1; })()}</b> with ${money(Z ? Z.yearEarn : S.yearEarn)} won · ${S.horses.length}/${capacity()} stalls used`; }
+      <br>🏆 Year standing: <b>#${(() => { const ye = Z ? Z.yearEarn : S.yearEarn, tb = [...(Z ? Z.rivals : S.rivals.map(r => r.earn)), ye].sort((a, b) => b - a); return tb.indexOf(ye) + 1; })()}</b> with ${money(Z ? Z.yearEarn : S.yearEarn)} won · ${usedStalls()}/${capacity()} stalls used`; }
   if(Z){ $('planSum').innerHTML = '🏁 <b>Race day!</b> Watch your races, or tap Skip.<br>Results and money come with the month report.'; $('endBtn').disabled = $('endBtn2').disabled = true; return; }
   const n = k => S.horses.filter(h => h.plan.t === k && !h.inj && !h.preg).length;
   const fees = S.card.reduce((s, r) => s + r.fee * runnersFor(r).length, 0);
@@ -1472,12 +1473,12 @@ document.addEventListener('click', ev => {
   if(d.pickstud){ const h = S.horses.find(x => x.id === +d.h), own = d.own === '1', s = own ? S.horses.find(x => x.id === +d.pickstud) : S.studs.find(x => x.id === +d.pickstud);
     if(!own && S.cash < s.fee){ toast('💸 Need ' + money(s.fee)); return; }
     h.plan = {t:'breed', s:s.id, own, sn:s.name, fee:own ? 0 : s.fee, snap:own ? null : {...snapshot(s), fee:s.fee}}; h.rebreed = !!R.keepBreed; if(h.rebreed) h.rebreedPlan = {...h.plan};
-    if(S.horses.length >= capacity()) toast('🏠 Stables are full: the foal will put you over. You can choose who to sell any time.'); $('modal').hidden = true; persist(); renderPanel(); return; }
+    if(usedStalls() >= capacity()) toast('🏠 Stables are full: the foal will put you over. You can choose who to sell any time.'); $('modal').hidden = true; persist(); renderPanel(); return; }
   if(d.detail){ detail(S.horses.find(x => x.id === +d.detail)); return; }
   if(d.mdetail){ detail(S.market[+d.mdetail], true); return; }
   if(d.buy){ const i = +d.buy, h = S.market[i]; if(!h) return;
     if(S.cash < h.price){ toast('💸 Need ' + money(h.price)); return; }
-    if(S.horses.length >= capacity()){ stablesFull(`No free stall for ${h.name}`); return; }
+    if(usedStalls() >= capacity()){ stablesFull(`No free stall for ${h.name}`); return; }
     S.cash -= h.price; S.stats.bought++; delete h.kind; const pr = h.price; delete h.price; h.plan = canRace(h) ? {t:'train', f:'spd'} : {t:'rest'}; h.id = S.nextId++;
     S.horses.push(h); S.market.splice(i, 1); toast(`🐎 ${h.name} joins your stable (${money(pr)})`); checkGoals(); persist(); renderPanel(); return; }
   if(d.fullpick){ const id = +d.fullpick; R.sell = R.sell || new Set(); R.sell.has(id) ? R.sell.delete(id) : R.sell.add(id); stablesFull(d.why); return; }
@@ -1498,7 +1499,7 @@ document.addEventListener('click', ev => {
   if(d.retire){ const h = S.horses.find(x => x.id === +d.retire); if(!h) return; refundBets(h); freeMares(h); S.hall.push({name:h.name, coat:h.coat, mark:h.mark, socks:h.socks, age:h.age, wins:h.wins, earned:h.earned, gw:h.gw});
     S.horses = S.horses.filter(x => x !== h); S.fame += 10 + h.wins * 2; $('modal').hidden = true; toast(`🏅 ${h.name} enters the Hall of Fame! +${10 + h.wins * 2} ⭐`); persist(); renderPanel(); return; }
   if(d.retstud){ const h = S.horses.find(x => x.id === +d.retstud); if(!h) return;
-    showModal(`${pimg(h, 110)}<h2>🎓 Retire ${h.name} to stud?</h2><p>He stops racing for good and stands at stud every month automatically (<b>${money(studFee(h))}</b>/mare now). He still uses a stall, and your mares can still use him as a sire.</p><p style="color:var(--gold)">⚠️ This can't be undone.</p><button class="btn" data-retstudyes="${h.id}">🎓 Retire to stud</button><button class="btn ghost" data-close>Keep racing</button>`); return; }
+    showModal(`${pimg(h, 110)}<h2>🎓 Retire ${h.name} to stud?</h2><p>He stops racing for good and stands at stud every month automatically (<b>${money(studFee(h))}</b>/mare now). He moves to the stud barn, so he no longer uses a stall, and your mares can still use him as a sire.</p><p style="color:var(--gold)">⚠️ This can't be undone.</p><button class="btn" data-retstudyes="${h.id}">🎓 Retire to stud</button><button class="btn ghost" data-close>Keep racing</button>`); return; }
   if(d.retstudyes){ const h = S.horses.find(x => x.id === +d.retstudyes); if(!h) return; refundBets(h); h.retired = true; h.plan = {t:'stud'}; $('modal').hidden = true; toast(`🎓 ${h.name} retired to stud`); persist(); renderPanel(); return; }
   if(d.doc){ const h = S.horses.find(x => x.id === +d.doc); if(!h || !h.inj || h.doc) return; if(R.freeze){ toast('🏁 Finish watching the races first (or tap Skip)'); return; }
     const c = docCost(h); if(S.cash < c){ toast('💸 Not enough cash'); return; }

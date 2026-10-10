@@ -1,6 +1,6 @@
 // Offline support. Pages and scripts load from the network first (so a refresh
 // always gets the newest version) and fall back to the cached copy when offline.
-const CACHE = 'derby-dynasty-v50';
+const CACHE = 'derby-dynasty-v51';
 const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
