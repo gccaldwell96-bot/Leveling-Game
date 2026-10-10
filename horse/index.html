@@ -203,7 +203,7 @@
 //  DERBY DYNASTY: a turn-based horse breeding & racing tycoon.
 //  Every turn is one month: give each horse a plan, then End Month.
 // =====================================================================
-const SAVE_KEY = 'derby-dynasty-v1';
+const SAVE_KEY = 'derby-dynasty-v1', UNDO_KEY = 'derby-dynasty-undo';
 const $ = id => document.getElementById(id);
 const rand = (a, b) => a + Math.random() * (b - a);
 const irand = (a, b) => Math.floor(rand(a, b + 1));
@@ -410,7 +410,7 @@ function linkedSave(){ // ?load=name opens saves/name.txt, a save stored with th
   .catch(() => toast('❌ Couldn\'t load that saved game'));
 }
 async function loadCode(code){
-  try{ const o = await decodeSave(code); localStorage.setItem(SAVE_KEY, JSON.stringify(o)); toast('📥 Save loaded!'); setTimeout(() => location.replace(location.pathname), 400); }
+  try{ const o = await decodeSave(code); localStorage.setItem(SAVE_KEY, JSON.stringify(o)); localStorage.removeItem(UNDO_KEY); toast('📥 Save loaded!'); setTimeout(() => location.replace(location.pathname), 400); }
   catch(e){ toast('❌ That save code didn\'t work. Copy the whole code and try again.'); }
 }
 document.addEventListener('change', ev => { if(ev.target.id === 'xOpen' && ev.target.files[0]) ev.target.files[0].text().then(loadCode); });
@@ -647,6 +647,7 @@ function betModal(h){
 // =====================================================================
 let REPORT = null;
 function endMonth(){
+  try{ localStorage.setItem(UNDO_KEY, JSON.stringify(S)); }catch(e){} // snapshot for ⏪ Undo last month
   R.sell = null; autoStud();
   if(S.pending){ showEvent(); return; }
   R.freeze = {cash:S.cash, fame:S.fame, t:S.t, yearEarn:S.yearEarn, rivals:S.rivals.map(r => r.earn)}; R.toastQ = []; // no spoilers until the report
@@ -1223,6 +1224,13 @@ function stableList(){
     wins:(a, b) => b.wins - a.wins || b.earned - a.earned, age:(a, b) => a.age - b.age, name:(a, b) => a.name.localeCompare(b.name)}[by];
   return cmp ? L.slice().sort(cmp) : L;
 }
+function rewindMonths(k, clearCrownYear){ // move the calendar back k months (horses get younger; money, wins and foals stay)
+  for(const b of S.bets || []) S.cash += b.amt; S.bets = []; S.pending = null;
+  S.t -= k; const yr = Math.floor(S.t / 12);
+  for(const h of S.horses){ h.age = Math.max(0, h.age - k); if(clearCrownYear) h.crown = (h.crown || []).filter(c => !c.endsWith('@' + yr)); if(h.plan.t === 'race') h.plan = canRace(h) ? {t:'train', f:'bal'} : {t:'rest'}; }
+  try{ localStorage.removeItem(UNDO_KEY); }catch(e){}
+  makeCard(); refreshMarket(); refreshStuds(); autoStud(); $('modal').hidden = true; R.walkers = []; updateTop(); renderPanel();
+}
 function stablesFull(why){ // full stalls: let the player pick horses to sell instead of just saying no
   const hs = S.horses.filter(h => !autoStudHorse(h)).sort((a, b) => sellPrice(b) - sellPrice(a)); // studs don't take stalls
   R.sell = R.sell || new Set();
@@ -1586,15 +1594,16 @@ document.addEventListener('click', ev => {
   if(d.silk2){ S.silk2 = +d.silk2; SPR.clear(); persist(); renderPanel(); return; }
   if(d.silkpat){ S.silkPat = d.silkpat; SPR.clear(); persist(); renderPanel(); return; }
   if(t.id === 'menuBtn'){ showModal(`<h2>⚙️ Menu</h2><p>${monthName(S.t)} · net worth ${money(netWorth())}</p>
-    <button class="btn ghost" id="howBtn">❓ How to play</button><button class="btn ghost" id="xferBtn">💾 Move save to another device</button>${S.rewound ? '' : '<button class="btn ghost" id="rewBtn">⏪ Go back to May (one time)</button>'}<button class="btn danger" id="wipeBtn">🔄 New game (reset)</button><button class="btn" data-close>Back to the ranch</button>`); return; }
+    <button class="btn ghost" id="howBtn">❓ How to play</button><button class="btn ghost" id="xferBtn">💾 Move save to another device</button>${(() => { try{ const u = localStorage.getItem(UNDO_KEY); return u ? `<button class="btn ghost" id="undoBtn">⏪ Undo last month (back to ${monthName(JSON.parse(u).t)})</button>` : S.back1 || S.t < 1 ? '' : '<button class="btn ghost" id="back1Btn">⏪ Turn back 1 month (one time)</button>'; }catch(e){ return ''; } })()}${S.rewound ? '' : '<button class="btn ghost" id="rewBtn">⏪ Go back to May (one time)</button>'}<button class="btn danger" id="wipeBtn">🔄 New game (reset)</button><button class="btn" data-close>Back to the ranch</button>`); return; }
   if(t.id === 'howBtn'){ showModal(HOWTO); return; }
+  if(t.id === 'undoBtn'){ let u; try{ u = JSON.parse(localStorage.getItem(UNDO_KEY)); }catch(e){} if(!u){ toast('Nothing to undo'); return; }
+    showModal(`<h2>⏪ Undo last month?</h2><p>Everything goes back to how it was at the start of <b>${monthName(u.t)}</b>, before you pressed End Month: money, horses, races, foals and results.</p><p style="font-size:12px;color:var(--dim)">You can undo one month at a time (the newest month only).</p><button class="btn" id="undoYes">⏪ Undo</button><button class="btn ghost" data-close>Cancel</button>`); return; }
+  if(t.id === 'undoYes'){ const u = localStorage.getItem(UNDO_KEY); if(!u) return; localStorage.setItem(SAVE_KEY, u); localStorage.removeItem(UNDO_KEY); toast('⏪ Month undone'); setTimeout(() => location.reload(), 300); return; }
   if(t.id === 'rewBtn'){ const k = (S.t % 12 - 4 + 12) % 12; if(!k){ toast("📅 It's already May"); return; }
     showModal(`<h2>⏪ Go back to May?</h2><p style="text-align:left">A one-time rewind for the racing-age update. The calendar goes back <b>${k} month${k > 1 ? 's' : ''}</b> to <b>${monthName(S.t - k)}</b> and every horse gets ${k} month${k > 1 ? 's' : ''} younger, so you can run the Triple Crown again under the new rules.<br><br>You keep your money, fame, wins and foals. This year's Triple Crown results are cleared, and open bets are refunded.</p><p style="color:var(--gold)">⚠️ You can only do this once.</p><button class="btn" id="rewYes">⏪ Go back to May</button><button class="btn ghost" data-close>Cancel</button>`); return; }
-  if(t.id === 'rewYes'){ const k = (S.t % 12 - 4 + 12) % 12; if(!k || S.rewound) return;
-    for(const b of S.bets || []) S.cash += b.amt; S.bets = []; S.pending = null;
-    S.t -= k; const yr = Math.floor(S.t / 12);
-    for(const h of S.horses){ h.age = Math.max(0, h.age - k); h.crown = (h.crown || []).filter(c => !c.endsWith('@' + yr)); if(h.plan.t === 'race') h.plan = canRace(h) ? {t:'train', f:'bal'} : {t:'rest'}; }
-    S.rewound = true; makeCard(); refreshMarket(); refreshStuds(); autoStud(); persist(); $('modal').hidden = true; R.walkers = []; updateTop(); renderPanel(); toast(`⏪ Back to ${monthName(S.t)}! Good luck in the Triple Crown`); return; }
+  if(t.id === 'rewYes'){ const k = (S.t % 12 - 4 + 12) % 12; if(!k || S.rewound) return; if(S.t - k < 0){ toast('📅 Your first May hasn\'t happened yet'); return; } rewindMonths(k, true); S.rewound = true; persist(); toast(`⏪ Back to ${monthName(S.t)}! Good luck in the Triple Crown`); return; }
+  if(t.id === 'back1Btn'){ showModal(`<h2>⏪ Turn back 1 month?</h2><p>The calendar goes back to <b>${monthName(S.t - 1)}</b> and every horse gets a month younger. You keep your money, fame, wins and foals; open bets are refunded and the race card is redrawn.</p><p style="color:var(--gold)">⚠️ One time only. From now on, use ⏪ Undo last month instead: it restores everything exactly.</p><button class="btn" id="back1Yes">⏪ Turn back 1 month</button><button class="btn ghost" data-close>Cancel</button>`); return; }
+  if(t.id === 'back1Yes'){ if(S.back1 || S.t < 1) return; rewindMonths(1, false); S.back1 = true; persist(); toast(`⏪ Back to ${monthName(S.t)}`); return; }
   if(t.id === 'xferBtn'){ persist(); showModal(`<h2>💾 Move your save</h2><p style="text-align:left">Your game is saved in this browser only. To play on another device:<br>1. Here: <b>copy the save code</b> (or save it as a file) and send it to yourself (text, email, notes…).<br>2. On the other device: open Derby Dynasty → ⚙️ → 💾 → paste the code (or open the file) → <b>Load</b>.</p>
     <div class="sec">📤 From this device</div><button class="btn" id="xCopy">📋 Copy save code</button>${navigator.share ? '<button class="btn ghost" id="xShare">📨 Share save code…</button>' : ''}<button class="btn ghost" id="xFile">⬇️ Save as file</button>
     <div class="sec">📥 Load a save from another device</div><textarea id="xCode" rows="3" placeholder="Paste a save code here" style="width:100%;border-radius:10px;padding:8px;background:var(--card2);color:var(--text);border:1px solid var(--line);font-size:12px"></textarea>
@@ -1607,7 +1616,7 @@ document.addEventListener('click', ev => {
   if(t.id === 'linkYes'){ loadCode(R.linked); return; }
   if(t.id === 'linkNo'){ $('modal').hidden = true; history.replaceState(null, '', location.pathname); return; }
   if(t.id === 'wipeBtn'){ showModal(`<h2>Start over?</h2><p>This deletes your whole stable, money and progress. It can't be undone.</p><button class="btn danger" id="wipeYes">Yes, new game</button><button class="btn ghost" data-close>Cancel</button>`); return; }
-  if(t.id === 'wipeYes'){ localStorage.removeItem(SAVE_KEY); freshSave(); S.seen = true; persist(); R.walkers = []; R.play = null; R.queue = []; REPORT = null; setSceneBtns(); tab = 'stable'; renderPanel(); showModal(HOWTO); toast('🔄 New game started'); return; }
+  if(t.id === 'wipeYes'){ localStorage.removeItem(SAVE_KEY); localStorage.removeItem(UNDO_KEY); freshSave(); S.seen = true; persist(); R.walkers = []; R.play = null; R.queue = []; REPORT = null; setSceneBtns(); tab = 'stable'; renderPanel(); showModal(HOWTO); toast('🔄 New game started'); return; }
   if(t.hasAttribute('data-close')){ $('modal').hidden = true; R.betWin = false; R.betHorse = null; return; }
 });
 
