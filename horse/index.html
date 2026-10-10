@@ -137,6 +137,7 @@
   .race.slam,.pick button.slam,.entered.slam{border:1.5px solid #5fd08a;background:linear-gradient(135deg,#1e3a2c,#2a2450)}
   .slamtag{display:inline-block;font-size:9.5px;font-weight:900;letter-spacing:.5px;padding:1px 6px;border-radius:99px;background:#5fd08a;color:#0f2a18;margin-right:5px;vertical-align:1px}
   .plans .slambtn{background:#1f4a2c;color:#9dffb0}
+  .sl-mare{box-shadow:inset 0 0 0 1.5px #ff9ad8}
   .sl-tc{box-shadow:inset 0 0 0 1.5px #ffd24a}
   .sl-now{background:#ffd24a;color:#2a1400;animation:tcglow 2s infinite;box-shadow:0 0 8px #ffd24a}.sl-last{background:#ff8a3d;color:#2a0a00;animation:tcglow 1.2s infinite;box-shadow:0 0 10px #ff8a3d}
   .card > .sl{padding:2px 6px;margin:0 2px}
@@ -469,13 +470,13 @@ function value(h){
   let v = 350 * Math.pow(ap / 20, 2.6) + 250 * Math.pow(as / 20, 2.6);
   const y = h.age / 12, retired = y >= 12;
   v *= y < 2 ? 0.9 : y < 6 ? 1.15 : y < 10 ? 0.75 : y < 12 ? 0.4 : breedable(h) ? 0.55 - 0.04 * (y - 12) : 0.02;
-  v *= (1 + 0.12 * Math.min(h.wins, 20) + 0.25 * h.gw) * crownMul(h); if(COAT[h.coat].rare) v *= 1.6; if(h.inj) v *= 0.7;
+  v *= (1 + 0.12 * Math.min(h.wins, 20) + 0.25 * h.gw) * prestigeMul(h); if(COAT[h.coat].rare) v *= 1.6; if(h.inj) v *= 0.7;
   if(retired && !breedable(h) && avgPot(h) < 55 && h.wins < 3) return 0; // a pleasure horse: rehome for free
   return Math.round(v / 50) * 50 + (retired ? 0 : 500);
 }
 const sellPrice = h => Math.round(value(h) * 0.9);
 const crownMul = h => { const legs = (h.crown || []).length; return legs ? (1 + 0.5 * legs) * (tcWinner(h) ? 2 : 1) : 1; }; // Triple Crown prestige: ×1.5 per classic won, a sweep ×5
-const studFee = h => Math.round((300 * Math.pow(avgPot(h) / 20, 2.4) * (1 + 0.2 * Math.min(h.wins, 15) + 0.5 * h.gw) * crownMul(h) * (h.breed === 'legend' ? 10 : 1)) / 50) * 50; // Legends command 10× fees
+const studFee = h => Math.round((300 * Math.pow(avgPot(h) / 20, 2.4) * (1 + 0.2 * Math.min(h.wins, 15) + 0.5 * h.gw) * prestigeMul(h) * (h.breed === 'legend' ? 10 : 1)) / 50) * 50; // Legends command 10× fees
 const netWorth = () => S.cash + S.horses.reduce((s, h) => s + value(h), 0) + FAC.reduce((s, f) => s + facSpent(f, S.fac[f.id]) * 0.5, 0);
 const facCost = (f, l) => Math.round(f.base * Math.pow(f.g, l));
 const facSpent = (f, l) => { let s = 0; for(let k = 0; k < l; k++) s += facCost(f, k); return s; };
@@ -584,10 +585,18 @@ const sweeps = h => (h.crown || []).filter(c => c.startsWith('3@') && h.crown.in
 const tcParents = h => { const s = findRec(h.sireId, h.sire, 'M', h), d = findRec(h.damId, h.dam, 'F', h); return !!(s && d && sweeps(s).length && sweeps(d).length); }; // both parents won the Triple Crown
 const tcDynasty = h => sweeps(h).length > 0 && tcParents(h); // a Triple Crown winner out of two Triple Crown winners
 const SLAM_ALL = FEATURES.map(f => f.n), SLAM = FEATURES.filter(f => !f.sex).map(f => f.n); // the 12 open big races (mare-only race doesn't count)
-const slamDone = h => SLAM.every(n => (h.bigWins || []).includes(n));
+const slamDone = h => SLAM.every(n => (h.bigWins || []).includes(n)); // 🏆 Granddaddy of Them All (12)
+const mommyDone = h => h.sex === 'F' && SLAM_ALL.every(n => (h.bigWins || []).includes(n)); // 👑 Grandmommy of Them All (all 13, mare race too)
+const slamList = h => h.sex === 'F' ? FEATURES : FEATURES.filter(f => !f.sex); // mares chase all 13
+const slamWon = h => slamList(h).filter(f => (h.bigWins || []).includes(f.n)).length;
+const slamTitle = h => h.sex === 'F' ? 'Grandmommy of Them All' : 'Granddaddy of Them All';
+const ggParents = h => { const s = findRec(h.sireId, h.sire, 'M', h), d = findRec(h.damId, h.dam, 'F', h); return !!(s && d && slamDone(s) && mommyDone(d)); }; // sire a Granddaddy, dam a Grandmommy
+const ggDynasty = h => (slamDone(h) || mommyDone(h)) && ggParents(h);
+const prestigeMul = h => { const big = (h.bigWins || []).filter(n => !CROWN.some(c => c.n === n)).length; // stud fee / value boost: classics, big races, Granddaddy/Grandmommy
+  return crownMul(h) * (1 + 0.15 * big) * (slamDone(h) || mommyDone(h) ? 4 : 1); };
 const tcCount = () => allRecs().reduce((a, h) => a + sweeps(h).length, 0);
 const tcWinner = h => (h.crown || []).some(c => c.startsWith('3@') && h.crown.includes('1@' + c.slice(2)) && h.crown.includes('2@' + c.slice(2))); // swept all three in one year
-const isSlam = r => !!r && FEATURES.some(f => f.n === r.n && !f.sex); // one of the 12 Gotta Win 'Em All races
+const isSlam = r => !!r && FEATURES.some(f => f.n === r.n); // one of the 13 named big races (Granddaddy / Grandmommy of Them All)
 const RC = r => r.crown ? 'big crown' : isSlam(r) ? 'big slam' : r.big ? 'big' : ''; // CSS class for a race row
 const RN = r => r.crown ? `<span class="tc">👑 TRIPLE CROWN ${r.crown}/3</span><b style="color:#ffe27a">${r.n}</b>` : isSlam(r) ? `<span class="slamtag">🎯 BIG RACE</span>${r.n}` : `${r.big ? '👑 ' : ''}${r.n}`; // race name, Triple Crown legs get a gold badge
 const raceTags = r => `<span class="tag">${PREF_ICON[r.dist].split(' ')[0]} ${DIST[r.dist].n} ${DIST[r.dist].d}</span>${r.cls >= 3 && !r.big ? `<span class="tag">${r.cn}</span>` : ''}${r.maiden ? '<span class="tag">Maidens</span>' : ''}${r.age3 ? '<span class="tag">3yo</span>' : ''}${r.age2 ? '<span class="tag">2yo</span>' : ''}${r.sex === 'F' ? '<span class="tag">Fillies & mares</span>' : ''}${r.vet ? '<span class="tag">7+</span>' : ''}${r.req ? `<span class="tag ${S.fame >= r.req ? '' : 'bad'}">⭐ ${r.req}</span>` : ''}`;
@@ -683,7 +692,7 @@ function endMonth(){
     for(const f of res.field.filter(x => x.mine)){
       const h = f.h; h.starts++; S.stats.races++; h.form = clamp(h.form - 28, 0, 100);
       for(const s of STATS) h.st[s] = Math.min(h.pot[s], h.st[s] + 0.6 * trainGain(h));
-      if(f.place === 1){ h.wins++; S.stats.wins++; S.yearWins = (S.yearWins || 0) + 1; if(race.cls >= 4 || race.big) h.gw++; if(race.crown) h.crown.push(race.crown + '@' + Math.floor(S.t / 12)); if(SLAM_ALL.includes(race.n) && !(h.bigWins = h.bigWins || []).includes(race.n)) h.bigWins.push(race.n); }
+      if(f.place === 1){ h.wins++; S.stats.wins++; S.yearWins = (S.yearWins || 0) + 1; if(race.cls >= 4 || race.big) h.gw++; if(race.crown) h.crown.push(race.crown + '@' + Math.floor(S.t / 12)); if(SLAM_ALL.includes(race.n) && !(h.bigWins = h.bigWins || []).includes(race.n)){ h.bigWins.push(race.n); if(slamDone(h)) goal('slam'); if(mommyDone(h)) goal('mommy'); if(ggDynasty(h)) goal('ggdyn'); } }
       if(f.place <= 3) h.places++;
       if(f.prize){ h.earned += f.prize; led(`${f.place === 1 ? '🥇' : f.place === 2 ? '🥈' : f.place === 3 ? '🥉' : '🎗️'} ${h.name}: ${race.n}`, f.prize); }
       const fm = f.place === 1 ? race.fame : f.place === 2 ? race.fame * 0.4 : f.place === 3 ? race.fame * 0.2 : 0; S.fame += Math.round(fm);
@@ -790,7 +799,7 @@ function foal(dam, sire){
   Object.assign(h, {coat, mark:Math.random() < 0.5 ? dam.mark : sire.mark, socks:Math.random() < 0.5 ? dam.socks : sire.socks, gen:(dam.gen || 0) + 1, dam:dam.name, sire:sire.name, damId:dam.id, sireId:sire.id, plan:{t:'rest'}, prodigy});
   for(const s of STATS) h.st[s] = Math.round(h.pot[s] * 0.18);
   S.horses.push(h); S.stats.foals++;
-  goal('foal1'); if(grade(h) >= 4) goal('foal4'); if(tcParents(h)) goal('tcfoal'); if(COAT[h.coat].rare) goal('rare');
+  goal('foal1'); if(grade(h) >= 4) goal('foal4'); if(tcParents(h)) goal('tcfoal'); if(ggParents(h)) goal('ggfoal'); if(COAT[h.coat].rare) goal('rare');
   return h;
 }
 function yearSummary(){
@@ -875,7 +884,10 @@ const GOALS = [
   {id:'tcmare', n:'Win the Triple Crown with a ♀ mare',  r:5000000, chk:() => allRecs().some(h => h.sex === 'F' && sweeps(h).length)},
   {id:'tcfoal', n:'Breed a foal whose sire and dam both won the Triple Crown', r:10000000, chk:() => allRecs().some(tcParents)},
   {id:'tcdyn',  n:'Triple Crown dynasty: a winner whose sire AND dam both won the Triple Crown', r:25000000, chk:() => allRecs().some(tcDynasty)},
-  {id:'slam',   n:"🏆 Gotta Win 'Em All: one horse wins all 12 open big races in its career", r:50000000, chk:() => allRecs().some(slamDone)},
+  {id:'slam',   n:'🏆 Granddaddy of Them All: one horse wins all 12 open big races in its career', r:50000000, chk:() => allRecs().some(slamDone)},
+  {id:'mommy',  n:'👑 Grandmommy of Them All: one mare wins all 13 big races (the fillies race too)', r:75000000, chk:() => allRecs().some(mommyDone)},
+  {id:'ggfoal', n:'🍼 Breed a foal of a Granddaddy sire and a Grandmommy dam', r:50000000, chk:() => allRecs().some(ggParents)},
+  {id:'ggdyn',  n:'🏆👑 Granddaddy dynasty: that foal wins them all too', r:250000000, chk:() => allRecs().some(ggDynasty)},
   {id:'crown3', n:'Win 3 Triple Crowns',                r:10000000, chk:() => tcCount() >= 3},
 ];
 function goal(id){ if(S.goals[id]) return; const g = GOALS.find(x => x.id === id); if(!g) return; S.goals[id] = true; (S.goalT = S.goalT || {})[id] = S.t; S.cash += g.r; const msg = `🎯 Goal: ${g.n}! +${money(g.r)}`; if(R.freeze){ R.toastQ.push(msg); return; } setTimeout(() => toast(msg), 400); }
@@ -1296,7 +1308,7 @@ function horseCard(h){
       <span>FORM</span>${bar(h.form * 1.5, 150, 'form')}<span>${Math.round(h.form)}%</span></div>
     <div class="hsub" style="margin-top:3px">🔢 Total skill <b style="color:var(--text)">${totSt(h)}</b> / ${totPot(h)} potential</div></div></div>
     ${st && !busy ? `<div class="hsub" style="margin-top:4px">${st}</div>` : ''}${banner}
-    <div class="plans">${plans}${R.sell ? '' : `${h.age >= 12 ? `<button data-slam="${h.id}" class="${(h.bigWins || []).length && slamAlive(h) ? 'slambtn' : ''}">🎯 ${SLAM.filter(n => (h.bigWins || []).includes(n)).length}/12</button>` : ''}<button data-edit="${h.id}">🎨 Edit</button>`}</div></div>`;
+    <div class="plans">${plans}${R.sell ? '' : `${h.age >= 12 ? `<button data-slam="${h.id}" class="${(h.bigWins || []).length && slamAlive(h) ? 'slambtn' : ''}">🎯 ${slamWon(h)}/${slamList(h).length}</button>` : ''}<button data-edit="${h.id}">🎨 Edit</button>`}</div></div>`;
 }
 function marketCard(h, i){
   const can = S.cash >= h.price;
@@ -1373,7 +1385,7 @@ function renderPanel(){
         <b>Second color</b><br>${SILKS.map((c, i) => `<button class="swatch ${(S.silk2 ?? 6) === i ? 'on' : ''}" style="background:${c}" data-silk2="${i}"></button>`).join('')}
         <p style="margin:6px 0 0;font-size:12px">🔒 ${PATS.filter(p => p[2] && !p[2]()).map(p => `${p[1]}: ${p[3]}`).join(' · ') || 'All designs unlocked!'}</p></div></div>`;
   } else {
-    const sub = R.rtab || 'stand', nav = `<div class="card" style="padding:8px 10px"><div class="arr">${[['stand', '🏆 Standings'], ['ach', '🏅 Achievements'], ['slam', '🎯 Slam tracker'], ['wins', '📜 Winners'], ['fam', '🌳 Family']].map(([id, n]) => `<button class="sbtn ${sub === id ? 'on' : ''}" data-rtab="${id}">${n}</button>`).join('')}</div></div>`;
+    const sub = R.rtab || 'stand', nav = `<div class="card" style="padding:8px 10px"><div class="arr">${[['stand', '🏆 Standings'], ['ach', '🏅 Achievements'], ['slam', '🎯 Granddaddy'], ['wins', '📜 Winners'], ['fam', '🌳 Family']].map(([id, n]) => `<button class="sbtn ${sub === id ? 'on' : ''}" data-rtab="${id}">${n}</button>`).join('')}</div></div>`;
     if(sub !== 'stand'){ P.innerHTML = nav + rankSub(sub); updateTop(); return; }
     const table = [...S.rivals.map(r => ({n:r.n, earn:r.earn, wins:r.wins || 0, silk:r.silk, tier:rivalTier(r.lvl)})), {n:'You', earn:S.yearEarn, wins:S.yearWins || 0, me:true, silk:SILKS[S.silk]}].sort((a, b) => b.earn - a.earn);
     P.innerHTML = nav + `<div class="card"><h3>🏆 Year ${Math.floor(S.t / 12) + 1} standings</h3>${table.map((r, i) => `<div class="stat"><span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${r.silk};margin-right:6px"></span>${i + 1}. ${r.me ? '<b style="color:var(--gold)">You</b>' : `${r.n} <small style="color:var(--dim)">· ${r.tier} level</small>`}</span><b>${money(r.earn)} · ${r.wins} win${r.wins === 1 ? '' : 's'}</b></div>`).join('')}
@@ -1408,11 +1420,11 @@ function updateTop(){
 }
 function racePicker(h){
   const cur = h.plan.t === 'race' ? S.card.find(r => r.id === h.plan.r) : null;
-  const need = r => isSlam(r) && (h.bigWins || []).length && slamAlive(h) && ['now', 'last'].includes(slamStatus(h, FEATURES.find(f => f.n === r.n)));
+  const need = r => { const f = slamList(h).find(f => f.n === r.n); return !!f && (h.bigWins || []).length > 0 && slamAlive(h) && ['now', 'last'].includes(slamStatus(h, f)); };
   const rest = S.card.filter(r => r !== cur).sort((a, b) => !!b.crown - !!a.crown || need(b) - need(a) || isSlam(b) - isSlam(a)), list = cur ? [cur, ...rest] : rest;
   const opts = list.map(r => { const why = eligible(h, r), [o, cls] = why ? ['', ''] : oddsTxt(h, r), mates = runnersFor(r).filter(x => x !== h);
     const fit = h.pref === r.dist ? ' <span class="pos">✓ favorite distance</span>' : Math.abs(DORD[h.pref] - DORD[r.dist]) === 2 ? ' <span class="neg">✗ dislikes distance</span>' : '';
-    return `<button ${why ? 'disabled style="opacity:.45"' : ''} data-pickrace="${r.id}" data-h="${h.id}" class="${r === cur ? 'on' : ''} ${r.crown ? 'crown' : isSlam(r) ? 'slam' : ''}">${r === cur ? '<span class="rtag">✅ ENTERED</span> ' : ''}${RN(r)} · ${DIST[r.dist].n}${fit} · ${money(r.purse)}${need(r) ? `<br><b style="color:#7dff9a">🎯 ${h.name} still needs this one for Gotta Win 'Em All${slamStatus(h, FEATURES.find(f => f.n === r.n)) === 'last' ? ' · LAST CHANCE' : ''}</b>` : ''}
+    return `<button ${why ? 'disabled style="opacity:.45"' : ''} data-pickrace="${r.id}" data-h="${h.id}" class="${r === cur ? 'on' : ''} ${r.crown ? 'crown' : isSlam(r) ? 'slam' : ''}">${r === cur ? '<span class="rtag">✅ ENTERED</span> ' : ''}${RN(r)} · ${DIST[r.dist].n}${fit} · ${money(r.purse)}${need(r) ? `<br><b style="color:#7dff9a">🎯 ${h.name} still needs this one for ${slamTitle(h)}${slamStatus(h, FEATURES.find(f => f.n === r.n)) === 'last' ? ' · LAST CHANCE' : ''}</b>` : ''}
       <small>${why || `Your rating ${Math.round(rating(h, r.dist))} vs field ${Math.round(r.lo)}–${Math.round(r.hi)} · <span class="${cls}">${o}</span> · win odds ${xs(odds(r, h).win.x)} · entry ${money(r.fee)}`}${mates.length ? `<br>🏇 Also running for you: <b style="color:var(--gold)">${mates.map(x => x.name).join(', ')}</b>` : ''}</small></button>`; }).join('');
   showModal(`<h2>🏁 Race ${h.name}</h2><p>${PREF_ICON[h.pref]} specialist · Form ${Math.round(h.form)}%${h.form < 60 ? ' (tired: will run below best)' : ''}</p>
     <p>${cur ? `Currently entered in <b style="color:var(--gold)">${cur.n}</b>. Tap another race to switch.` : 'Not entered in a race yet this month.'}</p>
@@ -1469,35 +1481,35 @@ function slamStatus(h, f){ // 'won' | 'open' | 'now' (running this month) | 'las
   if(S.t % 12 === f.m && S.t >= first) return S.t === last ? 'last' : 'now';
   return 'open';
 }
-const slamAlive = h => !FEATURES.filter(f => !f.sex).some(f => slamStatus(h, f) === 'missed');
-function slamCard(h){ // per-horse Gotta Win 'Em All checklist
-  const F = FEATURES.filter(f => !f.sex), won = SLAM.filter(n => (h.bigWins || []).includes(n)).length, alive = slamAlive(h);
+const slamAlive = h => !slamList(h).some(f => slamStatus(h, f) === 'missed');
+function slamCard(h){ // per-horse Granddaddy / Grandmommy checklist
+  const F = slamList(h), N = F.length, won = slamWon(h), alive = slamAlive(h);
   const lbl = {won:'✅ Won', open:'⬜ To win', now:'🟨 This month!', last:'🟧 LAST CHANCE', missed:'❌ Missed'};
   const when = f => f.age2 ? 'age 2 only' : f.age3 ? 'age 3 only' : f.vet ? 'age 7+' : 'any age';
-  showModal(`${pimg(h, 90)}<h2>🎯 ${h.name}</h2><p><b style="color:${won === 12 ? 'var(--gold)' : alive ? 'var(--good)' : 'var(--dim)'}">${won}/12 big races ${won === 12 ? "🏆 GOTTA WIN 'EM ALL!" : alive ? '🔥 still on track' : '✖ can no longer complete the set'}</b><br><small>${ageTxt(h.age)} · races as ${raceAge(h)}yo</small></p>
+  showModal(`${pimg(h, 90)}<h2>🎯 ${h.name}</h2><p><b style="color:${won === N ? 'var(--gold)' : alive ? 'var(--good)' : 'var(--dim)'}">${slamTitle(h)}: ${won}/${N} ${won === N ? '🏆 DONE!' : alive ? '🔥 still on track' : '✖ can no longer complete the set'}</b>${h.sex === 'F' ? `<br><small>Granddaddy (the 12 open races): ${SLAM.filter(n => (h.bigWins || []).includes(n)).length}/12${slamDone(h) ? ' 🏆' : ''}</small>` : ''}<br><small>${ageTxt(h.age)} · races as ${raceAge(h)}yo</small></p>
     <div style="text-align:left">${F.map(f => { const st = slamStatus(h, f), r = S.card.find(c => c.n === f.n), why = r && eligible(h, r), ins = r && h.plan.t === 'race' && h.plan.r === r.id;
-      return `<div class="stat" style="align-items:center"><span>${f.crown ? '👑 ' : ''}<b>${f.n}</b><br><small style="color:var(--dim)">${MONTHS[f.m]} · ${DIST[f.dist].n} · ${when(f)}</small></span><span style="text-align:right"><b class="sl sl-${st === 'open' ? 'open' : st}" style="padding:3px 7px">${lbl[st]}</b>${(st === 'now' || st === 'last') && r ? (ins ? '<br><small style="color:var(--good)">entered</small>' : why ? `<br><small style="color:#ffb0b0">${why}</small>` : `<br><button class="sbtn" style="min-width:0;padding:2px 8px;margin-top:3px" data-pickrace="${r.id}" data-h="${h.id}">🏁 Enter</button>`) : ''}</span></div>`; }).join('')}
-    ${(h.bigWins || []).includes('Valentine Fillies Sprint') ? '<div class="stat"><span>Valentine Fillies Sprint <small>(bonus, not required)</small></span><b>✅</b></div>' : ''}</div>
+      return `<div class="stat" style="align-items:center"><span>${f.crown ? '👑 ' : ''}<b>${f.n}</b><br><small style="color:var(--dim)">${MONTHS[f.m]} · ${DIST[f.dist].n} · ${f.sex ? 'mares only' : when(f)}</small></span><span style="text-align:right"><b class="sl sl-${st === 'open' ? 'open' : st}" style="padding:3px 7px">${lbl[st]}</b>${(st === 'now' || st === 'last') && r ? (ins ? '<br><small style="color:var(--good)">entered</small>' : why ? `<br><small style="color:#ffb0b0">${why}</small>` : `<br><button class="sbtn" style="min-width:0;padding:2px 8px;margin-top:3px" data-pickrace="${r.id}" data-h="${h.id}">🏁 Enter</button>`) : ''}</span></div>`; }).join('')}
+</div>
     <button class="btn" data-close>Close</button>`);
 }
 function slamAlert(){ // Stable tab: this month's slam race and the on-track horses that still need it
   const out = [];
-  for(const f of FEATURES.filter(f => !f.sex && f.m === S.t % 12)){ const r = S.card.find(c => c.n === f.n); if(!r) continue;
-    const need = S.horses.filter(h => (h.bigWins || []).length && slamAlive(h) && ['now', 'last'].includes(slamStatus(h, f)));
+  for(const f of FEATURES.filter(f => f.m === S.t % 12)){ const r = S.card.find(c => c.n === f.n); if(!r) continue;
+    const need = S.horses.filter(h => (h.bigWins || []).length && slamList(h).includes(f) && slamAlive(h) && ['now', 'last'].includes(slamStatus(h, f)));
     if(!need.length) continue;
-    out.push(`<div class="race big" style="font-size:13px;border-color:#7dff9a"><div style="font-size:14px;font-weight:900;color:#7dff9a">🎯 GOTTA WIN 'EM ALL: ${f.n} is this month</div>${need.map(h => { const last = slamStatus(h, f) === 'last', why = eligible(h, r), ins = h.plan.t === 'race' && h.plan.r === r.id;
-      return `<div style="margin-top:5px"><b>${h.name}</b> (${(h.bigWins || []).filter(n => SLAM.includes(n)).length}/12)${last ? ' <span class="tag bad">LAST CHANCE</span>' : ''} ${ins ? '<span style="color:var(--good)">✅ entered</span>' : why ? `<span style="color:#ffb0b0">${why}</span>` : `<button class="sbtn" style="min-width:0;padding:3px 9px" data-pickrace="${r.id}" data-h="${h.id}">🏁 Enter · ${xs(odds(r, h).win.x)}</button>`}</div>`; }).join('')}</div>`); }
+    out.push(`<div class="race big" style="font-size:13px;border-color:#7dff9a"><div style="font-size:14px;font-weight:900;color:#7dff9a">🎯 ${f.sex ? 'GRANDMOMMY' : 'GRANDDADDY / GRANDMOMMY'} RACE: ${f.n} is this month</div>${need.map(h => { const last = slamStatus(h, f) === 'last', why = eligible(h, r), ins = h.plan.t === 'race' && h.plan.r === r.id;
+      return `<div style="margin-top:5px"><b>${h.name}</b> (${slamWon(h)}/${slamList(h).length})${last ? ' <span class="tag bad">LAST CHANCE</span>' : ''} ${ins ? '<span style="color:var(--good)">✅ entered</span>' : why ? `<span style="color:#ffb0b0">${why}</span>` : `<button class="sbtn" style="min-width:0;padding:3px 9px" data-pickrace="${r.id}" data-h="${h.id}">🏁 Enter · ${xs(odds(r, h).win.x)}</button>`}</div>`; }).join('')}</div>`); }
   return out.join('');
 }
 function rankSub(sub){
   if(sub === 'slam'){
-    const F = FEATURES.filter(f => !f.sex), rows = S.horses.filter(h => h.age >= 12 || (h.bigWins || []).length).map(h => { const st = F.map(f => slamStatus(h, f)); return {h, st, won:st.filter(x => x === 'won').length, alive:!st.includes('missed')}; })
+    const rows = S.horses.filter(h => h.age >= 12 || (h.bigWins || []).length).map(h => { const L = slamList(h), st = L.map(f => slamStatus(h, f)); return {h, L, st, won:st.filter(x => x === 'won').length, alive:!st.includes('missed')}; })
       .sort((a, b) => b.alive - a.alive || b.won - a.won), past = allRecs().filter(r => !S.horses.includes(r) && (r.bigWins || []).length >= 4).sort((a, b) => b.bigWins.length - a.bigWins.length);
-    const now = F.filter(f => f.m === S.t % 12), box = (f, st) => `<span class="sl sl-${st}${f.crown ? ' sl-tc' : ''}" title="${f.n}">${f.vet ? 'Vet' : MONTHS[f.m]}</span>`;
-    return `<div class="card"><h3>🎯 Gotta Win 'Em All tracker</h3>One horse must win all 12 open big races (the mare-only race doesn't count). <span class="sl sl-won">won</span> <span class="sl sl-open">still to win</span> <span class="sl sl-missed">missed for good</span> <span class="sl sl-now">this month!</span> <span class="sl sl-last">last chance!</span><br><small style="color:var(--dim)">Boxes in month order. Apr = Juvenile Futurity (age 2), gold-edged May/Jun/Jul = Triple Crown (age 3), Vet = Veterans' Crown (age 7+). Tap-and-hold a box for its name.</small>
-      ${now.length ? `<p style="margin:6px 0 0">📅 <b>This month:</b> ${now.map(f => `<b>${f.n}</b> · contenders: ${rows.filter(r => r.alive && ['now', 'last'].includes(slamStatus(r.h, f)) && !eligible(r.h, S.card.find(c => c.n === f.n) || {})).map(r => r.h.name).join(', ') || 'none eligible'}`).join('<br>')}</p>` : ''}</div>
-      ${rows.length ? rows.map(({h, st, won, alive}) => `<div class="card" style="padding:8px 12px"><div style="display:flex;justify-content:space-between;align-items:center;gap:6px"><span>${h.sex === 'M' ? '♂' : '♀'} <b>${h.name}</b> <small style="color:var(--dim)">${ageTxt(h.age)} · races as ${raceAge(h)}yo</small></span><b style="color:${won === 12 ? 'var(--gold)' : alive ? 'var(--good)' : 'var(--dim)'}">${won}/12 ${won === 12 ? '🏆' : alive ? '🔥 on track' : '✖ out'}</b></div><div class="slrow">${F.map((f, i) => box(f, st[i])).join('')}</div></div>`).join('') : '<div class="card">No horses old enough yet.</div>'}
-      ${past.length ? `<div class="sec">Past horses (4+ big wins)</div><div class="card">${past.map(r => `<b>${r.name}</b> · ${r.bigWins.length} big wins${slamDone(r) ? ' 🏆' : ''}`).join('<br>')}</div>` : ''}`;
+    const now = FEATURES.filter(f => f.m === S.t % 12), box = (f, st) => `<span class="sl sl-${st}${f.crown ? ' sl-tc' : ''}${f.sex ? ' sl-mare' : ''}" title="${f.n}">${f.vet ? 'Vet' : f.sex ? '♀Feb' : MONTHS[f.m]}</span>`;
+    return `<div class="card"><h3>🎯 Granddaddy / Grandmommy tracker</h3>🏆 <b>Granddaddy of Them All</b>: one horse wins all 12 open big races. 👑 <b>Grandmommy of Them All</b>: one mare wins all 13 (the pink-edged ♀Feb fillies race too). <span class="sl sl-won">won</span> <span class="sl sl-open">still to win</span> <span class="sl sl-missed">missed for good</span> <span class="sl sl-now">this month!</span> <span class="sl sl-last">last chance!</span><br><small style="color:var(--dim)">Boxes in month order. Apr = Juvenile Futurity (age 2), gold-edged May/Jun/Jul = Triple Crown (age 3), Vet = Veterans' Crown (age 7+). Tap-and-hold a box for its name.</small>
+      ${now.length ? `<p style="margin:6px 0 0">📅 <b>This month:</b> ${now.map(f => `<b>${f.n}</b> · contenders: ${rows.filter(r => r.alive && r.L.includes(f) && ['now', 'last'].includes(slamStatus(r.h, f)) && !eligible(r.h, S.card.find(c => c.n === f.n) || {})).map(r => r.h.name).join(', ') || 'none eligible'}`).join('<br>')}</p>` : ''}</div>
+      ${rows.length ? rows.map(({h, L, st, won, alive}) => `<div class="card" style="padding:8px 12px"><div style="display:flex;justify-content:space-between;align-items:center;gap:6px"><span>${h.sex === 'M' ? '♂' : '♀'} <b>${h.name}</b> <small style="color:var(--dim)">${ageTxt(h.age)} · races as ${raceAge(h)}yo</small></span><b style="color:${won === L.length ? 'var(--gold)' : alive ? 'var(--good)' : 'var(--dim)'}">${won}/${L.length} ${won === L.length ? (h.sex === 'F' ? '👑' : '🏆') : alive ? '🔥 on track' : '✖ out'}</b></div><div class="slrow" style="grid-template-columns:repeat(${L.length},1fr)">${L.map((f, i) => box(f, st[i])).join('')}</div></div>`).join('') : '<div class="card">No horses old enough yet.</div>'}
+      ${past.length ? `<div class="sec">Past horses (4+ big wins)</div><div class="card">${past.map(r => `<b>${r.name}</b> · ${r.bigWins.length} big wins${slamDone(r) ? ' 🏆' : ''}${mommyDone(r) ? ' 👑' : ''}`).join('<br>')}</div>` : ''}`;
   }
   if(sub === 'ach'){
     const done = GOALS.filter(g => S.goals[g.id]).length, recs = allRecs();
@@ -1541,8 +1553,8 @@ function detail(h, market){
     <p><span style="color:var(--gold)">${stars(grade(h))}</span> · ${BREEDS[h.breed].n} · ${COAT[h.coat].n} · ${ageTxt(h.age)} · ${PREF_ICON[h.pref]}</p>${ped}
     <p>Potential ${h.pot.spd}/${h.pot.sta}/${h.pot.acc} · Record ${h.wins}W ${h.places}P ${h.starts}R · Earned ${money(h.earned)}${h.crown && h.crown.length ? ' · 👑 ' + h.crown.length + ' classics' : ''}</p>
     <p>Value ≈ <b>${money(value(h))}</b></p>
-    ${market ? '' : `<p style="font-size:12px;text-align:left">🏆 <b>Big races won: ${SLAM.filter(n => (h.bigWins || []).includes(n)).length}/12</b>${slamDone(h) ? ' <b style="color:var(--gold)">GOTTA WIN \'EM ALL!</b>' : ''}<br>${SLAM.map(n => `${(h.bigWins || []).includes(n) ? '✅' : '⬜'} ${n}`).join(' · ')}${(h.bigWins || []).includes('Valentine Fillies Sprint') ? ' · ✅ Valentine Fillies Sprint (bonus)' : ''}</p>`}
-    ${market ? '' : `<button class="btn" data-slam="${h.id}">🎯 Big race checklist (${SLAM.filter(n => (h.bigWins || []).includes(n)).length}/12)</button><button class="btn ghost" data-tree="${h.id}">🌳 Family tree</button><button class="btn" data-edit="${h.id}">🎨 Edit name & looks</button>${h.wins >= 3 ? `<button class="btn ghost" data-retire="${h.id}">🏅 Retire to Hall of Fame (leaves your stable)</button>` : ''}<button class="btn ghost" data-sell="${h.id}">${sellPrice(h) ? `💰 Sell for ${money(sellPrice(h))}` : '🏡 Rehome (free)'}</button>`}
+    ${market ? '' : `<p style="font-size:12px;text-align:left">🏆 <b>Big races won: ${slamWon(h)}/${slamList(h).length}</b>${slamDone(h) ? ' <b style="color:var(--gold)">🏆 GRANDDADDY OF THEM ALL!</b>' : ''}${mommyDone(h) ? ' <b style="color:#ff9ad8">👑 GRANDMOMMY OF THEM ALL!</b>' : ''}<br>${slamList(h).map(f => `${(h.bigWins || []).includes(f.n) ? '✅' : '⬜'} ${f.n}`).join(' · ')}</p>`}
+    ${market ? '' : `<button class="btn" data-slam="${h.id}">🎯 Big race checklist (${slamWon(h)}/${slamList(h).length})</button><button class="btn ghost" data-tree="${h.id}">🌳 Family tree</button><button class="btn" data-edit="${h.id}">🎨 Edit name & looks</button>${h.wins >= 3 ? `<button class="btn ghost" data-retire="${h.id}">🏅 Retire to Hall of Fame (leaves your stable)</button>` : ''}<button class="btn ghost" data-sell="${h.id}">${sellPrice(h) ? `💰 Sell for ${money(sellPrice(h))}` : '🏡 Rehome (free)'}</button>`}
     <button class="btn" data-close>Close</button>`);
 }
 
