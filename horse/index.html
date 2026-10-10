@@ -1602,7 +1602,8 @@ document.addEventListener('click', ev => {
   if(d.sort){ S.sortBy = d.sort; persist(); renderPanel(); return; }
   if(d.nsort){ S.nSort = d.nsort; persist(); renderPanel(); return; }
   if(d.nfilter){ S.nFilter = d.nfilter; persist(); renderPanel(); return; }
-  if(d.filter){ const a = activeFilters(); S.filters = d.filter === 'all' ? [] : a.includes(d.filter) ? a.filter(x => x !== d.filter) : [...a, d.filter]; delete S.filterBy; persist(); renderPanel(); return; }
+  if(d.filter){ const a = activeFilters(), g = (FILTERS.find(f => f[0] === d.filter) || [])[3]; // Mares / Stallions: one or the other
+    S.filters = d.filter === 'all' ? [] : a.includes(d.filter) ? a.filter(x => x !== d.filter) : [...a.filter(x => g !== 'sex' || (FILTERS.find(f => f[0] === x) || [])[3] !== 'sex'), d.filter]; delete S.filterBy; persist(); renderPanel(); return; }
   if(d.mv){ const L = stableList(), i = L.findIndex(x => x.id === +d.mv), j = i + +d.dir; if(i < 0 || j < 0 || j >= L.length) return;
     const a = S.horses.indexOf(L[i]), b = S.horses.indexOf(L[j]); [S.horses[a], S.horses[b]] = [S.horses[b], S.horses[a]]; persist(); renderPanel(); return; }
   if(d.silk2){ S.silk2 = +d.silk2; SPR.clear(); persist(); renderPanel(); return; }
