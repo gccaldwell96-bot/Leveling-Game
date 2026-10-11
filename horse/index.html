@@ -402,6 +402,7 @@ function load(){
     if(!S.slamMig){ S.slamMig = true;
       for(const h of S.horses){ h.bigWins = h.bigWins || []; for(const c of h.crown || []){ const n = CROWN[+c.split('@')[0] - 1].n; if(!h.bigWins.includes(n)) h.bigWins.push(n); } }
       for(const l of [...(S.log || []), ...(S.history || []).filter(x => x.mine).map(x => ({race:x.n, horse:x.w, place:1}))]) if(l.place === 1 && SLAM_ALL.includes(l.race)){ const h = S.horses.find(x => x.name === l.horse); if(h && !h.bigWins.includes(l.race)) h.bigWins.push(l.race); } }
+    if(S.cash < -1e9){ const d = -S.cash; S.cash = 0; setTimeout(() => toast(`🛠️ Fixed a bug: runaway event bills (${money(d)} of debt) were wiped. Sorry about that!`), 1200); } // uncapped event prices after long skips; normal play can't reach this
     autoStud();
     if(S.card && S.card.length) addHighStakes(S.card); // older cards skipped High Stakes next to restricted races
     if(!S.card || S.card.some(r => !r.field0)){ for(const b of S.bets) S.cash += b.amt; S.bets = []; makeCard(); for(const h of S.horses) if(h.plan.t === 'race') h.plan = {t:'train', f:'spd'}; }
@@ -830,9 +831,10 @@ function yearSummary(){
 }
 
 // ---- event cards (some ask you to choose) ----
+const EVT_CAP = 160; // without a cap, a Year-50 hay shortage cost $100B+
 const GEM_ODDS = 0.35, JACKPOT_ODDS = 0.05; // mystery yearling: 35% gem, 5% of gems are a jackpot (one stat at 150)
 function makeEvent(){
-  const hs = S.horses.filter(h => isAdult(h)), h = hs.length ? pick(hs) : null, y = Math.pow(1.4, Math.floor(S.t / 12));
+  const hs = S.horses.filter(h => isAdult(h)), h = hs.length ? pick(hs) : null, y = Math.min(Math.pow(1.4, Math.floor(S.t / 12)), EVT_CAP); // event prices grow with the years, but stop at about Year 16 levels
   const E = [
     () => h && {t:`💼 A buyer wants ${h.name}`, d:`An oil baron offers <b>${money(Math.round(value(h) * 1.5))}</b> for ${h.name} (worth about ${money(value(h))}).`, h:h.id, offer:Math.round(value(h) * 1.5), choices:[['Sell!', 'sell'], ['Not for sale', 'no']]},
     () => ({t:'📰 Magazine feature', d:'Racing Weekly profiles your stable. Fans love it.', fx:'fame', v:irand(5, 15) + Math.floor(S.fame * 0.05), choices:[['Great', 'ok']]}),
