@@ -377,7 +377,7 @@ function newHorse(o = {}){
 }
 function freshSave(){
   S = {v:1, t:0, cash:30000, fame:0, nextId:1, horses:[], fac:{stables:0, train:0, vet:0, barn:0, academy:0, pasture:0, pool:0, coach:0}, silk:0,
-    market:[], studs:[], rivals:RIVAL_NAMES.map(([n, c, l]) => ({n, silk:c, lvl:l, earn:0, total:0, wins:0})), yearEarn:0, yearWins:0, total:0, tough2:true, raceAgeMig:[], mega:{done:true, fresh:true},
+    market:[], studs:[], rivals:RIVAL_NAMES.map(([n, c, l]) => ({n, silk:c, lvl:l, earn:0, total:0, wins:0})), yearEarn:0, yearWins:0, total:0, tough2:true, raceAgeMig:[],
     log:[], goals:{}, hall:[], pending:null, stats:{races:0, wins:0, foals:0, sold:0, bought:0, spent:0, bets:0, betsWon:0, betProfit:0}, bets:[], seen:false, lastYear:null};
   S.horses.push(newHorse({breed:'mustang', age:40, extra:{name:'Daisy Belle', sex:'F'}}));
   S.horses.push(newHorse({breed:'quarter', age:30, extra:{name:'Copper Jack', sex:'M'}}));
@@ -1805,20 +1805,7 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 window.addEventListener('resize', resize);
-// ---- 🌌 The Eternal Cup: a one-time gift race. Your best horse wins $275 BILLION, once and never again ----
-function eternalCup(){
-  if(S.mega) return; // once per save: it's stored in the save, so it survives reloads, Undo and moving devices
-  const pool = S.horses.filter(canRace).length ? S.horses.filter(canRace) : S.horses, h = pool.slice().sort((a, b) => rating(b, b.pref) - rating(a, a.pref))[0];
-  const P = 275e9, name = h ? h.name : 'Your stable';
-  S.mega = {done:true, t:S.t, w:name}; S.cash += P; S.total += P;
-  (S.history = S.history || []).unshift({t:S.t, n:'🌌 The Eternal Cup', crown:0, g1:false, dist:'mile', purse:P, w:name, own:'You', mine:true, id:h ? h.id : null});
-  S.log.unshift({m:S.t, race:'🌌 The Eternal Cup', horse:name, place:1, prize:P});
-  persist(); updateTop();
-  const show = () => { if(!$('modal').hidden){ setTimeout(show, 1200); return; }
-    showModal(`<h2>🌌 The Eternal Cup</h2><p>The richest race ever run, held <b>once and only once</b>.</p><p style="font-size:24px;margin:8px 0">🥇 <b>${name}</b> wins!</p><p style="font-size:30px;margin:6px 0;font-weight:900;background:linear-gradient(90deg,#c8f0ff,#ffd6f6,#fff3a8);-webkit-background-clip:text;background-clip:text;color:transparent">+$275,000,000,000</p><p style="font-size:12px;color:var(--dim)">It will never be run again. It's in your winners history.</p><button class="btn" data-close>🎉 Collect</button>`); };
-  setTimeout(show, 1800);
-}
-load(); resize(); renderPanel(); linkedSave(); eternalCup();
+load(); resize(); renderPanel(); linkedSave();
 if(S.pending) showEvent();
 if(!S.seen){ S.seen = true; persist();
   showModal(HOWTO); }
