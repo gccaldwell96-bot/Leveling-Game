@@ -776,7 +776,7 @@ function endMonth(opt = {}){
   S.log.unshift(...rep.races.flatMap(r => r.field.filter(f => f.mine).map(f => ({m:rep.month, race:r.race.n, horse:f.name, place:f.place, prize:f.prize})))); S.log.length = Math.min(S.log.length, 40);
   if(S.cash < 0) rep.notes.push(`⚠️ You're ${money(-S.cash)} in debt! Sell a horse or win some races.`);
   persist();
-  if(opt.quiet) return rep; // ⏩ skip: no race playback
+  if(opt.quiet){ rep.toasts = R.toastQ || []; R.toastQ = []; R.freeze = null; return rep; } // ⏩ skip: no race playback (and unfreeze the screen)
   REPORT = rep;
   startPlayback(rep);
 }
@@ -1304,9 +1304,10 @@ function skipMonths(n){
   for(let i = 0; i < n; i++){
     if(S.pending) autoEvent();
     for(const h of S.horses) if(h.plan.t === 'race' && !S.card.some(r => r.id === h.plan.r)) h.plan = {t:'train', f:'bal'};
-    const rep = endMonth({quiet:true}); births.push(...rep.births); deaths.push(...rep.deaths); if(rep.year) years.push(rep.year);
-    notes.push(...rep.notes.filter(x => /👑|✨|🛡️|🎓|LEGEND|Triple Crown|TRIPLE/.test(x)).map(x => `${monthName(rep.month)}: ${x}`));
+    const rep = endMonth({quiet:true}); if(!rep) break; births.push(...rep.births); deaths.push(...rep.deaths); if(rep.year) years.push(rep.year);
+    notes.push(...rep.notes.filter(x => /👑|✨|🛡️|🎓|LEGEND|Triple Crown|TRIPLE/.test(x)).map(x => `${monthName(rep.month)}: ${x}`), ...rep.toasts.map(x => `${monthName(rep.month)}: ${x}`)); // achievements earned along the way
   }
+  R.freeze = null; n = S.t - from;
   $('modal').hidden = true; R.walkers = []; persist(); updateTop(); renderPanel();
   showModal(`<h2>⏩ Skipped ${n} month${n > 1 ? 's' : ''}</h2><p>${monthName(from)} → <b>${monthName(S.t)}</b></p>
     <div class="ledger"><div><span>Money</span><b class="${S.cash >= c0 ? 'pos' : 'neg'}">${S.cash >= c0 ? '+' : ''}${money(S.cash - c0)}</b></div><div><span>Fame</span><b class="pos">+${Math.round(S.fame - f0)} ⭐</b></div><div><span>Races / wins</span><b>${S.stats.races - r0} / ${S.stats.wins - w0}</b></div><div><span>Foals born</span><b>${births.length}</b></div>${deaths.length ? `<div><span>Passed away</span><b>${deaths.map(d => d.name).join(', ')}</b></div>` : ''}</div>
