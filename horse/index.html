@@ -660,11 +660,14 @@ function betSlip(){
 function betWindow(){ // the last call before the races run
   R.betWin = true;
   const races = S.card.filter(r => runnersFor(r).length);
-  showModal(`<h2>🎟️ Last call for bets!</h2><p>Your horses are on the track this month. Want a bet before the gates open?</p>
+  showModal(`<h2>🎟️ Last call for bets!</h2><p>Your horses are on the track this month. Want a bet before the gates open? <b>Betting is optional.</b></p>
+    <button class="btn" id="runRaces2">🏁 No bet, start the races</button>
+    <label style="display:block;margin:4px 0 8px;font-size:12px;color:var(--dim)"><input type="checkbox" id="noBetWinTop" ${S.noBetWin ? 'checked' : ''}> Never show this again (turn it back on in ⚙️ or the 🎟️ Bets tab)</label>
+    <div class="sec">Or place a bet</div>
     <div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin:6px 0">${stakeChips()}</div>
     ${races.map(r => `<div style="text-align:left;margin-top:8px"><b>${RN(r)}</b> ${raceTags(r)}${fieldTable(r)}</div>`).join('')}
     <div class="sec">Your bet slip</div>${betSlip()}
-    <button class="btn" id="runRaces">🏁 Start the races</button>
+    <button class="btn" id="runRaces">🏁 Start the races${(S.bets || []).length ? '' : ' (no bet)'}</button>
     <button class="btn ghost" id="toBets">Open the full betting board</button>
     <label style="display:block;margin-top:10px;font-size:12px;color:var(--dim)"><input type="checkbox" id="noBetWin" ${S.noBetWin ? 'checked' : ''}> Don't show this before races (you can still bet on the 🎟️ Bets tab)</label>`);
 }
@@ -1651,7 +1654,7 @@ const dragEnd = () => { if(!DRAG) return; const {card, moved} = DRAG; DRAG = nul
   slots.forEach((slot, k) => S.horses[slot] = L[k]); persist(); renderPanel(); };
 document.addEventListener('pointerup', dragEnd); document.addEventListener('pointercancel', dragEnd);
 document.addEventListener('change', ev => {
-  if(ev.target.id === 'noBetWin'){ S.noBetWin = ev.target.checked; persist(); }
+  if(ev.target.id === 'noBetWin' || ev.target.id === 'noBetWinTop'){ S.noBetWin = ev.target.checked; persist(); for(const id of ['noBetWin', 'noBetWinTop']) if($(id)) $(id).checked = S.noBetWin; }
   if(ev.target.id === 'noBetWin2'){ S.noBetWin = !ev.target.checked; persist(); }
 });
 document.addEventListener('click', ev => {
@@ -1672,7 +1675,8 @@ document.addEventListener('click', ev => {
   if(d.ff){ skipMonths(+d.ff); return; }
   if(d.tab){ if(R.freeze){ toast('🏁 Finish watching the races first (or tap Skip)'); return; } if(d.tab !== tab) R.sell = null; tab = d.tab; if(innerWidth >= 900 && scrollY > $('panel').offsetTop) scrollTo({top:$('panel').offsetTop - 70}); renderPanel(); $('panel').scrollTop = 0; return; }
   if(t.id === 'endBtn'){ if(R.play) return; if(!S.noBetWin && !S.pending && S.card.some(r => runnersFor(r).length)){ betWindow(); return; } endMonth(); if(R.freeze) updateTop(); else renderPanel(); return; }
-  if(t.id === 'runRaces'){ R.betWin = false; $('modal').hidden = true; endMonth(); if(R.freeze) updateTop(); else renderPanel(); return; }
+  if(t.id === 'betPopBtn'){ S.noBetWin = !S.noBetWin; persist(); t.closest('button').innerHTML = `🎟️ "Last call for bets" pop-up: <b>${S.noBetWin ? 'OFF' : 'ON'}</b>`; toast(S.noBetWin ? '🎟️ No more betting pop-ups. You can still bet on the 🎟️ Bets tab.' : '🎟️ Betting pop-up is back on'); return; }
+  if(t.id === 'runRaces' || t.id === 'runRaces2'){ R.betWin = false; $('modal').hidden = true; endMonth(); if(R.freeze) updateTop(); else renderPanel(); return; }
   if(t.id === 'toBets'){ R.betWin = false; $('modal').hidden = true; tab = 'bets'; renderPanel(); $('panel').scrollTop = 0; return; }
   if(d.openrace){ (R.open = R.open || new Set()).add(d.openrace); renderPanel(); return; }
   if(d.pb){ const race = S.card.find(r => r.id === d.pr); if(race && placeBet(race, d.pk, d.pb)) afterBet(); return; }
@@ -1749,7 +1753,7 @@ document.addEventListener('click', ev => {
   if(d.silk2){ S.silk2 = +d.silk2; SPR.clear(); persist(); renderPanel(); return; }
   if(d.silkpat){ S.silkPat = d.silkpat; SPR.clear(); persist(); renderPanel(); return; }
   if(t.id === 'menuBtn'){ showModal(`<h2>⚙️ Menu</h2><p>${monthName(S.t)} · net worth ${money(netWorth())}</p>
-    <button class="btn ghost" id="howBtn">❓ How to play</button><button class="btn ghost" id="xferBtn">💾 Move save to another device</button>${(() => { try{ const u = localStorage.getItem(UNDO_KEY); return u ? `<button class="btn ghost" id="undoBtn">⏪ Undo last month (back to ${monthName(JSON.parse(u).t)})</button>` : S.back1 || S.t < 1 ? '' : '<button class="btn ghost" id="back1Btn">⏪ Turn back 1 month (one time)</button>'; }catch(e){ return ''; } })()}${S.rewound ? '' : '<button class="btn ghost" id="rewBtn">⏪ Go back to May (one time)</button>'}<button class="btn danger" id="wipeBtn">🔄 New game (reset)</button><button class="btn" data-close>Back to the ranch</button>`); return; }
+    <button class="btn ghost" id="howBtn">❓ How to play</button><button class="btn ghost" id="xferBtn">💾 Move save to another device</button><button class="btn ghost" id="betPopBtn">🎟️ "Last call for bets" pop-up: <b>${S.noBetWin ? 'OFF' : 'ON'}</b></button>${(() => { try{ const u = localStorage.getItem(UNDO_KEY); return u ? `<button class="btn ghost" id="undoBtn">⏪ Undo last month (back to ${monthName(JSON.parse(u).t)})</button>` : S.back1 || S.t < 1 ? '' : '<button class="btn ghost" id="back1Btn">⏪ Turn back 1 month (one time)</button>'; }catch(e){ return ''; } })()}${S.rewound ? '' : '<button class="btn ghost" id="rewBtn">⏪ Go back to May (one time)</button>'}<button class="btn danger" id="wipeBtn">🔄 New game (reset)</button><button class="btn" data-close>Back to the ranch</button>`); return; }
   if(t.id === 'howBtn'){ showModal(HOWTO); return; }
   if(t.id === 'undoBtn'){ let u; try{ u = JSON.parse(localStorage.getItem(UNDO_KEY)); }catch(e){} if(!u){ toast('Nothing to undo'); return; }
     showModal(`<h2>⏪ Undo last month?</h2><p>Everything goes back to how it was at the start of <b>${monthName(u.t)}</b>, before you pressed End Month: money, horses, races, foals and results.</p><p style="font-size:12px;color:var(--dim)">You can undo one month at a time (the newest month only).</p><button class="btn" id="undoYes">⏪ Undo</button><button class="btn ghost" data-close>Cancel</button>`); return; }
