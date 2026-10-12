@@ -33,8 +33,10 @@
   #endBtn2:disabled{opacity:.45}
   #sceneWrap{position:relative;margin:0 12px;border-radius:14px;overflow:hidden;background:#000;touch-action:manipulation}
   #scene{display:block;width:100%;image-rendering:pixelated}
+  body.racing #scene{cursor:pointer}
   #sceneBtns{position:absolute;right:8px;bottom:8px;display:flex;gap:6px}
-  #sceneBtns button{background:#000b;color:#fff;font-weight:900;font-size:12px;padding:6px 11px;border-radius:99px}
+  #sceneBtns button{background:#000b;color:#fff;font-weight:900;font-size:15px;padding:10px 16px;min-height:44px;border-radius:99px}
+  #repOk{position:sticky;bottom:-18px;z-index:2;min-height:52px;margin-bottom:-6px;box-shadow:0 -14px 18px 4px var(--panel)} /* month report: Continue always on screen */
   #sceneBtns button.go{background:linear-gradient(135deg,#ffb347,#ff5d8a)}
   #endRow{display:flex;gap:8px;align-items:center;padding:8px 12px 2px}
   #endBtn{flex:none;background:linear-gradient(135deg,#ffb347,#ff5d8a);color:#fff;font-weight:900;font-size:15px;padding:11px 16px;border-radius:12px;box-shadow:0 3px 0 #a0305a}
@@ -1036,6 +1038,7 @@ const LW = 240, LH = 128;
 const low = document.createElement('canvas'); low.width = LW; low.height = LH;
 const lg = low.getContext('2d');
 const cv = $('scene'), cg = cv.getContext('2d');
+cv.addEventListener('click', () => { if(R.play && $('modal').hidden) playStep(); }); // tap the race to skip / continue
 let CW = 0, CH = 0, PS = 1, DPR = 1;
 function resize(){ DPR = Math.min(2, window.devicePixelRatio || 1); CW = cv.clientWidth; CH = Math.round(CW * LH / LW);
   cv.style.height = CH + 'px'; cv.width = Math.round(CW * DPR); cv.height = Math.round(CH * DPR); PS = CW / LW; }
@@ -1150,10 +1153,18 @@ function updatePlay(dt){
   if(!P.done && P.t >= winner.D){ P.done = true; setSceneBtns(); }
   if(P.done) P.doneT += dt;
 }
+const playLabel = () => !R.play ? '' : R.play.done ? (R.queue.length ? 'Next race ▶' : 'Continue ▶') : 'Skip race ⏩';
+function playStep(){ if(!R.play) return; if(R.play.done) nextRace(); else { R.play.t = R.play.field[0].D + 0.01; R.play.done = true; setSceneBtns(); } } // big buttons + tapping the race all do the same thing
+function playBtns(){ // during races the big End Month buttons become the race controls (easy to hit on a phone)
+  const L = playLabel(); document.body.classList.toggle('racing', !!L);
+  for(const id of ['endBtn', 'endBtn2']){ $(id).textContent = L || 'End Month ▶'; $(id).disabled = R.freeze ? !L : !!R.play; }
+  $('ffBtn').hidden = !!L || !!R.freeze;
+}
 function setSceneBtns(){
   const b = $('sceneBtns');
   if(R.play) b.innerHTML = R.play.done ? `<button class="go" id="contBtn">${R.queue.length ? 'Next race ▶' : 'Continue ▶'}</button>` : `<button id="skipBtn">Skip ⏩</button>`;
   else b.innerHTML = '';
+  playBtns();
 }
 function render(){
   if(R.play) drawRace(); else drawRanch();
@@ -1466,12 +1477,12 @@ function updateTop(){
       <br>🏁 Entered: ${ent.length ? ent.map(h => `<b>${h.name}</b> <span style="opacity:.75">(${S.card.find(r => r.id === h.plan.r).n})</span>`).join(', ') : 'none yet'}
       <br>🎟️ Bets: ${bt ? `<b>${money(bt)}</b> on ${S.bets.length} ticket${S.bets.length > 1 ? 's' : ''}` : 'none'}
       <br>🏆 Year standing: <b>#${(() => { const ye = Z ? Z.yearEarn : S.yearEarn, tb = [...(Z ? Z.rivals : S.rivals.map(r => r.earn)), ye].sort((a, b) => b - a); return tb.indexOf(ye) + 1; })()}</b> with ${money(Z ? Z.yearEarn : S.yearEarn)} won · ${usedStalls()}/${capacity()} stalls used`; }
-  if(Z){ $('planSum').innerHTML = '🏁 <b>Race day!</b> Watch your races, or tap Skip.<br>Results and money come with the month report.'; $('endBtn').disabled = $('endBtn2').disabled = $('ffBtn').disabled = true; return; }
+  if(Z){ $('planSum').innerHTML = '🏁 <b>Race day!</b> Tap the big button (or the race itself) to skip ahead and continue.<br>Results and money come with the month report.'; playBtns(); return; }
   const n = k => S.horses.filter(h => h.plan.t === k && !h.inj && !h.preg).length;
   const fees = S.card.reduce((s, r) => s + r.fee * runnersFor(r).length, 0);
   const bt = (S.bets || []).reduce((s, b) => s + b.amt, 0);
   $('planSum').innerHTML = `This month: 🏋️ ${n('train')} train · 🏁 ${n('race')} race · 😴 ${n('rest')} rest${n('breed') ? ` · 💞 ${n('breed')} breed` : ''}${bt ? ` · 🎟️ ${money(bt)} bet` : ''}<br>Bills: upkeep ${money(Math.round(UPKEEP * S.horses.length * (1 - 0.05 * S.fac.pasture)))}${fees ? ` + fees ${money(fees)}` : ''}`;
-  $('endBtn').disabled = $('endBtn2').disabled = $('ffBtn').disabled = !!R.play;
+  playBtns();
   const tabs = Object.fromEntries([...document.querySelectorAll('#tabs button')].map(b => [b.dataset.tab, b]));
   tabs.races.classList.toggle('alert', S.card.some(r => r.big && S.horses.some(h => !eligible(h, r))) && !S.card.some(r => r.big && runnersFor(r).length));
   tabs.ranch.classList.toggle('alert', FAC.some(f => S.fac[f.id] < f.max && S.cash >= facCost(f, S.fac[f.id]) && S.cash > 20000));
@@ -1674,13 +1685,13 @@ document.addEventListener('click', ev => {
   if(t.id === 'endBtn2'){ $('endBtn').click(); return; }
   if(d.ff){ skipMonths(+d.ff); return; }
   if(d.tab){ if(R.freeze){ toast('🏁 Finish watching the races first (or tap Skip)'); return; } if(d.tab !== tab) R.sell = null; tab = d.tab; if(innerWidth >= 900 && scrollY > $('panel').offsetTop) scrollTo({top:$('panel').offsetTop - 70}); renderPanel(); $('panel').scrollTop = 0; return; }
-  if(t.id === 'endBtn'){ if(R.play) return; if(!S.noBetWin && !S.pending && S.card.some(r => runnersFor(r).length)){ betWindow(); return; } endMonth(); if(R.freeze) updateTop(); else renderPanel(); return; }
+  if(t.id === 'endBtn'){ if(R.play){ playStep(); return; } if(!S.noBetWin && !S.pending && S.card.some(r => runnersFor(r).length)){ betWindow(); return; } endMonth(); if(R.freeze) updateTop(); else renderPanel(); return; }
   if(t.id === 'betPopBtn'){ S.noBetWin = !S.noBetWin; persist(); t.closest('button').innerHTML = `🎟️ "Last call for bets" pop-up: <b>${S.noBetWin ? 'OFF' : 'ON'}</b>`; toast(S.noBetWin ? '🎟️ No more betting pop-ups. You can still bet on the 🎟️ Bets tab.' : '🎟️ Betting pop-up is back on'); return; }
   if(t.id === 'runRaces' || t.id === 'runRaces2'){ R.betWin = false; $('modal').hidden = true; endMonth(); if(R.freeze) updateTop(); else renderPanel(); return; }
   if(t.id === 'toBets'){ R.betWin = false; $('modal').hidden = true; tab = 'bets'; renderPanel(); $('panel').scrollTop = 0; return; }
   if(d.openrace){ (R.open = R.open || new Set()).add(d.openrace); renderPanel(); return; }
   if(d.pb){ const race = S.card.find(r => r.id === d.pr); if(race && placeBet(race, d.pk, d.pb)) afterBet(); return; }
-  if(t.id === 'skipBtn'){ if(R.play){ R.play.t = R.play.field[0].D + 0.01; R.play.done = true; setSceneBtns(); } return; }
+  if(t.id === 'skipBtn'){ playStep(); return; }
   if(t.id === 'contBtn'){ nextRace(); return; }
   if(t.id === 'repOk'){ $('modal').hidden = true; if(S.pending) showEvent(); renderPanel(); return; }
   if(d.ev){ resolveEvent(d.ev); return; }
