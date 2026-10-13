@@ -1,7 +1,7 @@
 // Offline support. Pages and scripts load from the network first (so a refresh
 // always gets the newest version) and fall back to the cached copy when offline.
-const CACHE = 'franchise-empire-v7';
-const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'core.js', 'owner.js', 'football.js', 'field.js', 'fbui.js', 'league.js', 'watch.js', 'lgui.js', 'basketball.js', 'hockey.js', 'racing.js', 'racingui.js', 'motorsport.js', 'soccer.js', 'rugby.js', 'esports.js', 'mma.js', 'mmaui.js', 'empireui.js', 'ui.js'];
+const CACHE = 'franchise-empire-v8';
+const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'core.js', 'owner.js', 'football.js', 'field.js', 'fbui.js', 'league.js', 'watch.js', 'lgui.js', 'basketball.js', 'hockey.js', 'racing.js', 'racingui.js', 'motorsport.js', 'baseball.js', 'soccer.js', 'rugby.js', 'esports.js', 'mma.js', 'mmaui.js', 'empireui.js', 'ui.js'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));

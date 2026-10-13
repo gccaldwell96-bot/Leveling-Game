@@ -15,14 +15,14 @@ const bsAvg = (h, ab) => ab ? (h / ab).toFixed(3).replace(/^0/, '') : '-';
 const bsOPS = s => { const pa = s.ab + s.bb + (s.hbp || 0) + (s.sf || 0); if(!pa || !s.ab) return 0; return (s.h + s.bb + (s.hbp || 0)) / pa + (s.h + s.d + 2 * s.t + 3 * s.hr) / s.ab; };
 
 // league-wide talent gap between the best bats and the best arms, refreshed weekly, so ratings drift doesn't drift the stats
-const BS_NORM = {k:null, off:3.2};
-function bsNorm(sp){ const L = S.sports && S.sports[sp]; if(!L) return BS_NORM.off; const k = L.season * 100 + L.wk; if(BS_NORM.k === k) return BS_NORM.off;
+const BS_NORM = {k:null, off:3.2, hit:70};
+function bsNorm(sp){ const L = S.sports && S.sports[sp]; if(!L) return BS_NORM; const k = L.season * 100 + L.wk; if(BS_NORM.k === k) return BS_NORM;
   const g = {}; for(const p of L.players){ if(p.tid < 0) continue; const t = g[p.tid] || (g[p.tid] = {h:[], s:[], r:[]}); (p.pos === 'SP' ? t.s : p.pos === 'RP' ? t.r : t.h).push(p.ovr); }
   const top = (a, n) => { a.sort((x, y) => y - x); a = a.slice(0, n); return a.reduce((s, v) => s + v, 0) / Math.max(1, a.length); };
-  let gap = 0, n = 0; for(const id in g){ const t = g[id]; gap += top(t.h, 9) - top(t.s, 5) * .67 - top(t.r, 3) * .33; n++; }
-  BS_NORM.k = k; BS_NORM.off = n ? gap / n : 3.2; return BS_NORM.off; }
+  let gap = 0, hit = 0, n = 0; for(const id in g){ const t = g[id], h = top(t.h, 9); gap += h - top(t.s, 5) * .67 - top(t.r, 3) * .33; hit += h; n++; }
+  if(n) Object.assign(BS_NORM, {k, off:gap / n, hit:hit / n}); return BS_NORM; }
 function bsSim(H, A, ctx){
-  const rec = ctx.record, po = ctx.po, box = {}, log = [], sc = [0, 0], norm = bsNorm(ctx.sp || 'baseball');
+  const rec = ctx.record, po = ctx.po, box = {}, log = [], sc = [0, 0], NM = bsNorm(ctx.sp || 'baseball'), norm = NM.off;
   const Bh = p => box[p.id] || (box[p.id] = {ab:0, h:0, hr:0, rbi:0, r:0, bb:0, so:0, d:0, t:0, hbp:0, sf:0});
   const Bp = p => { const b = box[p.id] || (box[p.id] = {}); if(b.ip === undefined) Object.assign(b, {gs:0, w:0, l:0, sv:0, ip:0, er:0, k:0, pbb:0, ha:0}); return b; };
   const side = (T, si) => {
@@ -32,22 +32,29 @@ function bsSim(H, A, ctx){
     for(const p of bats) if(bat.length < 9 && !used.has(p.id)) take(p); // the DH: best bat left on the bench
     for(const p of all) if(bat.length < 9 && !used.has(p.id)) take(p); // injury crisis: anybody
     bat.sort((a, b) => b.ovr - a.ovr); for(const p of bat) Bh(p);
-    const sps = (T.pos.SP || []).filter(p => !used.has(p.id)), rot = T.t.rot = ((T.t.rot || 0) + 1) % 840;
-    let sp = sps.length ? sps[rot % (po ? Math.min(4, sps.length) : sps.length)] : null, pen = (T.pos.RP || []).filter(p => !used.has(p.id));
-    if(!pen.length) pen = sps.filter(p => p !== sp);
+    const sps = (T.pos.SP || []).filter(p => !used.has(p.id)), rot = T.t.rot = ((T.t.rot || 0) + 1) % 840, rn = Math.min(po ? 4 : 5, sps.length); // the top five rotate
+    let sp = rn ? sps[rot % rn] : null, rps = (T.pos.RP || []).filter(p => !used.has(p.id)), ru = T.t.ru || [[], []];
+    let pen = rps.filter(p => !(ru[0].includes(p.id) && (ru[1].includes(p.id) || Math.random() < .7))); // arms that worked yesterday (or two days running) get a rest
+    if(pen.length < Math.min(3, rps.length)) pen = rps;
+    pen = pen.concat(sps.slice(rn).filter(p => !ru[0].includes(p.id))); if(!pen.length) pen = sps.filter(p => p !== sp); // spare starters work long relief
     if(!sp){ sp = pen[0] || all[0]; pen = pen.filter(p => p !== sp); }
-    return {T, bat, sp, pen, nx:0, apps:[], cur:null, gone:new Set(), coach:si ? ctx.coachA : ctx.coachH};
+    return {T, bat, sp, pen, nx:0, apps:[], cur:null, gone:new Set(), coach:si ? ctx.coachA : ctx.coachH, m:bat.reduce((a, p) => a + p.ovr, 0) / Math.max(1, bat.length)};
   };
   const S2 = [side(H, 0), side(A, 1)], wP = [null, null], lP = [null, null];
+  for(const d of [0, 1]) S2[d].dz = Math.exp(-.075 * clamp((S2[d].m - S2[1 - d].m) / 10, -1, 1)); // the better fielding side turns more balls in play into outs
   const nm = p => p.ln;
   let inn = 1, bs = 1, outs = 0, ru = [null, null, null], rp = [null, null, null], ue = [0, 0, 0], walk = false, hrPlay = false, runs = 0, scored = null, mv = null, hh = 0, hr0 = 0;
-  const bring = (D, p, d) => { const ap = {p, b:Bp(p), outs:0, bf:0, r:0, lead:sc[d] - sc[1 - d], lim:p === D.sp ? 23 + (p.ovr - 66) * .3 + gauss() * 2.5 : 5 + Math.random() * 3}; if(p === D.sp) ap.b.gs = 1; D.apps.push(ap); D.cur = ap; D.gone.add(p.id); return ap; };
+  const bring = (D, p, d) => { const ap = {p, b:Bp(p), outs:0, bf:0, r:0, lead:sc[d] - sc[1 - d], lim:p === D.sp ? 24.5 + (p.ovr - 66) * .3 + gauss() * 2.5 : p.pos === 'SP' ? 13 : 4 + Math.random() * 4.5}; if(p === D.sp) ap.b.gs = 1; D.apps.push(ap); D.cur = ap; D.gone.add(p.id); return ap; };
   for(const d of [0, 1]) bring(S2[d], S2[d].sp, d);
   const ev = e => { log.push({inn, top:bs === 1, side:bs, outs, bases:[ru[0] ? 1 : 0, ru[1] ? 1 : 0, ru[2] ? 1 : 0], sc:[...sc], ...e}); };
   const relieve = (D, d) => { // pick the next arm out of the bullpen
     const fresh = D.pen.filter(p => !D.gone.has(p.id)); if(!fresh.length) return false;
-    const lead = sc[d] - sc[1 - d], closer = fresh[0] === D.pen[0], rest = closer && fresh.length > 1 ? fresh.slice(1) : fresh;
-    const p = inn >= 9 && lead >= 0 && lead <= 3 ? fresh[0] : inn >= 7 && lead >= -1 && lead <= 3 ? rest[0] : rest[rest.length - 1 - (Math.abs(lead) <= 2 && rest.length > 2 ? 1 : 0)];
+    const lead = sc[d] - sc[1 - d], role = p => D.pen.indexOf(p), arms = fresh.filter(p => p.pos === 'RP'), long = fresh.find(p => p.pos === 'SP');
+    const setup = arms.filter(p => role(p) >= 1 && role(p) <= 2); let mid = fresh.filter(p => role(p) >= 3); if(mid.length < 3) mid = fresh.filter(p => role(p) >= 1);
+    const p = inn >= 9 && lead >= 0 && lead <= 3 ? fresh[0] // the closer (or the best arm left)
+      : inn >= 7 && lead >= -1 && lead <= 3 && setup.length ? setup[0]
+      : inn <= 5 && long ? long // the starter got knocked out early
+      : mid.length ? pick(mid) : fresh[fresh.length - 1];
     bring(D, p, d); if(rec) ev({type:'pc', o0:outs, pre:[ru[0] ? 1 : 0, ru[1] ? 1 : 0, ru[2] ? 1 : 0], txt:`Pitching change: ${lgName(p)} takes the mound for the ${D.T.t.name}.`}); return true; };
   const run = (rn, rap, une, rbi, hb) => { // one runner crosses the plate
     if(walk && !hrPlay) return; // a walk-off single only needs the winning run
@@ -65,8 +72,8 @@ function bsSim(H, A, ctx){
   const out = (ap, n) => { outs += n; ap.outs += n; ap.b.ip += n; };
   const pa = () => {
     const O = S2[bs], D = S2[1 - bs], ap = D.cur, pit = ap.p, b = O.bat[O.nx], hb = box[b.id]; O.nx = (O.nx + 1) % O.bat.length; ap.bf++;
-    const eff = pit.ovr - Math.min(12, Math.max(0, ap.bf - ap.lim) * 1.7), x0 = (b.ovr - eff - norm) / 10 + (bs === 0 ? .05 : -.05) + (O.coach - D.coach) / 300, x = 1.35 * x0 / (1 + Math.abs(x0) * .45), pw = (b.pw || 1) * (BS_PW[b.pos] || .6);
-    const pk = .218 * Math.exp(-.23 * x), pbb = .083 * Math.exp(-.14 * x), phr = .0295 * Math.exp(.36 * x) * pw, p2 = .044 * Math.exp(.17 * x), p3 = .0045 * Math.exp(.12 * x), p1 = .141 * Math.exp(.15 * x) * (1.15 - .15 * pw);
+    const eff = pit.ovr - Math.min(12, Math.max(0, ap.bf - ap.lim) * 1.7), x0 = (b.ovr - eff - norm) / 10 + (bs === 0 ? .05 : -.05) + (O.coach - D.coach) / 220, x = 1.35 * x0 / (1 + Math.abs(x0) * .45), pw = (b.pw || 1) * (BS_PW[b.pos] || .6);
+    const pk = .218 * Math.exp(-.23 * x), pbb = .083 * Math.exp(-.14 * x), phr = .0295 * Math.exp(.36 * x) * pw, p2 = .044 * Math.exp(.17 * x) * D.dz, p3 = .0045 * Math.exp(.12 * x) * D.dz, p1 = .143 * Math.exp(.15 * x) * (1.15 - .15 * pw) * D.dz;
     const o0 = outs, pre = rec ? [ru[0] ? 1 : 0, ru[1] ? 1 : 0, ru[2] ? 1 : 0] : null, on1 = !!ru[0], on2 = !!ru[1], on3 = !!ru[2];
     runs = 0; hrPlay = false; scored = rec ? [] : null; mv = rec ? [] : null;
     let r = Math.random(), type, txt = '', dir = 0, dist = 0, gb = false, hit = 0;
@@ -106,7 +113,7 @@ function bsSim(H, A, ctx){
       bs = h ? 0 : 1; if(h && inn >= 9 && sc[0] > sc[1]) break; // the home side doesn't need its last at-bat
       const O = S2[bs], D = S2[1 - bs], d = 1 - bs, ap = D.cur;
       outs = 0; ru = [null, null, null]; rp = [null, null, null]; ue = [0, 0, 0]; hh = 0; hr0 = 0;
-      if(inn > 1){ const st = ap.p === D.sp && D.apps.length === 1; if(st ? ap.bf >= ap.lim || ap.r >= 5 || (inn >= 8 && ap.r >= 3) || inn >= 10 : ap.outs >= 2) relieve(D, d); }
+      if(inn > 1){ const st = ap.p === D.sp && D.apps.length === 1; if(st ? ap.bf >= ap.lim || ap.r >= 5 || (inn >= 8 && ap.r >= 3) || inn >= 10 : ap.outs >= 2 && (ap.bf + 4 > ap.lim || (inn >= 8 && Math.abs(sc[0] - sc[1]) <= 3))) relieve(D, d); }
       if(inn >= 10 && (!po || inn >= 14)){ ru[1] = O.bat[(O.nx + O.bat.length - 1) % O.bat.length]; rp[1] = D.cur; ue[1] = 1; } // automatic runner on second
       while(outs < 3 && !walk){ const c = D.cur; if(c.r >= (c.p === D.sp && D.apps.length === 1 ? 6 : 4) || c.bf >= c.lim + 7) relieve(D, d); pa(); }
       if(rec){ const fin = walk || (inn >= 9 && (h ? sc[0] !== sc[1] : sc[0] > sc[1])), rh = hr0 ? ` ${hr0} run${hr0 > 1 ? 's' : ''} on ${hh} hit${hh === 1 ? '' : 's'}.` : '';
@@ -115,6 +122,7 @@ function bsSim(H, A, ctx){
     }
     if(walk || (inn >= 9 && sc[0] !== sc[1])) break;
   }
+  for(const D of S2){ const ru = D.T.t.ru || [[], []]; D.T.t.ru = [D.apps.slice(1).map(a => a.p.id), ru[0]]; } // bullpen workload carries over
   // decisions: win, loss, save
   const w = sc[0] > sc[1] ? 0 : 1, W = S2[w];
   let wap = wP[w]; if(wap === W.apps[0] && wap.outs < 15 && W.apps.length > 1) wap = W.apps.slice(1).reduce((a, x) => x.outs > a.outs ? x : a);
@@ -155,7 +163,7 @@ const BS_RENDER = {
   dur:e => e.type === 'end' ? 420 : e.type === 'pc' ? 520 : e.type === 'k' || e.type === 'bb' ? 560 : e.type === 'hr' ? 1250 : 900,
   hud(e, after, st){ const per = (e.top ? '▲' : '▼') + e.inn, o = after ? e.outs : e.o0;
     return {per, clk:`${o} out`, dd:e.type === 'end' && after ? (e.fin ? 'Final' : `${e.top ? 'Middle' : 'End'} of the ${ord(e.inn)}`) : bsOn(after ? e.bases : e.pre), stamp:per}; },
-  big:e => e.type === 'hr' || e.runs > 0 || e.type === 'end',
+  big:e => e.type === 'hr' || e.runs > 0 || (e.type === 'end' && e.fin),
   banner(e){ if(e.wo) return [e.type === 'hr' ? 'WALK-OFF HOMER!' : 'WALK-OFF!', '#38d98a']; if(e.type === 'hr') return [e.runs === 4 ? 'GRAND SLAM!' : 'HOME RUN!', '#ffe14a']; if(e.type === 'k' && e.hi) return ['K', '#fff']; if(e.type === 'dp' && e.pre && (e.pre[1] || e.pre[2])) return ['Double play!', '#fff']; return null; },
   bg(ctx, st){ // the park is drawn once to an offscreen canvas, then blitted every frame
     if(st.bsbg === undefined){ st.bsbg = null; try{ const dpr = ctx.getTransform ? ctx.getTransform().a : 1, c = document.createElement('canvas'); c.width = Math.round(st.W * dpr); c.height = Math.round(st.H * dpr); const x = c.getContext('2d'); x.scale(dpr, dpr); bsDrawPark(x, st); st.bsbg = c; } catch(err){ st.bsbg = null; } }
@@ -202,12 +210,12 @@ LG.baseball = {
     ['Pinecrest', 'Grizzlies', 'PIN', '#154734', '#ffb612', 2], ['Sunvale', 'Surfers', 'SUN', '#ff6f3c', '#00807a', 4], ['Bellmont', 'Thunderbirds', 'BEL', '#1e3a8a', '#f5f5f5', 5], ['Starlight City', 'Comets', 'STC', '#111827', '#e5b80b', 5], ['Cascadia', 'Lumberjacks', 'CAS', '#2f5d3a', '#e8dcc0', 3],
     ['Desert Springs', 'Rattlers', 'DSR', '#c2410c', '#1c1917', 2], ['Tidewater', 'Orcas', 'TDW', '#0f172a', '#38bdf8', 3], ['Monte Rosa', 'Mustangs', 'MRO', '#9f1239', '#fde68a', 2], ['Bonanza City', 'High Rollers', 'BON', '#1a1a1a', '#c4a24a', 4], ['Crescent Bay', 'Firebirds', 'CRB', '#dc2626', '#1e293b', 3]],
   confs:['Atlantic League', 'Pacific League'],
-  pos:{SP:[5, 5], RP:[6, 3], C:[2, 1], '1B':[2, 1], '2B':[2, 1], '3B':[2, 1], SS:[2, 1], OF:[5, 3]},
+  pos:{SP:[5, 5], RP:[6, 4], C:[2, 1], '1B':[2, 1], '2B':[2, 1], '3B':[2, 1], SS:[2, 1], OF:[5, 3]},
   posNames:{SP:'Starting pitchers', RP:'Relief pitchers', C:'Catchers', '1B':'First basemen', '2B':'Second basemen', '3B':'Third basemen', SS:'Shortstops', OF:'Outfielders'},
   posSal:{SP:1.2, RP:.6, C:.9, '1B':1, '2B':.95, '3B':1, SS:1.05, OF:1},
   rosterMax:26, ages:[20, 40], peak:28, draftRounds:3, injRate:.0015, injPool:14, hypeMul:.2, awardMinGP:25,
   reg:{weeks:26, gpw:6}, po:{teams:8, byConf:true, bestOf:[5, 7, 7], name:'postseason', rounds:['Division Series', 'League Championship', 'Diamond Series']}, champName:'Diamond Series',
-  money:{cap:190, maxSal:35, minSal:.7, tv:170, merch:35, ticket:42, seats:[33000, 48000], seatStep:2000, staff:.07, ops:40, arenaUp:110},
+  money:{cap:190, maxSal:35, minSal:.7, tv:160, merch:35, ticket:42, seats:[33000, 48000], seatStep:2000, staff:.07, ops:40, arenaUp:110},
   extra(p){ if(!bsArm(p)) p.pw = Math.round(clamp(1 + gauss() * .2, .6, 1.45) * 100) / 100; }, // raw power, separate from the overall rating
   stats:[['ab', 'AB'], ['h', 'H'], ['hr', 'HR'], ['rbi', 'RBI'], ['r', 'R'], ['bb', 'BB'], ['so', 'SO'], ['d', '2B'], ['t', '3B'], ['gs', 'GS'], ['w', 'W'], ['l', 'L'], ['sv', 'SV'], ['ip', 'IP'], ['er', 'ER'], ['k', 'K'], ['pbb', 'BBA'], ['ha', 'HA']],
   hiddenStats:['hbp', 'sf'],
@@ -222,7 +230,7 @@ LG.baseball = {
   awards:[
     {k:'mvp', n:'MVP', pos:['C', '1B', '2B', '3B', 'SS', 'OF'], score:(p, t) => p.st.ab < 350 ? -1e3 + p.st.ab : bsOPS(p.st) * 110 + p.st.hr * .3 + p.st.rbi * .1 + p.st.r * .06 + ({C:5, SS:5, '2B':3, '3B':2, OF:1}[p.pos] || 0) + lgPct(t) * 20},
     {k:'cy', n:'Cy Young', pos:['SP', 'RP'], score:p => { const s = p.st, ip = s.ip / 3; if(ip < 60) return -1e3 + ip; return s.w * 2.2 - s.l * .6 + s.k * .06 + ip * .12 + s.sv * .4 - bsERA(s) * 14; }},
-    {k:'roy', n:'Rookie of the Year', score:p => { const s = p.st; if(bsArm(p)){ const ip = s.ip / 3; return ip * .15 + s.w * 1.5 + s.sv * .5 + (4.5 - bsERA(s)) * ip / 30; } return (bsOPS(s) - .65) * (s.ab + s.bb) / 8 + s.hr * .4 + s.ab / 60; }},
+    {k:'roy', n:'Rookie of the Year', score:p => { const s = p.st; if(bsArm(p)){ const ip = s.ip / 3; return ip * .08 + s.w * .8 + s.sv * .3 + (4.4 - bsERA(s)) * ip / 25; } return (bsOPS(s) - .65) * (s.ab + s.bb) / 6 + s.hr * .35 + s.ab / 45; }},
   ],
   hofProd:c => c.hr / 9 + c.h / 120 + c.rbi / 250 + c.w / 4 + c.k / 400 + c.sv / 18,
   sim:bsSim, render:BS_RENDER,
