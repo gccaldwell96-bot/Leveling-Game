@@ -161,8 +161,8 @@ Object.assign(SPORTS.football, {
     else if(L.wk === 20 && mode !== 'sim' && S.settings.watch){ const big = fbPendingGames()[0]; if(big){ const res = fbPlayGame(big, true); await watchGame(big, res); } } },
   lastLine(){ const lg = fb().lastGame; if(!lg || lg.ew !== S.week - 1) return ''; return `🏈 ${lg.us > lg.them ? 'W' : lg.us < lg.them ? 'L' : 'T'} ${lg.us}-${lg.them} ${lg.home ? 'vs' : '@'} ${fbTeam(lg.opp).abbr}`; },
   simStops(){ const w = fb().wk, L = fb(); return [...(w <= 16 ? [['po', 'Sim to the playoffs', 'Finish the regular season', () => L.wk >= 17]] : []), ...(w <= 20 ? [['end', 'Sim to the end of the season', 'Through the Grand Bowl', () => L.wk >= 21]] : []), ...(w < 33 ? [['draft', 'Sim to the draft', 'Stops when you\'re on the clock', () => L.wk >= 34 || (L.draft && L.draft.active)]] : []), ['next', 'Sim to next season', 'Stops for the draft', () => L.wk === 0]]; },
-  halt(n){ const L = fb(); return n && fbCtrl() && L.wk === 26 && L.resign.length ? 'contracts' : null; },
-  goBlock(what){ if(what === 'contracts'){ go('football', 'moves', {moves:'contracts'}); toast('✍️ Decide your expiring contracts before free agency'); return; } go('football', 'moves', {moves:'draft'}); toast('🎓 Draft day: you\'re on the clock!'); },
+  halt(){ const L = fb(); return fbCtrl() && L.wk === 26 && L.resign.length && L.ack !== L.season ? 'contracts' : null; },
+  goBlock(what){ if(what === 'contracts'){ fb().ack = fb().season; go('football', 'moves', {moves:'contracts'}); toast('✍️ Decide your expiring contracts before free agency'); return; } go('football', 'moves', {moves:'draft'}); toast('🎓 Draft day: you\'re on the clock!'); },
   click(b, d){
     if(d.goto){ const [tab, sub] = d.goto.split(':'); go('football', tab, sub ? {[tab]:sub} : null); return true; }
     if(d.player){ playerModal(+d.player); return true; }

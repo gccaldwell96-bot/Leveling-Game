@@ -28,7 +28,7 @@ const personName = () => `${pick(FIRST)} ${pick(LAST)}`;
 // ---------------- the sports (modules register themselves; all ten are listed so the empire map is complete) ----------------
 const SPORT_LIST = [
   {id:'football', icon:'🏈', n:'Football', league:'Gridiron League', season:'Sep – Feb', price:[1800, 4200], ready:true},
-  {id:'basketball', icon:'🏀', n:'Basketball', league:'Pro Hoops League', season:'Oct – Jun', price:[1500, 3600]},
+  {id:'basketball', icon:'🏀', n:'Basketball', league:'Pro Hoops League', season:'Oct – May', price:[1500, 3600]},
   {id:'baseball', icon:'⚾', n:'Baseball', league:'Diamond League', season:'Apr – Oct', price:[1100, 2800]},
   {id:'soccer', icon:'⚽', n:'Soccer', league:'Premier Football Union', season:'Aug – May', price:[500, 2600]},
   {id:'hockey', icon:'🏒', n:'Hockey', league:'Ice Hockey League', season:'Oct – Jun', price:[600, 1500]},
@@ -138,7 +138,10 @@ function advanceWeek(opts = {}){
 }
 
 // ---------------- tiny UI helpers shared by modules ----------------
-function toast(msg){ const t = $('toast'); if(!t) return; t.textContent = msg; t.classList.add('show'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('show'), 2600); }
+let TOAST_Q = null; // while you watch a game, toasts (like achievements) wait so they don't spoil the result
+function holdToasts(){ TOAST_Q = TOAST_Q || []; }
+function releaseToasts(extra){ const q = [...(TOAST_Q || []), ...(extra ? [extra] : [])]; TOAST_Q = null; q.forEach((m, i) => setTimeout(() => toast(m), i * 2700)); }
+function toast(msg){ if(TOAST_Q){ TOAST_Q.push(msg); return; } const t = $('toast'); if(!t) return; t.textContent = msg; t.classList.add('show'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('show'), 2600); }
 function modal(html){ $('mbox').innerHTML = html; $('modal').hidden = false; $('mbox').scrollTop = 0; }
 function closeModal(){ $('modal').hidden = true; }
 // colour helpers for team colours

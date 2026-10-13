@@ -105,14 +105,14 @@ function ownershipView(sp){
 }
 
 // ---------------- play & sim ----------------
-function weekTicker(){ const lines = S.owned.map(o => SPORTS[o.sport] && SPORTS[o.sport].lastLine ? SPORTS[o.sport].lastLine() : '').filter(Boolean); if(lines.length) toast(lines.join(' · ')); }
+function weekTicker(){ const lines = S.owned.map(o => SPORTS[o.sport] && SPORTS[o.sport].lastLine ? SPORTS[o.sport].lastLine() : '').filter(Boolean); return lines.length ? lines.join(' · ') : ''; }
 async function playWeek(mode){
   if(BUSY) return; const blk = blockedBy(); if(blk){ SPORTS[blk.sport].goBlock(blk.what); return; }
-  BUSY = true;
+  BUSY = true; holdToasts();
   try{ const sp = VIEW.sport, M = SPORTS[sp]; if(M && own(sp) && M.playUser) await M.playUser(mode); advanceWeek(); }
   finally { BUSY = false; }
-  const b = blockedBy(); if(b){ SPORTS[b.sport].goBlock(b.what); return; }
-  render(); window.scrollTo(0, 0); weekTicker();
+  const b = blockedBy(); if(b){ releaseToasts(); SPORTS[b.sport].goBlock(b.what); return; }
+  render(); window.scrollTo(0, 0); releaseToasts(weekTicker());
 }
 function simStops(){ const sp = VIEW.sport, M = SPORTS[sp]; return [['week', 'Sim one week', 'No watching', n => n >= 1], ['w4', 'Sim 4 weeks', 'About a month', n => n >= 4], ['w13', 'Sim 13 weeks', 'A quarter: new share window', n => n >= 13], ...(M && own(sp) && M.simStops ? M.simStops() : [])]; }
 function simMenu(){ modal(`<h2>⏩ Sim ahead</h2>${simStops().map(([k, n, d]) => `<button class="btn ghost wide" style="justify-content:space-between;margin-bottom:8px" data-sim="${k}"><span>${n}</span><span class="small dim" style="text-transform:none;font-weight:600">${d}</span></button>`).join('')}<p class="small dim" style="margin-bottom:8px">Sims stop for your draft picks and contract decisions in leagues you control.</p><button class="btn wide" data-close>Cancel</button>`); }
@@ -130,7 +130,7 @@ async function simTo(k){
 
 // ---------------- events ----------------
 document.addEventListener('click', async e => {
-  const b = e.target.closest('button,[data-resign],[data-letgo],[data-offer],[data-draft],[data-hire]'); if(!b) return; const d = b.dataset;
+  const b = e.target.closest('button,[data-lgp],[data-x],[data-resign],[data-letgo],[data-offer],[data-draft],[data-hire]'); if(!b) return; const d = b.dataset;
   if(b.id === 'startBtn'){ const nm = ($('ownerName').value || '').trim() || 'The Owner'; newEmpire(nm); news(`🎩 ${nm} arrives with ${money(START_CASH)} to invest. Pick a league and buy your first stake!`, 'good'); persist(); VIEW.sport = 'football'; render(); return; }
   if(b.id === 'importBtn'){ modal(`<h2>Load a save code</h2><textarea id="saveBox" style="width:100%;height:120px;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px" aria-label="Save code"></textarea><button class="btn wide" id="loadSave" style="margin-top:8px">Load</button>`); return; }
   if(d.close !== undefined){ closeModal(); return; }
