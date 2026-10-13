@@ -9,7 +9,7 @@ const curTab = sp => VIEW.tabs[sp] || 'home';
 function go(sp, tab, sub){ VIEW.sport = sp; if(tab) VIEW.tabs[sp] = tab; if(sub) Object.assign(VIEW.sub, sub); render(); window.scrollTo(0, 0); }
 const seg = (key, opts) => `<div class="seg">${opts.map(([k, n]) => `<button class="${VIEW.sub[key] === k ? 'on' : ''}" data-sub="${key}:${k}">${n}</button>`).join('')}</div>`;
 const statBox = (items, cols) => `<div style="display:grid;grid-template-columns:repeat(${cols || items.length},1fr);gap:6px;text-align:center">${items.map(([a, b, cls]) => `<div style="background:var(--panel2);border-radius:8px;padding:6px 2px"><div class="dim small">${a}</div><b class="cond num ${cls || ''}" style="font-size:18px">${b}</b></div>`).join('')}</div>`;
-const newsList = (sp, n = 10) => { const nws = S.news.filter(x => sp === 'all' || !x.s || x.s === sp).slice(0, n); return `<div class="card" style="padding:4px 12px">${nws.length ? nws.map(x => `<div class="row small"><span class="grow ${x.k === 'good' ? 'good' : x.k === 'bad' ? 'bad' : x.k === 'ach' ? 'gold' : ''}">${esc(x.t)}</span><span class="dim num" style="flex:none">${weekDate(x.w)}</span></div>`).join('') : '<p class="dim small" style="padding:8px 0">No news yet.</p>'}</div>`; };
+const newsList = (sp, n = 10) => { const nws = S.news.filter(x => sp === 'all' || !x.s || x.s === sp).slice(0, n); return `<div class="card" style="padding:4px 12px">${nws.length ? nws.map(x => `<div class="row small"><span class="grow ${x.k === 'good' ? 'good' : x.k === 'bad' ? 'bad' : x.k === 'ach' ? 'gold' : ''}">${sp === 'all' && x.s ? sportMeta(x.s).icon + ' ' : ''}${esc(x.t)}</span><span class="dim num" style="flex:none">${weekDate(x.w)}</span></div>`).join('') : '<p class="dim small" style="padding:8px 0">No news yet.</p>'}</div>`; };
 const ready = id => !!(SPORTS[id] && SPORTS[id].tabs);
 function lockNote(sp){ const o = own(sp); return `<div class="card" style="border-color:var(--blue)"><b class="cond" style="font-size:17px">🔒 Minority owner · ${o ? o.stake : 0}%</b><p class="small dim">The team's front office makes these calls. Own more than 50% to run the team yourself.</p><button class="btn sm ghost" data-gotab="${sp}:own" style="margin-top:6px">Ownership</button></div>`; }
 
@@ -131,7 +131,7 @@ async function simTo(k){
 // ---------------- events ----------------
 document.addEventListener('click', async e => {
   const b = e.target.closest('button,[data-lgp],[data-x],[data-resign],[data-letgo],[data-offer],[data-draft],[data-hire]'); if(!b) return; const d = b.dataset;
-  if(b.id === 'startBtn'){ const nm = ($('ownerName').value || '').trim() || 'The Owner'; newEmpire(nm); news(`🎩 ${nm} arrives with ${money(START_CASH)} to invest. Pick a league and buy your first stake!`, 'good'); persist(); VIEW.sport = 'football'; render(); return; }
+  if(b.id === 'startBtn'){ const nm = ($('ownerName').value || '').trim() || 'The Owner'; newEmpire(nm); news(`🎩 ${nm} arrives with ${money(START_CASH)} to invest. Pick a league and buy your first stake!`, 'good'); persist(); VIEW.sport = 'empire'; VIEW.sub.empire = 'overview'; render(); return; }
   if(b.id === 'importBtn'){ modal(`<h2>Load a save code</h2><textarea id="saveBox" style="width:100%;height:120px;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px" aria-label="Save code"></textarea><button class="btn wide" id="loadSave" style="margin-top:8px">Load</button>`); return; }
   if(d.close !== undefined){ closeModal(); return; }
   if(d.sport){ go(d.sport); return; }

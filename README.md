@@ -94,13 +94,32 @@ A free **turn-based horse breeding and racing tycoon** in `horse/`. It plays on 
 
 # 🏟️ Franchise Empire
 
-A free **sports-franchise owner game** in `empire/` (play at `/empire/`). You start with $4.6B, buy a team, and grow a fortune and legacy across ten leagues. Every turn is one week.
+A free **sports-ownership empire game** in `empire/` (play at `/empire/`). Every turn is one week, and all ten leagues play at the same time.
 
-- **Football (playable):** 32 fictional teams in two conferences, a 17-game schedule, 7-team playoffs per conference and the Grand Bowl. Each team has a 50-man roster with ratings, potential, contracts and a salary cap.
-- **Watch live:** your games play out on an animated field with a TV score bug, down and distance, and play-by-play (speed 1×/2×/4× or skip to the final). Or just sim.
-- **Running the team:** re-sign or let go of expiring contracts, free agency, trades (AI teams judge value and cap), a 4-round draft with scouted potential ranges, stadium expansion, ticket prices, coaches and scouting.
-- **History:** awards (MVP, OPOY, DPOY, ROY), champions, records, Hall of Fame, trophies and achievements.
-- **Sims ahead** stop for your draft pick and for contract decisions before free agency.
-- **Coming next:** basketball, baseball, soccer, hockey, rugby, Formula racing, stock car racing, MMA and esports, all in the same empire with one bank account.
-- Saves on the device; save codes move an empire between devices.
+- **Ownership:** you start with $1.2B and buy a minority stake (up to 49%) in a team. Partners sell up to 10% a quarter, plus discounted partner offers, so you work your way to **majority control (over 50%)** and then 100%. Minority owners collect their share of profits; only the controlling owner runs the team (contracts, trades, the draft, tickets, coaches, facilities). One team per league; sell shares any time.
+- **Ten leagues, all fictional teams:**
+  - 🏈 Football: 32 teams, 17 games, playoffs.
+  - 🏀 Basketball: 30 teams, 72 games, best-of-7 playoffs.
+  - ⚾ Baseball: 30 teams, 156 games, a three-round postseason.
+  - ⚽ Soccer: 20 clubs, a home-and-away table.
+  - 🏒 Hockey: 24 teams, overtime and shootouts.
+  - 🏉 Rugby: 12 clubs, top-four finals.
+  - 🏎️ Formula racing: 10 teams, 22 Grands Prix.
+  - 🏁 Stock cars: 16 teams, 36 races with a 16-driver elimination playoff.
+  - 🥊 MMA: 16 fight camps, eight weight classes, title fights.
+  - 🎮 Esports: 10 orgs, best-of-3 series.
+- **Watch live:** every sport has its own animated view:
+  - football field, basketball court, ice rink, soccer pitch and rugby pitch
+  - baseball diamond
+  - race track with a live leaderboard
+  - octagon with health bars
+  - a top-down esports map
 
+  Every view has play-by-play at 1×–8× speed and a skip button.
+- **Running teams:** rosters, aging and progression, contracts and free agency, drafts, trades, awards, records and a Hall of Fame. Racing teams develop their cars and sign drivers; fight camps book fights and call out champions.
+- **Your fortune:**
+  - The owner shop: watches, a racehorse, supercars, penthouse, mansion, château, jet, yacht, island, a trip to space. These build fame, which brings endorsement money and better partner offers.
+  - Investments: an index fund, real estate, companies (some boost your teams' TV or merchandise money) and risky startups.
+  - Bank loans to buy control sooner.
+  - Team facilities: training centre, medical centre and fan district.
+- Saves on the device (compressed); save codes move an empire between devices.
