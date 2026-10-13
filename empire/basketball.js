@@ -124,7 +124,7 @@ LG.basketball = {
   pos:{PG:[3, 1], SG:[3, 1], SF:[3, 1], PF:[3, 1], C:[3, 1]}, posNames:{PG:'Point guards', SG:'Shooting guards', SF:'Small forwards', PF:'Power forwards', C:'Centers'},
   rosterMax:15, ages:[19, 38], peak:27, draftRounds:2, injRate:.0035, injPool:10, hypeMul:.45, awardMinGP:40,
   reg:{weeks:24, gpw:3}, po:{teams:16, byConf:true, bestOf:7, name:'playoffs', rounds:['First round', 'Conference semifinals', 'Conference finals', 'Hoops Finals']}, champName:'Hoops Championship',
-  money:{cap:140, maxSal:46, minSal:1.1, tv:240, merch:32, ticket:105, seats:[17500, 20500], seatStep:1000, staff:.08, ops:30, arenaUp:110},
+  money:{cap:125, maxSal:46, minSal:1.1, tv:240, merch:32, ticket:105, seats:[17500, 20500], seatStep:1000, staff:.08, ops:30, arenaUp:110},
   stats:[['pts', 'PTS'], ['reb', 'REB'], ['ast', 'AST'], ['stl', 'STL'], ['blk', 'BLK'], ['fgm', 'FGM'], ['fga', 'FGA'], ['tpm', '3PM'], ['tpa', '3PA'], ['ftm', 'FTM'], ['fta', 'FTA'], ['tov', 'TOV'], ['min', 'MIN']],
   statLine(s){ const g = Math.max(1, s.gp), pg = k => (s[k] / g).toFixed(1); return [['GP', s.gp], ['PTS', pg('pts')], ['REB', pg('reb')], ['AST', pg('ast')], ['FG%', s.fga ? (s.fgm / s.fga * 100).toFixed(0) : '-']]; },
   leaders:[['pts', 'Points per game', true], ['reb', 'Rebounds per game', true], ['ast', 'Assists per game', true], ['stl', 'Steals per game', true], ['blk', 'Blocks per game', true], ['tpm', 'Threes made', false]],

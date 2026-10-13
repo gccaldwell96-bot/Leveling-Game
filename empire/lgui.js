@@ -4,7 +4,7 @@
 // =====================================================================================
 const lgSub = (k, d) => VIEW.sub[k] || d;
 function lgTabs(sp){ const L = lg(sp), alert = lgCtrl(sp) && ((L.resign && L.resign.length) || (L.draft && L.draft.active && L.draft.onClock === L.user));
-  return [['home', 'Home'], ['roster', 'Roster'], ['games', LG[sp].po ? 'Games' : 'Fixtures'], ['stand', LG[sp].points ? 'Table' : 'Standings'], ['stats', 'Stats'], ['moves', 'Moves' + (alert ? ' •' : '')], ['fran', 'Franchise'], ['hist', 'History']]; }
+  return [['home', 'Home'], ['roster', 'Roster'], ['games', LG[sp].po ? 'Games' : 'Fixtures'], ['stand', LG[sp].points && !LG[sp].otl ? 'Table' : 'Standings'], ['stats', 'Stats'], ['moves', 'Moves' + (alert ? ' •' : '')], ['fran', 'Franchise'], ['hist', 'History']]; }
 function lgView(sp, tab){ return ({home:lgHome, roster:lgRosterView, games:lgGamesView, stand:lgStandView, stats:lgStatsView, moves:lgMovesView, fran:lgFranView, hist:lgHistView}[tab] || lgHome)(sp); }
 function lgNextEvent(sp){ const w = lg(sp).wk, E = lgEnd(sp), ev = [[E, 'Season ends'], [E + 1, 'Draft'], [E + 3, 'Free agency'], [50, 'Camp'], [52, 'New season']]; for(const [k, n] of ev) if(w < k) return `${n} in ${k - w} wk${k - w > 1 ? 's' : ''}`; return ''; }
 function lgAct(sp){ const L = lg(sp), c = LG[sp], wk = L.wk, R = lgR(sp);
@@ -84,7 +84,7 @@ function lgGamesView(sp){
   return `<h3>${lgSeasonLabel(sp)} ${c.points ? 'fixtures' : 'schedule'}</h3><div class="card" style="padding:2px 12px">${rows}</div>${po}`;
 }
 function lgStandView(sp){
-  const L = lg(sp), c = LG[sp], u = L.user, cols = c.points ? [['P', t => t.w + t.l + t.t + t.otl], ['W', t => t.w], [c.otl ? 'OTL' : 'D', t => c.otl ? t.otl : t.t], ['L', t => t.l], [c.pfShort || 'GD', t => (t.pf - t.pa > 0 ? '+' : '') + (t.pf - t.pa)], ['PTS', t => lgPts(sp, t)]]
+  const L = lg(sp), c = LG[sp], u = L.user, cols = c.points ? [['P', t => t.w + t.l + t.t + t.otl], ['W', t => t.w], ...(c.otl ? [['L', t => t.l], ['OTL', t => t.otl]] : [['D', t => t.t], ['L', t => t.l]]), [c.pfShort || 'GD', t => (t.pf - t.pa > 0 ? '+' : '') + (t.pf - t.pa)], ['PTS', t => lgPts(sp, t)]]
     : [['W', t => t.w], ['L', t => t.l], ['PCT', t => lgPct(t).toFixed(3).replace(/^0/, '')], ['DIFF', t => (t.pf - t.pa > 0 ? '+' : '') + (t.pf - t.pa)], ['STRK', t => t.strk || '-']];
   const n0 = c.po ? c.po.teams / (c.confs && c.po.byConf ? c.confs.length : 1) : 1;
   const table = ts => `<div class="scroll"><table><tr><th>#</th><th style="text-align:left">Team</th>${cols.map(([h]) => `<th>${h}</th>`).join('')}</tr>${ts.map((t, i) => `<tr class="${t.id === u ? 'me' : ''}"><td class="dim">${i + 1}</td><td style="text-align:left;${i === n0 - 1 ? 'border-bottom:2px solid var(--gold)' : ''}"><b>${t.abbr}</b> <span class="dim small">${t.name}</span></td>${cols.map(([, f]) => `<td>${f(t)}</td>`).join('')}</tr>`).join('')}</table></div>`;

@@ -14,8 +14,8 @@ const ready = id => !!(SPORTS[id] && SPORTS[id].tabs);
 function lockNote(sp){ const o = own(sp); return `<div class="card" style="border-color:var(--blue)"><b class="cond" style="font-size:17px">🔒 Minority owner · ${o ? o.stake : 0}%</b><p class="small dim">The team's front office makes these calls. Own more than 50% to run the team yourself.</p><button class="btn sm ghost" data-gotab="${sp}:own" style="margin-top:6px">Ownership</button></div>`; }
 
 // ---------------- boot & start ----------------
-function boot(){
-  const o = loadSave();
+async function boot(){
+  const o = await loadSave();
   if(o){ S = o; afterLoad(); VIEW.sport = S.owned[0] ? S.owned[0].sport : 'empire'; render(); return; }
   startScreen();
 }
@@ -156,7 +156,7 @@ document.addEventListener('click', async e => {
   if(b.id === 'copySave'){ const code = await saveCode(); try{ await navigator.clipboard.writeText(code); toast('📋 Save code copied'); }catch(err){ $('saveBox').value = code; $('saveBox').select(); toast('Select the code and copy it'); } return; }
   if(b.id === 'loadSave'){ try{ const o = await decodeSave($('saveBox').value); S = o; afterLoad(); persist(); closeModal(); VIEW.sport = 'empire'; render(); toast('📥 Save loaded'); }catch(err){ toast('That isn\'t a valid save code'); } return; }
   if(b.id === 'wipe'){ modal(`<h2>Start a new empire?</h2><p class="dim">This erases your current empire on this device.</p><button class="btn wide" id="wipeYes" style="margin-top:12px">Erase and start over</button><button class="btn ghost wide" data-close style="margin-top:8px">Cancel</button>`); return; }
-  if(b.id === 'wipeYes'){ localStorage.removeItem(SAVE_KEY); S = null; closeModal(); VIEW = {...VIEW, sport:'empire', tabs:{}}; startScreen(); return; }
+  if(b.id === 'wipeYes'){ clearTimeout(SAVE_T); localStorage.removeItem(SAVE_KEY); S = null; closeModal(); VIEW = {...VIEW, sport:'empire', tabs:{}}; startScreen(); return; }
 });
 document.addEventListener('input', e => {
   const t = e.target;
@@ -165,5 +165,6 @@ document.addEventListener('input', e => {
 });
 document.addEventListener('change', e => { const M = SPORTS[VIEW.sport]; if(M && M.change) M.change(e.target); });
 $('modal').addEventListener('click', e => { if(e.target.id === 'modal') closeModal(); });
+addEventListener('pagehide', () => { if(S) persistNow(); });
 boot();
 if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});

@@ -55,8 +55,11 @@ function newEmpire(ownerName){
 function league(sp){ if(!S.sports[sp] && SPORTS[sp]){ SPORTS[sp].init(S); } return S.sports[sp]; }
 function afterLoad(){ ownerInit(); for(const id in S.sports) SPORTS[id] && SPORTS[id].load && SPORTS[id].load(S); S.v = 2; }
 const uid = () => S.nextId++;
-function persist(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){ console.warn('save failed', e); } }
-function loadSave(){ try{ const raw = localStorage.getItem(SAVE_KEY); if(!raw) return null; const o = JSON.parse(raw); return o && o.v ? o : null; }catch(e){ return null; } }
+// saves are gzipped (ten leagues of players won't fit in phone storage as plain JSON)
+let SAVE_T = 0;
+function persist(){ clearTimeout(SAVE_T); SAVE_T = setTimeout(persistNow, 150); }
+async function persistNow(){ clearTimeout(SAVE_T); if(!S) return; try{ localStorage.setItem(SAVE_KEY, await saveCode()); }catch(e){ console.warn('save failed', e); } }
+async function loadSave(){ try{ const raw = localStorage.getItem(SAVE_KEY); if(!raw) return null; const o = raw.startsWith('{') ? JSON.parse(raw) : await decodeSave(raw); return o && o.v ? o : null; }catch(e){ return null; } }
 async function saveCode(){
   const bytes = new TextEncoder().encode(JSON.stringify(S));
   let out = bytes, tag = 'FE1:';

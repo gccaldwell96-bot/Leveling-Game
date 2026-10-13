@@ -26,7 +26,7 @@ const lgSeasonLabel = sp => { const L = lg(sp), c = LG[sp]; return c.start >= 30
 function lgIndex(sp){ const L = lg(sp); Object.defineProperty(L, 'pmap', {value:{}, enumerable:false, writable:true, configurable:true}); for(const p of L.players) L.pmap[p.id] = p; }
 function lgAdd(sp, p){ lg(sp).players.push(p); lg(sp).pmap[p.id] = p; return p; }
 function lgNewStats(sp){ const o = {gp:0}; for(const [k] of LG[sp].stats) o[k] = 0; for(const k of LG[sp].hiddenStats || []) o[k] = 0; return o; }
-function lgSalary(sp, pos, ovr, age){ const c = LG[sp], base = c.money.maxSal * (c.posSal ? c.posSal[pos] || 1 : 1) * Math.pow(clamp((ovr - 40) / 55, .02, 1), 2.6); const ageF = age >= 32 ? .78 : age <= 23 ? .9 : 1; return Math.max(c.money.minSal, Math.round(base * ageF * 10) / 10); }
+function lgSalary(sp, pos, ovr, age){ const c = LG[sp], base = c.money.maxSal * (c.posSal ? c.posSal[pos] || 1 : 1) * Math.pow(clamp((ovr - 40) / 55, .02, 1), 2.2); const ageF = age >= 32 ? .78 : age <= 23 ? .9 : 1; return Math.max(c.money.minSal, Math.round(base * ageF * 10) / 10); }
 function lgNewPlayer(sp, pos, opts = {}){
   const c = LG[sp], age = opts.age ?? irand(c.ages[0], c.ages[1] - 4), [fn, ln] = (c.names ? c.names() : personName()).split(' ');
   const ovr = Math.round(clamp(opts.ovr ?? (58 + gauss() * 7), 30, 97)), upside = age <= c.peak - 5 ? irand(5, 20) : age <= c.peak - 2 ? irand(0, 9) : 0;
@@ -180,7 +180,7 @@ function lgSeasonEnd(sp){
   // records
   const Rr = L.hist.records; for(const p of act) for(const [k, lab] of c.records){ const v = p.st[k]; if(!Rr[k] || v > Rr[k].v) Rr[k] = {v, n:lgName(p), abbr:lgTeam(sp, p.tid).abbr, y:row.y, lab}; }
 }
-const lgRecord = (sp, t) => LG[sp].points ? `${t.w}-${t.t}-${t.l} · ${lgPts(sp, t)} pts` : LG[sp].otl ? `${t.w}-${t.l}-${t.otl}` : `${t.w}-${t.l}${t.t ? '-' + t.t : ''}`;
+const lgRecord = (sp, t) => LG[sp].otl ? `${t.w}-${t.l}-${t.otl} · ${lgPts(sp, t)} pts` : LG[sp].points ? `${t.w}-${t.t}-${t.l} · ${lgPts(sp, t)} pts` : `${t.w}-${t.l}${t.t ? '-' + t.t : ''}`;
 function lgOffseasonStart(sp){
   const c = LG[sp], L = lg(sp);
   for(const p of L.players){ if(p.tid >= -1 && p.st.gp) p.hist.unshift({y:lgSeasonLabel(sp), tid:p.tid, ovr:p.ovr, st:{...p.st}}); for(const k in p.st) p.car[k] = (p.car[k] || 0) + p.st[k]; p.st = lgNewStats(sp); delete p.pst; }
