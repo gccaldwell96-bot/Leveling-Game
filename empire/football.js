@@ -28,6 +28,7 @@ const fbTeam = tid => fb().teams[tid];
 const fbPlayer = pid => fb().pmap[pid];
 const fbRoster = tid => fb().players.filter(p => p.tid === tid);
 const fbUser = () => fb().user;
+const fbCtrl = () => fb().user != null && inCtrl('football'); // majority owners run the team; minority owners watch the front office do it
 const fbName = (p, short) => short ? `${p.fn[0]}. ${p.ln}` : `${p.fn} ${p.ln}`;
 const fbTeamName = t => `${t.city} ${t.name}`;
 const fbPayroll = tid => fbRoster(tid).reduce((a, p) => a + p.con.amt, 0);
@@ -47,20 +48,27 @@ const fbNewStats = () => ({gp:0, pa:0, pc:0, py:0, ptd:0, int:0, ra:0, ry:0, rtd
 // ---------------- module ----------------
 SPORTS.football = {
   init(S){
-    const L = S.sports.football = {season:2026, wk:-1, teams:[], players:[], sched:[], po:null, user:null, cap:260, hist:{champs:[], awards:[], records:{}}, draft:null, fa:[], resign:[], lastGame:null, scout:2};
+    const off = ((S.week - 36) % 52 + 52) % 52; // football week 0 = the 36th week of the year (early September)
+    const L = S.sports.football = {season:yearOf(S.week - (off === 51 ? -1 : off)), wk:-1, teams:[], players:[], sched:[], po:null, user:null, cap:260, hist:{champs:[], awards:[], records:{}}, draft:null, fa:[], resign:[], lastGame:null, scout:2};
     fbIndex();
     FB_TEAMS.forEach(([city, name, abbr, c1, c2, pop], i) => {
       const q = gauss() * 2.4;
       L.teams.push({id:i, city, name, abbr, c1, c2, pop, conf:Math.floor(i / 16), div:Math.floor(i / 4), w:0, l:0, t:0, pf:0, pa:0, strk:'', hype:clamp(Math.round(50 + q * 5 + gauss() * 6), 25, 85), titles:0, seasons:[],
-        coach:{name:personName(), r:irand(55, 86)}, stad:{cap:irand(62, 72), lvl:1}, tix:'std', q, fin:{rev:0, exp:0, hist:[]}});
+        coach:{name:personName(), r:irand(55, 86)}, stad:{cap:irand(62, 72), lvl:1}, tix:'std', q, fac:{train:0, med:0, fan:0}, fin:{rev:0, exp:0, hist:[]}});
       for(const pos of FB_POS_ORDER){ const [n, st] = FB_POS[pos];
         for(let k = 0; k < n; k++){ const starter = k < st, ovr = starter ? 71 + q + gauss() * 6 - k * 1.5 : 60 + q * 0.5 + gauss() * 6 - (k - st) * 2; fbAdd(fbNewPlayer(pos, {tid:i, ovr})); } }
     });
     for(let k = 0; k < 70; k++) fbAdd(fbNewPlayer(pick(FB_POS_ORDER.slice(0, 9)), {tid:-1, ovr:52 + gauss() * 6}));
     fbFitCaps(); fbSchedule(); fbDraftClass();
+    if(off !== 51){ L.wk = 0; quietly(() => { for(let k = 0; k < off; k++) fbWeekly(); }); } // a league you discover mid-season is already under way
   },
-  value(S, own){ const t = fbTeam(own.tid); return Math.round(1500 + t.pop * 450 + t.hype * 9 + t.titles * 150 + (t.stad.cap - 60) * 25); },
-  blocker(S){ const L = fb(); if(L.user == null) return null; if(L.draft && L.draft.active && L.draft.onClock === L.user) return 'draft'; return null; },
+  teamValue(tid){ const t = fbTeam(tid), L = fb(); return Math.round((1500 + t.pop * 450 + t.hype * 9 + t.titles * 150 + (t.stad.cap - 60) * 25 + facLevels(t) * 60) * Math.pow(1.05, L.season - 2026)); },
+  teamName(tid){ return fbTeamName(fbTeam(tid)); },
+  follow(tid){ fb().user = tid; fb().resign = []; },
+  teams(){ return fb().teams.map(t => ({id:t.id, name:fbTeamName(t), logo:helmet(t, 44), sub:`${FB_CONF[t.conf]} ${FB_DIV[t.div % 4]} · ${t.w}-${t.l}${t.t ? '-' + t.t : ''} · market ${'★'.repeat(t.pop)}${'☆'.repeat(5 - t.pop)}`, ovr:fbTeamOvr(t.id)})); },
+  logo(tid, size){ return helmet(fbTeam(tid), size); },
+  record(tid){ const t = fbTeam(tid); return `${t.w}-${t.l}${t.t ? '-' + t.t : ''} · ${t.titles} title${t.titles === 1 ? '' : 's'}`; },
+  blocker(S){ const L = fb(); if(!fbCtrl()) return null; if(L.draft && L.draft.active && L.draft.onClock === L.user) return 'draft'; return null; },
   weekly(S){ return fbWeekly(); },
   load(S){ fbIndex(); },
 };
@@ -194,7 +202,7 @@ function fbApplyGame(g, res){
   for(const pid in res.box){ const p = fbPlayer(pid); if(!p) continue; const b = res.box[pid]; p.st.gp++; for(const k in b) p.st[k] += b[k]; }
   for(const tid of [g.h, g.a]) for(const p of Object.values(fbStarters(tid)).flat()) if(!p.ghost && !res.box[p.id]) p.st.gp++;
   // injuries
-  for(const tid of [g.h, g.a]) for(const p of Object.values(fbStarters(tid)).flat()) if(!p.ghost && Math.random() < .011){ p.inj = Math.random() < .12 ? irand(8, 17) : irand(1, 5); if(tid === L.user) news(`🤕 ${fbName(p)} (${p.pos}) is injured: out ${p.inj} week${p.inj > 1 ? 's' : ''}.`, 'bad', 'football'); }
+  for(const tid of [g.h, g.a]) for(const p of Object.values(fbStarters(tid)).flat()) if(!p.ghost && Math.random() < .011 * (1 - .2 * facOf(fbTeam(tid), 'med'))){ p.inj = Math.random() < .12 ? irand(8, 17) : irand(1, 5); if(tid === L.user) news(`🤕 ${fbName(p)} (${p.pos}) is injured: out ${p.inj} week${p.inj > 1 ? 's' : ''}.`, 'bad', 'football'); }
   if(g.po) return;
   const [hs, as] = res.sc; H.pf += hs; H.pa += as; A.pf += as; A.pa += hs;
   if(hs === as){ H.t++; A.t++; }
@@ -240,7 +248,7 @@ function fbPendingGames(){ const L = fb(); if(L.wk >= 0 && L.wk <= 16) return L.
 function fbPlayGame(g, record){ const res = fbSimGame(g, record); fbApplyGame(g, res); if(g.po) fbFinishPlayoffGame(g); if(g.h === fb().user || g.a === fb().user) fbUserResult(g); return res; }
 function fbUserResult(g){
   const L = fb(), u = L.user, mine = g.h === u ? 0 : 1, us = g.s[mine], them = g.s[1 - mine], opp = fbTeam(mine ? g.h : g.a), won = us > them;
-  L.lastGame = {wk:L.wk, opp:opp.id, us, them, home:!mine, po:g.po || 0, ot:g.ot};
+  L.lastGame = {ew:S.week, wk:L.wk, opp:opp.id, us, them, home:!mine, po:g.po || 0, ot:g.ot};
   news(`${won ? '✅ WIN' : us === them ? '🤝 TIE' : '❌ LOSS'} ${us}-${them} ${mine ? '@' : 'vs'} ${opp.abbr}${g.ot ? ' (OT)' : ''}${g.po ? ` · ${FB_ROUND_NAMES[g.po]}` : ''}`, won ? 'good' : 'bad', 'football');
   if(won) ach('win1');
 }
@@ -307,7 +315,7 @@ function fbOffseasonStart(){
   for(const p of L.players){
     if(p.tid < -1) continue;
     p.age++;
-    const coach = p.tid >= 0 ? (fbTeam(p.tid).coach.r - 70) / 15 : 0, late = ['QB', 'K', 'P'].includes(p.pos) ? 3 : p.pos === 'RB' ? -2 : 0, a = p.age - late;
+    const coach = p.tid >= 0 ? (fbTeam(p.tid).coach.r - 70) / 15 + facOf(fbTeam(p.tid), 'train') * .35 : 0, late = ['QB', 'K', 'P'].includes(p.pos) ? 3 : p.pos === 'RB' ? -2 : 0, a = p.age - late;
     let d = a <= 22 ? irand(1, 6) : a <= 25 ? irand(0, 5) : a <= 29 ? irand(-1, 2) : a <= 32 ? irand(-4, 0) : irand(-7, -1);
     d = Math.round(d + coach + gauss() * .8); if(d > 0 && p.ovr + d > p.pot + 2) d = Math.max(0, p.pot + 2 - p.ovr);
     p.ovr = clamp(p.ovr + d, 30, 99); p.peak = Math.max(p.peak || 0, p.ovr); if(p.pot < p.ovr) p.pot = p.ovr;
@@ -322,9 +330,9 @@ function fbOffseasonStart(){
   L.resign = [];
   for(const p of L.players){ if(p.tid < 0) continue; p.con.yrs--; if(p.con.yrs > 0) continue;
     const ask = Math.round(fbSalary(p.pos, p.ovr, p.age) * rand(1, 1.2) * 10) / 10;
-    if(p.tid === L.user){ L.resign.push({id:p.id, ask, yrs:p.age >= 30 ? irand(1, 2) : irand(2, 5)}); continue; }
+    if(p.tid === L.user && fbCtrl()){ L.resign.push({id:p.id, ask, yrs:p.age >= 30 ? irand(1, 2) : irand(2, 5)}); continue; }
     const keep = p.ovr >= 66 && p.age <= 31 && Math.random() < .75 && fbCapRoom(p.tid) > ask; if(keep){ p.con = {amt:ask, yrs:irand(1, 4)}; } else { p.tid = -1; p.ask = ask; } }
-  if(L.user != null && L.resign.length) news(`✍️ ${L.resign.length} of your players' contracts have expired. Re-sign them in the Offseason tab before free agency opens.`, 'info', 'football');
+  if(L.resign.length) news(`✍️ ${L.resign.length} of your players' contracts have expired. Re-sign them in the Offseason tab before free agency opens.`, 'info', 'football');
   L.cap = Math.round(L.cap * 1.04);
 }
 function fbHofScore(p){ const c = p.car, aw = p.aw.filter(a => a.a === 'mvp').length * 20 + p.aw.filter(a => a.a !== 'mvp').length * 8;
@@ -339,12 +347,12 @@ function fbFreeAgencyOpen(){
 function fbNeeds(tid){ const d = fbDepth(tid), need = []; for(const pos of FB_POS_ORDER){ const [n, st] = FB_POS[pos]; const have = d[pos].length, weak = st - d[pos].slice(0, st).filter(p => p.ovr >= 62).length; if(have < n || weak > 0) need.push(pos); } return need; }
 function fbAIFreeAgency(frac){
   const L = fb(), fa = L.players.filter(p => p.tid === -1).sort((a, b) => b.ovr - a.ovr);
-  for(const t of shuffle([...L.teams])){ if(t.id === L.user) continue;
+  for(const t of shuffle([...L.teams])){ if(t.id === L.user && fbCtrl()) continue;
     let room = fbCapRoom(t.id), roster = fbRoster(t.id).length;
     for(const pos of fbNeeds(t.id)){ if(Math.random() > frac || roster >= 53) continue; const p = fa.find(x => x.tid === -1 && x.pos === pos && x.ask <= room - 2); if(!p) continue;
       p.tid = t.id; p.con = {amt:p.ask, yrs:irand(1, 4)}; room -= p.ask; roster++; } }
 }
-function fbFreeAgentInterest(p){ const t = fbTeam(fb().user); return clamp(1 + (t.hype - 50) / 250 + (fbPct(t) - .5) * .15, .85, 1.2); }
+function fbFreeAgentInterest(p){ const t = fbTeam(fb().user); return clamp(1 + (t.hype - 50) / 250 + (fbPct(t) - .5) * .15 + Math.min(.08, fameTotal() / 2500) + (S.assets.some(a => a.id === 'jet') ? .03 : 0), .85, 1.3); }
 function fbOfferFA(pid, amt, yrs){ const L = fb(), p = fbPlayer(pid); if(!p || p.tid !== -1) return 'gone';
   if(fbRoster(L.user).length >= 53) return 'roster'; if(amt > fbCapRoom(L.user)) return 'cap';
   const needed = p.ask / fbFreeAgentInterest(p); if(amt < needed * (yrs >= 4 && p.age >= 29 ? .95 : 1)) return 'low';
@@ -372,7 +380,7 @@ function fbDraftValue(p, tid){ const need = fbNeeds(tid).includes(p.pos) ? 6 : 0
 function fbDraftAdvance(){ // let AI teams pick until it's the user's turn (or the draft ends)
   const L = fb(), D = L.draft;
   while(D.at < D.picks.length){ const pk = D.picks[D.at];
-    if(pk.tid === L.user){ D.onClock = L.user; return; }
+    if(pk.tid === L.user && fbCtrl()){ D.onClock = L.user; return; }
     const pool = L.players.filter(p => p.tid === -2); if(!pool.length) break;
     const best = pool.sort((a, b) => fbDraftValue(b, pk.tid) - fbDraftValue(a, pk.tid))[0]; fbDraftPick(best.id); }
   if(D.at >= D.picks.length) fbDraftEnd();
@@ -415,20 +423,20 @@ const fbTradeOpen = () => { const w = fb().wk; return w < 9 || w > 21; };
 
 // ---------------- franchise finances (your team only; all amounts in $M) ----------------
 function fbHomeGame(wk){ const L = fb(); if(wk >= 0 && wk <= 16) return L.sched[wk].some(g => g.h === L.user); const r = L.po && L.po.rounds[wk]; return !!(r && r.some(g => g.h === L.user && !g.neutral)); }
-function fbFill(t){ const tk = FB_TICKETS[t.tix]; return clamp(.5 + t.hype * .0055 + (fbPct(t) - .5) * .35 + tk.fill + (t.pop - 3) * .02, .3, 1); }
+function fbFill(t){ const tk = FB_TICKETS[t.tix]; return clamp(.5 + t.hype * .0055 + (fbPct(t) - .5) * .35 + tk.fill + (t.pop - 3) * .02 + facOf(t, 'fan') * .03, .3, 1); }
 function fbFinances(wk){
   const L = fb(), t = fbTeam(L.user), f = t.fin, lines = [];
   let rev = 0, exp = 0;
-  const tv = 300 / 52; rev += tv; lines.push(['TV & league share', tv]);
-  const merch = (.6 + t.hype / 70) * (.6 + t.pop * .2); rev += merch; lines.push(['Merchandise', merch]);
+  const C = fbCtrl(), tv = 420 / 52 * Math.pow(1.04, L.season - 2026) * (C ? ownerBoost('tv') : 1); rev += tv; lines.push(['TV & league share', tv]);
+  const merch = (.6 + t.hype / 70) * (.6 + t.pop * .2) * (1 + facOf(t, 'fan') * .12) * (C ? ownerBoost('merch') : 1); rev += merch; lines.push(['Merchandise', merch]);
   if(fbHomeGame(wk)){ const fill = fbFill(t), seats = t.stad.cap * 1000 * fill, gate = seats * FB_TICKETS[t.tix].price / 1e6 * (wk > 16 ? 1.6 : 1), boxes = (t.stad.lvl - 1) * 1.5; rev += gate + boxes; lines.push([`Home game: ${Math.round(seats).toLocaleString()} fans (${Math.round(fill * 100)}%)`, gate + boxes]); }
-  if(wk >= 0 && wk <= 16){ const pay = fbPayroll(L.user) / 17; exp += pay; lines.push(['Player payroll', -pay]); }
+  const pay = fbPayroll(L.user) / 52; exp += pay; lines.push(['Player payroll', -pay]); // salaries are paid out across the year
   const staff = (t.coach.r * .09 + L.scout * 1.2 + 4) / 52; exp += staff; lines.push(['Coaches & scouts', -staff]);
-  const ops = .55 + t.stad.cap * .007; exp += ops; lines.push(['Stadium & operations', -ops]);
-  S.cash += rev - exp; f.rev += rev; f.exp += exp; f.last = lines;
+  const ops = .55 + t.stad.cap * .007 + facLevels(t) * .05; exp += ops; lines.push(['Stadium & operations', -ops]);
+  teamProfit('football', rev - exp); f.rev += rev; f.exp += exp; f.last = lines;
   if(wk === 51){ f.hist.unshift({y:L.season, rev:f.rev, exp:f.exp}); f.rev = 0; f.exp = 0; }
 }
 const FB_STADIUM_UP = lvl => 120 + lvl * 80;
-function fbUpgradeStadium(){ const t = fbTeam(fb().user), c = FB_STADIUM_UP(t.stad.lvl); if(S.cash < c) return false; S.cash -= c; t.stad.lvl++; t.stad.cap += 5; news(`🏟️ Stadium expanded to ${t.stad.cap},000 seats with new luxury boxes.`, 'good', 'football'); return true; }
+function fbUpgradeStadium(){ const t = fbTeam(fb().user), c = FB_STADIUM_UP(t.stad.lvl); if(S.cash < c) return false; S.cash -= c; book('🏟️ Team upgrades', -c); t.stad.lvl++; t.stad.cap += 5; news(`🏟️ Stadium expanded to ${t.stad.cap},000 seats with new luxury boxes.`, 'good', 'football'); return true; }
 function fbCoachCandidates(){ const L = fb(); if(!L.coachPool || L.coachPool.y !== L.season) L.coachPool = {y:L.season, list:Array.from({length:4}, () => { const r = irand(58, 94); return {name:personName(), r, fee:Math.round((r - 50) * 1.4)}; })}; return L.coachPool.list; }
-function fbHireCoach(i){ const L = fb(), c = fbCoachCandidates()[i], t = fbTeam(L.user); if(!c || S.cash < c.fee) return false; S.cash -= c.fee; news(`📋 Hired head coach ${c.name} (${c.r}).`, 'good', 'football'); t.coach = {name:c.name, r:c.r}; L.coachPool.list.splice(i, 1); return true; }
+function fbHireCoach(i){ const L = fb(), c = fbCoachCandidates()[i], t = fbTeam(L.user); if(!c || S.cash < c.fee) return false; S.cash -= c.fee; book('🏟️ Team upgrades', -c.fee); news(`📋 Hired head coach ${c.name} (${c.r}).`, 'good', 'football'); t.coach = {name:c.name, r:c.r}; L.coachPool.list.splice(i, 1); return true; }

@@ -13,7 +13,7 @@ function gauss(){ let u = 0, v = 0; while(!u) u = Math.random(); while(!v) v = M
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;'}[c]));
 // money is kept in millions of dollars
-function money(m){ const n = Math.abs(m), s = m < 0 ? '-' : ''; if(n >= 1000) return `${s}$${(n / 1000).toFixed(n >= 10000 ? 1 : 2)}B`; if(n >= 1) return `${s}$${n.toFixed(n >= 100 ? 0 : 1)}M`; return `${s}$${Math.round(n * 1000)}K`; }
+function money(m){ const n = Math.abs(m), s = m < 0 ? '-' : ''; if(n < .0005) return '$0'; if(n >= 1000) return `${s}$${(n / 1000).toFixed(n >= 10000 ? 1 : 2)}B`; if(n >= 1) return `${s}$${n.toFixed(n >= 100 ? 0 : 1)}M`; return `${s}$${Math.round(n * 1000)}K`; }
 const ord = n => n + (['th', 'st', 'nd', 'rd'][(n % 100 - 20) % 10] || ['th', 'st', 'nd', 'rd'][n % 100] || 'th');
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 // the empire calendar runs in weeks; week 0 = first week of January
@@ -38,17 +38,22 @@ const SPORT_LIST = [
   {id:'mma', icon:'🥊', n:'MMA', league:'Fighting Championship', season:'All year', price:[120, 380]},
   {id:'esports', icon:'🎮', n:'Esports', league:'Arena Esports League', season:'Jan – Nov', price:[30, 140]},
 ];
-const SPORTS = {}; // id -> module: {init(state), weekly(state, sw), panels, ...}
+// Module interface: init(S) builds the league · teamValue(tid) · teamName(tid) · follow(tid|null) picks the team you hold shares in
+//   teams() for the buy list · weekly() · blocker() · halt() · load() · tabs() / view(tab) · act() · playUser(mode) · simStops()
+const SPORTS = {};
 const sportMeta = id => SPORT_LIST.find(s => s.id === id);
 
 // ---------------- state ----------------
 const SAVE_KEY = 'franchise-empire-v1';
 let S = null;
 function newEmpire(ownerName){
-  S = {v:1, owner:ownerName || 'You', week:35, cash:0, fame:0, legacy:0, worth:0, sports:{}, owned:[], ach:{}, achT:{}, trophies:[], news:[], log:[], nextId:1, settings:{watch:true, speed:1}};
-  for(const sp of SPORT_LIST) if(SPORTS[sp.id]) SPORTS[sp.id].init(S);
+  S = {v:2, owner:ownerName || 'You', week:35, cash:START_CASH, fame:0, legacy:0, worth:0, sports:{}, owned:[], ach:{}, achT:{}, trophies:[], news:[], log:[], nextId:1, settings:{watch:true, speed:1}};
+  ownerInit();
   return S;
 }
+// leagues are built the first time you look at them (and then keep playing every week)
+function league(sp){ if(!S.sports[sp] && SPORTS[sp]){ SPORTS[sp].init(S); } return S.sports[sp]; }
+function afterLoad(){ ownerInit(); for(const id in S.sports) SPORTS[id] && SPORTS[id].load && SPORTS[id].load(S); S.v = 2; }
 const uid = () => S.nextId++;
 function persist(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){ console.warn('save failed', e); } }
 function loadSave(){ try{ const raw = localStorage.getItem(SAVE_KEY); if(!raw) return null; const o = JSON.parse(raw); return o && o.v ? o : null; }catch(e){ return null; } }
@@ -69,9 +74,11 @@ async function decodeSave(code){
 }
 
 // ---------------- news + achievements ----------------
-function news(text, kind = 'info', sport){ S.news.unshift({w:S.week, t:text, k:kind, s:sport}); if(S.news.length > 120) S.news.length = 120; }
+let QUIET = 0; // while a league fast-forwards to the present, its news stays quiet
+function quietly(fn){ QUIET++; try{ fn(); } finally { QUIET--; } }
+function news(text, kind = 'info', sport){ if(QUIET) return; S.news.unshift({w:S.week, t:text, k:kind, s:sport}); if(S.news.length > 120) S.news.length = 120; }
 const ACH = [
-  {id:'own1', n:'Owner: buy your first franchise', r:0},
+  {id:'own1', n:'Owner: buy your first stake', r:0},
   {id:'win1', n:'First win', r:5},
   {id:'winseason', n:'A winning season', r:10},
   {id:'divtitle', n:'Division champions', r:20},
@@ -84,37 +91,45 @@ const ACH = [
   {id:'mvp', n:'One of your players wins MVP', r:40},
   {id:'hof', n:'One of your players enters the Hall of Fame', r:60},
   {id:'draftstar', n:'A player you drafted wins MVP', r:120},
+  {id:'control', n:'In charge: become a majority owner', r:60},
+  {id:'full', n:'Sole owner: 100% of a franchise', r:200},
   {id:'own2', n:'Two sports: own franchises in 2 sports', r:100},
   {id:'own5', n:'Five-sport empire', r:400},
   {id:'ownall', n:'Every sport: own a franchise in all ten', r:2000},
   {id:'titles2', n:'Champions in two different sports', r:400},
   {id:'grandslam', n:'Grand slam: a title in every sport you own (3+ sports)', r:1500},
-  {id:'billion', n:'Billionaire: $1B cash', r:100},
+  {id:'billion', n:'Cash king: $5B in the bank', r:100},
+  {id:'shop1', n:'Treat yourself: buy something from the owner shop', r:5},
+  {id:'shop6', n:'Collector: own 6 luxury assets', r:40},
+  {id:'jetset', n:'Jet set: a jet, a yacht and an island', r:120},
+  {id:'tycoon', n:'Tycoon: buy a company', r:20},
+  {id:'unicorn', n:'Unicorn hunter: a 20× startup exit', r:150},
   {id:'worth10', n:'Empire worth $10B', r:300},
 ];
 function ach(id){ if(S.ach[id]) return false; const a = ACH.find(x => x.id === id); if(!a) return false; S.ach[id] = true; S.achT[id] = S.week; S.legacy += a.r; news(`🏆 Achievement: ${a.n}${a.r ? ` (+${a.r} legacy)` : ''}`, 'ach'); toast(`🏆 ${a.n}`); return true; }
 function checkEmpireAch(){
-  const sportsOwned = new Set(S.owned.map(o => o.sport));
+  const sportsOwned = new Set(S.owned.map(o => o.sport)), ctrlSports = new Set(S.owned.filter(o => o.stake > 50).map(o => o.sport));
   if(S.owned.length) ach('own1');
   if(sportsOwned.size >= 2) ach('own2'); if(sportsOwned.size >= 5) ach('own5'); if(sportsOwned.size >= SPORT_LIST.length) ach('ownall');
   const titleSports = new Set(S.trophies.filter(t => t.kind === 'title').map(t => t.sport));
   if(titleSports.size >= 2) ach('titles2');
-  if(sportsOwned.size >= 3 && [...sportsOwned].every(s => titleSports.has(s))) ach('grandslam');
-  if(S.cash >= 1000) ach('billion');
+  if(ctrlSports.size >= 3 && [...ctrlSports].every(s => titleSports.has(s))) ach('grandslam');
+  if(S.cash >= 5000) ach('billion');
   if(empireWorth() >= 10000) ach('worth10');
 }
 
 // ---------------- owner economy ----------------
-function empireWorth(){ return S.cash + S.owned.reduce((a, o) => a + (SPORTS[o.sport] ? SPORTS[o.sport].value(S, o) : 0), 0); }
+function empireWorth(){ return S.cash + stakesValue() + assetsValue() - S.debt; }
 function franchiseList(){ return S.owned.map(o => ({...o, meta:sportMeta(o.sport), mod:SPORTS[o.sport]})); }
 
 // ---------------- the weekly turn ----------------
 // Every sport module gets a weekly() call; the empire week then advances.
-function blockedBy(){ for(const sp of SPORT_LIST){ const m = SPORTS[sp.id]; if(m && m.blocker){ const b = m.blocker(S); if(b) return {sport:sp.id, what:b}; } } return null; }
+function blockedBy(){ for(const sp of SPORT_LIST){ const m = SPORTS[sp.id]; if(m && S.sports[sp.id] && m.blocker){ const b = m.blocker(S); if(b) return {sport:sp.id, what:b}; } } return null; }
 function advanceWeek(opts = {}){
   const blk = blockedBy(); if(blk) return {blocked:blk};
   const reports = [];
-  for(const sp of SPORT_LIST){ const mod = SPORTS[sp.id]; if(mod) { const r = mod.weekly(S, opts); if(r) reports.push(r); } }
+  for(const sp of SPORT_LIST){ const mod = SPORTS[sp.id]; if(mod && S.sports[sp.id]) { const r = mod.weekly(S, opts); if(r) reports.push(r); } }
+  ownerWeekly();
   S.week++;
   checkEmpireAch();
   S.worth = empireWorth();

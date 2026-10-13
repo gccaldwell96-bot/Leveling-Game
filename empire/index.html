@@ -92,6 +92,10 @@
   .wctl{display:flex;gap:8px;padding:8px 12px 12px;max-width:560px;width:100%;margin:0 auto}
   .banner{position:absolute;left:0;right:0;text-align:center;font:800 40px var(--cond);letter-spacing:.06em;text-transform:uppercase;pointer-events:none;text-shadow:0 3px 0 #000a;transition:opacity .3s}
   .helm{flex:none;display:block}
+  /* minority owners can look but not touch */
+  .ro .btn,.ro input[type=checkbox]{opacity:.35;pointer-events:none}
+  input[type=range]{accent-color:var(--gold);background:none;border:0}
+  button.card{color:inherit;font:inherit}
 </style>
 </head>
 <body>
@@ -101,8 +105,11 @@
 <div id="watch" hidden></div>
 <div id="toast"></div>
 <script src="core.js"></script>
+<script src="owner.js"></script>
 <script src="football.js"></script>
 <script src="field.js"></script>
+<script src="fbui.js"></script>
+<script src="empireui.js"></script>
 <script src="ui.js"></script>
 </body>
 </html>
