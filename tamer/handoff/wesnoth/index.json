@@ -1,0 +1,194 @@
+[
+ {
+  "name": "Gryphon",
+  "group": "greek-myth",
+  "base": "gryphon.png",
+  "frames": 9
+ },
+ {
+  "name": "Sea Serpent",
+  "group": "greek-myth",
+  "base": "seaserpent.png",
+  "frames": 3
+ },
+ {
+  "name": "Kraken",
+  "group": "greek-myth",
+  "base": "kraken.png",
+  "frames": 12
+ },
+ {
+  "name": "Forest Lion",
+  "group": "greek-myth",
+  "base": "tritail-sitting.png",
+  "frames": 22
+ },
+ {
+  "name": "Roc",
+  "group": "greek-myth",
+  "base": "roc.png",
+  "frames": 14
+ },
+ {
+  "name": "Merman Hoplite",
+  "group": "greek-myth",
+  "base": "hoplite.png",
+  "frames": 3
+ },
+ {
+  "name": "Merman Triton",
+  "group": "greek-myth",
+  "base": "triton.png",
+  "frames": 3
+ },
+ {
+  "name": "Mermaid Siren",
+  "group": "greek-myth",
+  "base": "siren.png",
+  "frames": 5
+ },
+ {
+  "name": "Fire Dragon",
+  "group": "dragons",
+  "base": "fire-dragon.png",
+  "frames": 9
+ },
+ {
+  "name": "Wild Wyvern",
+  "group": "dragons",
+  "base": "wild-wyvern.png",
+  "frames": 29
+ },
+ {
+  "name": "Skeletal Dragon",
+  "group": "dragons",
+  "base": "skeletal-dragon.png",
+  "frames": 8
+ },
+ {
+  "name": "Armageddon Drake",
+  "group": "dragons",
+  "base": "armageddon.png",
+  "frames": 9
+ },
+ {
+  "name": "Inferno Drake",
+  "group": "dragons",
+  "base": "inferno.png",
+  "frames": 9
+ },
+ {
+  "name": "Sky Drake",
+  "group": "dragons",
+  "base": "sky.png",
+  "frames": 20
+ },
+ {
+  "name": "Hurricane Drake",
+  "group": "dragons",
+  "base": "hurricane.png",
+  "frames": 20
+ },
+ {
+  "name": "Drake Warden",
+  "group": "dragons",
+  "base": "warden.png",
+  "frames": 24
+ },
+ {
+  "name": "Direwolf",
+  "group": "legendary-beasts",
+  "base": "direwolf.png",
+  "frames": 9
+ },
+ {
+  "name": "Great Wolf",
+  "group": "legendary-beasts",
+  "base": "wolf-great.png",
+  "frames": 5
+ },
+ {
+  "name": "Cave Bear",
+  "group": "legendary-beasts",
+  "base": "bear.png",
+  "frames": 24
+ },
+ {
+  "name": "Yeti",
+  "group": "legendary-beasts",
+  "base": "yeti.png",
+  "frames": 5
+ },
+ {
+  "name": "Great Icemonax",
+  "group": "legendary-beasts",
+  "base": "great-icemonax.png",
+  "frames": 22
+ },
+ {
+  "name": "Giant Scorpion",
+  "group": "legendary-beasts",
+  "base": "scorpion.png",
+  "frames": 50
+ },
+ {
+  "name": "Horned Scarab",
+  "group": "legendary-beasts",
+  "base": "scarab.png",
+  "frames": 5
+ },
+ {
+  "name": "Water Serpent",
+  "group": "legendary-beasts",
+  "base": "water-serpent.png",
+  "frames": 18
+ },
+ {
+  "name": "Spectre",
+  "group": "spirits",
+  "base": "spectre.png",
+  "frames": 18
+ },
+ {
+  "name": "Wraith",
+  "group": "spirits",
+  "base": "wraith-s.png",
+  "frames": 11
+ },
+ {
+  "name": "Nightgaunt",
+  "group": "spirits",
+  "base": "nightgaunt.png",
+  "frames": 13
+ },
+ {
+  "name": "Shadow",
+  "group": "spirits",
+  "base": "shadow-s-2.png",
+  "frames": 20
+ },
+ {
+  "name": "Ghost",
+  "group": "spirits",
+  "base": "ghost-base.png",
+  "frames": 15
+ },
+ {
+  "name": "Fire Guardian",
+  "group": "spirits",
+  "base": "fireghost.png",
+  "frames": 42
+ },
+ {
+  "name": "Ancient Lich",
+  "group": "spirits",
+  "base": "ancient-lich.png",
+  "frames": 7
+ },
+ {
+  "name": "Ancient Wose",
+  "group": "spirits",
+  "base": "wose-ancient.png",
+  "frames": 19
+ }
+]

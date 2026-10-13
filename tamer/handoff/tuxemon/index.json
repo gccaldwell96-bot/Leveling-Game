@@ -1,0 +1,2176 @@
+[
+ {
+  "slug": "agnidon",
+  "name": "Agnidon",
+  "types": [
+   "fire"
+  ],
+  "stage": "stage1",
+  "line": [
+   "agnite",
+   "agnidon",
+   "agnigon"
+  ],
+  "tags": [
+   "dragons",
+   "in-game-cast",
+   "your-pick"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "agnigon",
+  "name": "Agnigon",
+  "types": [
+   "fire",
+   "shadow"
+  ],
+  "stage": "stage2",
+  "line": [
+   "agnite",
+   "agnidon",
+   "agnigon"
+  ],
+  "tags": [
+   "dragons",
+   "in-game-cast",
+   "your-pick"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "agnite",
+  "name": "Agnite",
+  "types": [
+   "fire"
+  ],
+  "stage": "basic",
+  "line": [
+   "agnite",
+   "agnidon",
+   "agnigon"
+  ],
+  "tags": [
+   "dragons",
+   "in-game-cast",
+   "your-pick"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "allagon",
+  "name": "Allagon",
+  "types": [
+   "metal"
+  ],
+  "stage": "stage1",
+  "line": [
+   "wrougon",
+   "allagon",
+   "ferricran"
+  ],
+  "tags": [
+   "armoured-beasts"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "ampystoma",
+  "name": "Ampystoma",
+  "types": [
+   "lightning",
+   "water"
+  ],
+  "stage": "stage1",
+  "line": [
+   "axolightl",
+   "ampystoma"
+  ],
+  "tags": [
+   "your-pick"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "angesnow",
+  "name": "Angesnow",
+  "types": [
+   "frost",
+   "cosmic"
+  ],
+  "stage": "stage1",
+  "line": [
+   "waysprite",
+   "angesnow",
+   "seraphice"
+  ],
+  "tags": [
+   "fighters",
+   "flyers-dark",
+   "your-pick"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "anoleaf",
+  "name": "Anoleaf",
+  "types": [
+   "wood"
+  ],
+  "stage": "basic",
+  "line": [
+   "anoleaf",
+   "gectile",
+   "velocitile"
+  ],
+  "tags": [
+   "fighters",
+   "in-game-cast"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "anu",
+  "name": "Anu",
+  "types": [
+   "cosmic"
+  ],
+  "stage": "standalone",
+  "line": [
+   "anu"
+  ],
+  "tags": [
+   "mythology"
+  ],
+  "myth": "Anubis (Egyptian)",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "apeoro",
+  "name": "Apeoro",
+  "types": [
+   "lightning",
+   "cosmic"
+  ],
+  "stage": "stage1",
+  "line": [
+   "tetrchimp",
+   "apeoro"
+  ],
+  "tags": [
+   "fighters"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "axolightl",
+  "name": "Axolightl",
+  "types": [
+   "water"
+  ],
+  "stage": "basic",
+  "line": [
+   "axolightl",
+   "ampystoma"
+  ],
+  "tags": [
+   "your-pick"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "beenstalker",
+  "name": "Beenstalker",
+  "types": [
+   "wood"
+  ],
+  "stage": "stage1",
+  "line": [
+   "turnipper",
+   "beenstalker",
+   "wendigger"
+  ],
+  "tags": [
+   "flyers-dark"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "bigfin",
+  "name": "Bigfin",
+  "types": [
+   "water"
+  ],
+  "stage": "stage1",
+  "line": [
+   "dollfin",
+   "bigfin"
+  ],
+  "tags": [
+   "in-game-cast",
+   "serpents",
+   "your-pick"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "boltnu",
+  "name": "Boltnu",
+  "types": [
+   "metal"
+  ],
+  "stage": "basic",
+  "line": [
+   "boltnu",
+   "exclawvate"
+  ],
+  "tags": [
+   "armoured-beasts",
+   "your-pick"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "bugnin",
+  "name": "Bugnin",
+  "types": [
+   "metal",
+   "venom"
+  ],
+  "stage": "stage2",
+  "line": [
+   "katapill",
+   "katacoon",
+   "bugnin"
+  ],
+  "tags": [
+   "fighters"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "cairfrey",
+  "name": "Cairfrey",
+  "types": [
+   "normal"
+  ],
+  "stage": "basic",
+  "line": [
+   "cairfrey",
+   "possessun"
+  ],
+  "tags": [
+   "flyers-dark",
+   "in-game-cast"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "carcharock",
+  "name": "Carcharock",
+  "types": [
+   "earth"
+  ],
+  "stage": "standalone",
+  "line": [
+   "carcharock"
+  ],
+  "tags": [
+   "dragons"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "cardiling",
+  "name": "Cardiling",
+  "types": [
+   "fire",
+   "sky"
+  ],
+  "stage": "basic",
+  "line": [
+   "cardiling",
+   "cardiwing",
+   "cardinale"
+  ],
+  "tags": [
+   "in-game-cast",
+   "legends-psychics",
+   "mythology"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "cardinale",
+  "name": "Cardinale",
+  "types": [
+   "fire",
+   "sky"
+  ],
+  "stage": "stage2",
+  "line": [
+   "cardiling",
+   "cardiwing",
+   "cardinale"
+  ],
+  "tags": [
+   "in-game-cast",
+   "legends-psychics",
+   "mythology"
+  ],
+  "myth": "Phoenix",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "cardiwing",
+  "name": "Cardiwing",
+  "types": [
+   "fire",
+   "sky"
+  ],
+  "stage": "stage1",
+  "line": [
+   "cardiling",
+   "cardiwing",
+   "cardinale"
+  ],
+  "tags": [
+   "in-game-cast",
+   "legends-psychics",
+   "mythology"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "chillimp",
+  "name": "Chillimp",
+  "types": [
+   "frost",
+   "heroic"
+  ],
+  "stage": "basic",
+  "line": [
+   "chillimp",
+   "snowrilla"
+  ],
+  "tags": [
+   "fighters"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "chloragon",
+  "name": "Chloragon",
+  "types": [
+   "wood"
+  ],
+  "stage": "basic",
+  "line": [
+   "chloragon",
+   "sapragon",
+   "dragarbor"
+  ],
+  "tags": [
+   "dragons"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "claymorior",
+  "name": "Claymorior",
+  "types": [
+   "earth",
+   "heroic"
+  ],
+  "stage": "basic",
+  "line": [
+   "claymorior",
+   "regalance"
+  ],
+  "tags": [
+   "legends-psychics"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "conglolem",
+  "name": "Conglolem",
+  "types": [
+   "earth"
+  ],
+  "stage": "stage2",
+  "line": [
+   "slichen",
+   "glombroc",
+   "conglolem"
+  ],
+  "tags": [
+   "mythology"
+  ],
+  "myth": "Cyclops",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "corvix",
+  "name": "Corvix",
+  "types": [
+   "sky"
+  ],
+  "stage": "stage1",
+  "line": [
+   "flacono",
+   "corvix",
+   "gryfix"
+  ],
+  "tags": [
+   "flyers-dark",
+   "mythology"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "criniotherme",
+  "name": "Criniotherme",
+  "types": [
+   "fire",
+   "normal"
+  ],
+  "stage": "stage1",
+  "line": [
+   "pantherafira",
+   "criniotherme"
+  ],
+  "tags": [
+   "legends-psychics",
+   "mythology"
+  ],
+  "myth": "Nemean Lion",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "devidin",
+  "name": "Devidin",
+  "types": [
+   "earth",
+   "fire"
+  ],
+  "stage": "basic",
+  "line": [
+   "devidin",
+   "devidra",
+   "deviraptor"
+  ],
+  "tags": [
+   "dragons"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "devidra",
+  "name": "Devidra",
+  "types": [
+   "earth",
+   "fire"
+  ],
+  "stage": "stage1",
+  "line": [
+   "devidin",
+   "devidra",
+   "deviraptor"
+  ],
+  "tags": [
+   "dragons"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "deviraptor",
+  "name": "Deviraptor",
+  "types": [
+   "earth",
+   "fire"
+  ],
+  "stage": "stage2",
+  "line": [
+   "devidin",
+   "devidra",
+   "deviraptor"
+  ],
+  "tags": [
+   "dragons"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "dollfin",
+  "name": "Dollfin",
+  "types": [
+   "water"
+  ],
+  "stage": "basic",
+  "line": [
+   "dollfin",
+   "bigfin"
+  ],
+  "tags": [
+   "in-game-cast",
+   "serpents",
+   "your-pick"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "dracune",
+  "name": "Dracune",
+  "types": [
+   "venom",
+   "shadow"
+  ],
+  "stage": "stage1",
+  "line": [
+   "vamporm",
+   "dracune",
+   "fluttaflap"
+  ],
+  "tags": [
+   "in-game-cast"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "dragarbor",
+  "name": "Dragarbor",
+  "types": [
+   "wood",
+   "cosmic"
+  ],
+  "stage": "stage2",
+  "line": [
+   "chloragon",
+   "sapragon",
+   "dragarbor"
+  ],
+  "tags": [
+   "dragons"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "drokoro",
+  "name": "Drokoro",
+  "types": [
+   "fire"
+  ],
+  "stage": "standalone",
+  "line": [
+   "drokoro"
+  ],
+  "tags": [
+   "dragons"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "eaglace",
+  "name": "Eaglace",
+  "types": [
+   "frost",
+   "sky"
+  ],
+  "stage": "stage2",
+  "line": [
+   "tweesher",
+   "heronquak",
+   "eaglace"
+  ],
+  "tags": [
+   "in-game-cast",
+   "legends-psychics"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "eskipup",
+  "name": "Eskipup",
+  "types": [
+   "frost"
+  ],
+  "stage": "basic",
+  "line": [
+   "eskipup",
+   "houndice"
+  ],
+  "tags": [
+   "armoured-beasts",
+   "mythology"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "exclawvate",
+  "name": "Exclawvate",
+  "types": [
+   "metal"
+  ],
+  "stage": "stage1",
+  "line": [
+   "boltnu",
+   "exclawvate"
+  ],
+  "tags": [
+   "armoured-beasts",
+   "your-pick"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "eyenemy",
+  "name": "Eyenemy",
+  "types": [
+   "cosmic"
+  ],
+  "stage": "basic",
+  "line": [
+   "eyenemy",
+   "eyesore"
+  ],
+  "tags": [
+   "in-game-cast"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "eyesore",
+  "name": "Eyesore",
+  "types": [
+   "cosmic"
+  ],
+  "stage": "stage1",
+  "line": [
+   "eyenemy",
+   "eyesore"
+  ],
+  "tags": [
+   "in-game-cast"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "ferricran",
+  "name": "Ferricran",
+  "types": [
+   "metal"
+  ],
+  "stage": "stage2",
+  "line": [
+   "wrougon",
+   "allagon",
+   "ferricran"
+  ],
+  "tags": [
+   "armoured-beasts"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "flacono",
+  "name": "Flacono",
+  "types": [
+   "sky"
+  ],
+  "stage": "basic",
+  "line": [
+   "flacono",
+   "corvix",
+   "gryfix"
+  ],
+  "tags": [
+   "flyers-dark",
+   "mythology"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "fluttaflap",
+  "name": "Fluttaflap",
+  "types": [
+   "sky",
+   "shadow"
+  ],
+  "stage": "stage2",
+  "line": [
+   "vamporm",
+   "dracune",
+   "fluttaflap"
+  ],
+  "tags": [
+   "in-game-cast"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "foxfire",
+  "name": "Foxfire",
+  "types": [
+   "fire"
+  ],
+  "stage": "basic",
+  "line": [
+   "foxfire",
+   "vulpyre"
+  ],
+  "tags": [
+   "mythology"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "fruitera",
+  "name": "Fruitera",
+  "types": [
+   "wood"
+  ],
+  "stage": "basic",
+  "line": [
+   "fruitera",
+   "megafruitera",
+   "spectera"
+  ],
+  "tags": [
+   "flyers-dark"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "galasces",
+  "name": "Galasces",
+  "types": [
+   "water",
+   "venom"
+  ],
+  "stage": "stage1",
+  "line": [
+   "nebufin",
+   "galasces",
+   "novaquarius"
+  ],
+  "tags": [
+   "legends-psychics"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "gectile",
+  "name": "Gectile",
+  "types": [
+   "wood"
+  ],
+  "stage": "stage1",
+  "line": [
+   "anoleaf",
+   "gectile",
+   "velocitile"
+  ],
+  "tags": [
+   "fighters",
+   "in-game-cast"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "ghosteeth",
+  "name": "Ghosteeth",
+  "types": [
+   "shadow"
+  ],
+  "stage": "standalone",
+  "line": [
+   "ghosteeth"
+  ],
+  "tags": [
+   "flyers-dark"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "glombroc",
+  "name": "Glombroc",
+  "types": [
+   "earth",
+   "wood"
+  ],
+  "stage": "stage1",
+  "line": [
+   "slichen",
+   "glombroc",
+   "conglolem"
+  ],
+  "tags": [
+   "mythology"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "golnagi",
+  "name": "Golnagi",
+  "types": [
+   "water",
+   "fire"
+  ],
+  "stage": "stage2",
+  "line": [
+   "gupphish",
+   "gupphire",
+   "golnagi"
+  ],
+  "tags": [
+   "serpents"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "graffiki",
+  "name": "Graffiki",
+  "types": [
+   "normal"
+  ],
+  "stage": "standalone",
+  "line": [
+   "graffiki"
+  ],
+  "tags": [
+   "your-pick"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "grimachin",
+  "name": "Grimachin",
+  "types": [
+   "metal"
+  ],
+  "stage": "basic",
+  "line": [
+   "grimachin",
+   "tigrock"
+  ],
+  "tags": [
+   "armoured-beasts"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "grinflare",
+  "name": "Grinflare",
+  "types": [
+   "earth",
+   "fire"
+  ],
+  "stage": "stage1",
+  "line": [
+   "grintot",
+   "grinflare"
+  ],
+  "tags": [
+   "armoured-beasts"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "grintot",
+  "name": "Grintot",
+  "types": [
+   "earth"
+  ],
+  "stage": "basic",
+  "line": [
+   "grintot",
+   "grinflare"
+  ],
+  "tags": [
+   "armoured-beasts"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "gryfix",
+  "name": "Gryfix",
+  "types": [
+   "sky"
+  ],
+  "stage": "stage2",
+  "line": [
+   "flacono",
+   "corvix",
+   "gryfix"
+  ],
+  "tags": [
+   "flyers-dark",
+   "mythology"
+  ],
+  "myth": "Griffin",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "gupphire",
+  "name": "Gupphire",
+  "types": [
+   "water",
+   "fire"
+  ],
+  "stage": "stage1",
+  "line": [
+   "gupphish",
+   "gupphire",
+   "golnagi"
+  ],
+  "tags": [
+   "serpents"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "gupphish",
+  "name": "Gupphish",
+  "types": [
+   "water",
+   "fire"
+  ],
+  "stage": "basic",
+  "line": [
+   "gupphish",
+   "gupphire",
+   "golnagi"
+  ],
+  "tags": [
+   "serpents"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "hectapod",
+  "name": "Hectapod",
+  "types": [
+   "water"
+  ],
+  "stage": "stage1",
+  "line": [
+   "squink",
+   "hectapod"
+  ],
+  "tags": [
+   "mythology"
+  ],
+  "myth": "Kraken",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "heronquak",
+  "name": "Heronquak",
+  "types": [
+   "frost",
+   "sky"
+  ],
+  "stage": "stage1",
+  "line": [
+   "tweesher",
+   "heronquak",
+   "eaglace"
+  ],
+  "tags": [
+   "in-game-cast",
+   "legends-psychics"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "houndice",
+  "name": "Houndice",
+  "types": [
+   "frost"
+  ],
+  "stage": "stage1",
+  "line": [
+   "eskipup",
+   "houndice"
+  ],
+  "tags": [
+   "armoured-beasts",
+   "mythology"
+  ],
+  "myth": "Legendary hound (Suicune-style)",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "jemuar",
+  "name": "Jemuar",
+  "types": [
+   "earth",
+   "cosmic"
+  ],
+  "stage": "stage2",
+  "line": [
+   "rockitten",
+   "rockat",
+   "jemuar"
+  ],
+  "tags": [
+   "armoured-beasts"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "katacoon",
+  "name": "Katacoon",
+  "types": [
+   "metal",
+   "venom"
+  ],
+  "stage": "stage1",
+  "line": [
+   "katapill",
+   "katacoon",
+   "bugnin"
+  ],
+  "tags": [
+   "fighters"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "katapill",
+  "name": "Katapill",
+  "types": [
+   "metal",
+   "venom"
+  ],
+  "stage": "basic",
+  "line": [
+   "katapill",
+   "katacoon",
+   "bugnin"
+  ],
+  "tags": [
+   "fighters"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "kroki",
+  "name": "Kroki",
+  "types": [
+   "water"
+  ],
+  "stage": "basic",
+  "line": [
+   "kroki",
+   "krokivip",
+   "leviadile"
+  ],
+  "tags": [
+   "serpents"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "krokivip",
+  "name": "Krokivip",
+  "types": [
+   "water",
+   "venom"
+  ],
+  "stage": "stage1",
+  "line": [
+   "kroki",
+   "krokivip",
+   "leviadile"
+  ],
+  "tags": [
+   "serpents"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "lambert",
+  "name": "Lambert",
+  "types": [
+   "wood"
+  ],
+  "stage": "basic",
+  "line": [
+   "lambert",
+   "legko",
+   "moloch"
+  ],
+  "tags": [
+   "fighters",
+   "in-game-cast"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "legko",
+  "name": "Legko",
+  "types": [
+   "wood"
+  ],
+  "stage": "stage1",
+  "line": [
+   "lambert",
+   "legko",
+   "moloch"
+  ],
+  "tags": [
+   "fighters",
+   "in-game-cast"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "leviadile",
+  "name": "Leviadile",
+  "types": [
+   "water",
+   "venom"
+  ],
+  "stage": "stage2",
+  "line": [
+   "kroki",
+   "krokivip",
+   "leviadile"
+  ],
+  "tags": [
+   "serpents"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "megafruitera",
+  "name": "Megafruitera",
+  "types": [
+   "wood",
+   "sky"
+  ],
+  "stage": "stage1",
+  "line": [
+   "fruitera",
+   "megafruitera",
+   "spectera"
+  ],
+  "tags": [
+   "flyers-dark"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "memnomnom",
+  "name": "Memnomnom",
+  "types": [
+   "normal"
+  ],
+  "stage": "basic",
+  "line": [
+   "memnomnom",
+   "miaownolith"
+  ],
+  "tags": [
+   "legends-psychics",
+   "mythology"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "metesaur",
+  "name": "Metesaur",
+  "types": [
+   "earth",
+   "fire"
+  ],
+  "stage": "basic",
+  "line": [
+   "metesaur",
+   "qetzlrokilus"
+  ],
+  "tags": [
+   "dragons"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "miaownolith",
+  "name": "Miaownolith",
+  "types": [
+   "earth",
+   "normal"
+  ],
+  "stage": "stage1",
+  "line": [
+   "memnomnom",
+   "miaownolith"
+  ],
+  "tags": [
+   "legends-psychics",
+   "mythology"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "mingdyn",
+  "name": "Mingdyn",
+  "types": [
+   "fire",
+   "sky"
+  ],
+  "stage": "standalone",
+  "line": [
+   "mingdyn"
+  ],
+  "tags": [
+   "dragons"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "moloch",
+  "name": "Moloch",
+  "types": [
+   "wood",
+   "heroic"
+  ],
+  "stage": "stage2",
+  "line": [
+   "lambert",
+   "legko",
+   "moloch"
+  ],
+  "tags": [
+   "fighters",
+   "in-game-cast"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "mystikapi",
+  "name": "Mystikapi",
+  "types": [
+   "cosmic"
+  ],
+  "stage": "standalone",
+  "line": [
+   "mystikapi"
+  ],
+  "tags": [
+   "mythology"
+  ],
+  "myth": "Pegasus",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "nebufin",
+  "name": "Nebufin",
+  "types": [
+   "water",
+   "venom"
+  ],
+  "stage": "basic",
+  "line": [
+   "nebufin",
+   "galasces",
+   "novaquarius"
+  ],
+  "tags": [
+   "legends-psychics"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "noctalo",
+  "name": "Noctalo",
+  "types": [
+   "sky",
+   "shadow"
+  ],
+  "stage": "stage1",
+  "line": [
+   "noctula",
+   "noctalo"
+  ],
+  "tags": [
+   "in-game-cast"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "noctula",
+  "name": "Noctula",
+  "types": [
+   "sky",
+   "shadow"
+  ],
+  "stage": "basic",
+  "line": [
+   "noctula",
+   "noctalo"
+  ],
+  "tags": [
+   "in-game-cast"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "nostray",
+  "name": "Nostray",
+  "types": [
+   "water"
+  ],
+  "stage": "basic",
+  "line": [
+   "nostray",
+   "shnark"
+  ],
+  "tags": [
+   "serpents"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "novaquarius",
+  "name": "Novaquarius",
+  "types": [
+   "water",
+   "venom"
+  ],
+  "stage": "stage2",
+  "line": [
+   "nebufin",
+   "galasces",
+   "novaquarius"
+  ],
+  "tags": [
+   "legends-psychics"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "nudiflot_male",
+  "name": "Nudiflot Male",
+  "types": [
+   "water",
+   "venom"
+  ],
+  "stage": "basic",
+  "line": [
+   "nudiflot_male",
+   "nudikill"
+  ],
+  "tags": [
+   "legends-psychics"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "nudikill",
+  "name": "Nudikill",
+  "types": [
+   "water",
+   "venom"
+  ],
+  "stage": "stage1",
+  "line": [
+   "nudiflot_male",
+   "nudikill"
+  ],
+  "tags": [
+   "legends-psychics"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "pantherafira",
+  "name": "Pantherafira",
+  "types": [
+   "fire",
+   "normal"
+  ],
+  "stage": "basic",
+  "line": [
+   "pantherafira",
+   "criniotherme"
+  ],
+  "tags": [
+   "legends-psychics",
+   "mythology"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "pharavion",
+  "name": "Pharavion",
+  "types": [
+   "water",
+   "heroic"
+  ],
+  "stage": "stage1",
+  "line": [
+   "pharfan",
+   "pharavion"
+  ],
+  "tags": [
+   "legends-psychics",
+   "your-pick"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "pharfan",
+  "name": "Pharfan",
+  "types": [
+   "water"
+  ],
+  "stage": "basic",
+  "line": [
+   "pharfan",
+   "pharavion"
+  ],
+  "tags": [
+   "legends-psychics",
+   "your-pick"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "possessun",
+  "name": "Possessun",
+  "types": [
+   "shadow"
+  ],
+  "stage": "stage1",
+  "line": [
+   "cairfrey",
+   "possessun"
+  ],
+  "tags": [
+   "flyers-dark",
+   "in-game-cast"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "pythock",
+  "name": "Pythock",
+  "types": [
+   "shadow",
+   "normal"
+  ],
+  "stage": "stage1",
+  "line": [
+   "snock",
+   "pythock"
+  ],
+  "tags": [
+   "dragons"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "qetzlrokilus",
+  "name": "Qetzlrokilus",
+  "types": [
+   "earth",
+   "fire"
+  ],
+  "stage": "stage1",
+  "line": [
+   "metesaur",
+   "qetzlrokilus"
+  ],
+  "tags": [
+   "dragons"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "raptoucan",
+  "name": "Raptoucan",
+  "types": [
+   "sky"
+  ],
+  "stage": "stage1",
+  "line": [
+   "toucanary",
+   "raptoucan"
+  ],
+  "tags": [
+   "flyers-dark"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "regalance",
+  "name": "Regalance",
+  "types": [
+   "earth"
+  ],
+  "stage": "stage1",
+  "line": [
+   "claymorior",
+   "regalance"
+  ],
+  "tags": [
+   "legends-psychics"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "rhinocarpe",
+  "name": "Rhinocarpe",
+  "types": [
+   "water",
+   "heroic"
+  ],
+  "stage": "standalone",
+  "line": [
+   "rhinocarpe"
+  ],
+  "tags": [
+   "serpents"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "rockat",
+  "name": "Rockat",
+  "types": [
+   "earth"
+  ],
+  "stage": "stage1",
+  "line": [
+   "rockitten",
+   "rockat",
+   "jemuar"
+  ],
+  "tags": [
+   "armoured-beasts"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "rockitten",
+  "name": "Rockitten",
+  "types": [
+   "earth"
+  ],
+  "stage": "basic",
+  "line": [
+   "rockitten",
+   "rockat",
+   "jemuar"
+  ],
+  "tags": [
+   "armoured-beasts"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "sapragon",
+  "name": "Sapragon",
+  "types": [
+   "wood"
+  ],
+  "stage": "stage1",
+  "line": [
+   "chloragon",
+   "sapragon",
+   "dragarbor"
+  ],
+  "tags": [
+   "dragons"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "selket",
+  "name": "Selket",
+  "types": [
+   "earth",
+   "venom"
+  ],
+  "stage": "basic",
+  "line": [
+   "selket",
+   "selmatek"
+  ],
+  "tags": [
+   "in-game-cast"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "selmatek",
+  "name": "Selmatek",
+  "types": [
+   "earth",
+   "venom"
+  ],
+  "stage": "stage1",
+  "line": [
+   "selket",
+   "selmatek"
+  ],
+  "tags": [
+   "in-game-cast"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "seraphice",
+  "name": "Seraphice",
+  "types": [
+   "frost",
+   "cosmic"
+  ],
+  "stage": "stage2",
+  "line": [
+   "waysprite",
+   "angesnow",
+   "seraphice"
+  ],
+  "tags": [
+   "fighters",
+   "flyers-dark",
+   "your-pick"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "shnark",
+  "name": "Shnark",
+  "types": [
+   "water"
+  ],
+  "stage": "stage1",
+  "line": [
+   "nostray",
+   "shnark"
+  ],
+  "tags": [
+   "serpents"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "slichen",
+  "name": "Slichen",
+  "types": [
+   "wood"
+  ],
+  "stage": "basic",
+  "line": [
+   "slichen",
+   "glombroc",
+   "conglolem"
+  ],
+  "tags": [
+   "mythology"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "snaki",
+  "name": "Snaki",
+  "types": [
+   "normal"
+  ],
+  "stage": "basic",
+  "line": [
+   "snaki",
+   "snokari"
+  ],
+  "tags": [
+   "mythology"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "snarlon",
+  "name": "Snarlon",
+  "types": [
+   "shadow",
+   "normal"
+  ],
+  "stage": "standalone",
+  "line": [
+   "snarlon"
+  ],
+  "tags": [
+   "flyers-dark"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "snock",
+  "name": "Snock",
+  "types": [
+   "normal"
+  ],
+  "stage": "basic",
+  "line": [
+   "snock",
+   "pythock"
+  ],
+  "tags": [
+   "dragons"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "snokari",
+  "name": "Snokari",
+  "types": [
+   "normal"
+  ],
+  "stage": "stage1",
+  "line": [
+   "snaki",
+   "snokari"
+  ],
+  "tags": [
+   "mythology"
+  ],
+  "myth": "Hydra",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "snowrilla",
+  "name": "Snowrilla",
+  "types": [
+   "frost",
+   "heroic"
+  ],
+  "stage": "stage1",
+  "line": [
+   "chillimp",
+   "snowrilla"
+  ],
+  "tags": [
+   "fighters"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "spectera",
+  "name": "Spectera",
+  "types": [
+   "wood",
+   "sky"
+  ],
+  "stage": "stage2",
+  "line": [
+   "fruitera",
+   "megafruitera",
+   "spectera"
+  ],
+  "tags": [
+   "flyers-dark"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "squink",
+  "name": "Squink",
+  "types": [
+   "water"
+  ],
+  "stage": "basic",
+  "line": [
+   "squink",
+   "hectapod"
+  ],
+  "tags": [
+   "mythology"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "tetrchimp",
+  "name": "Tetrchimp",
+  "types": [
+   "lightning",
+   "cosmic"
+  ],
+  "stage": "basic",
+  "line": [
+   "tetrchimp",
+   "apeoro"
+  ],
+  "tags": [
+   "fighters"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "tigrock",
+  "name": "Tigrock",
+  "types": [
+   "metal"
+  ],
+  "stage": "stage1",
+  "line": [
+   "grimachin",
+   "tigrock"
+  ],
+  "tags": [
+   "armoured-beasts"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "toucanary",
+  "name": "Toucanary",
+  "types": [
+   "sky"
+  ],
+  "stage": "basic",
+  "line": [
+   "toucanary",
+   "raptoucan"
+  ],
+  "tags": [
+   "flyers-dark"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "turnipper",
+  "name": "Turnipper",
+  "types": [
+   "wood"
+  ],
+  "stage": "basic",
+  "line": [
+   "turnipper",
+   "beenstalker",
+   "wendigger"
+  ],
+  "tags": [
+   "flyers-dark"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "tweesher",
+  "name": "Tweesher",
+  "types": [
+   "frost"
+  ],
+  "stage": "basic",
+  "line": [
+   "tweesher",
+   "heronquak",
+   "eaglace"
+  ],
+  "tags": [
+   "in-game-cast",
+   "legends-psychics"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "vamporm",
+  "name": "Vamporm",
+  "types": [
+   "venom",
+   "shadow"
+  ],
+  "stage": "basic",
+  "line": [
+   "vamporm",
+   "dracune",
+   "fluttaflap"
+  ],
+  "tags": [
+   "in-game-cast"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "velocitile",
+  "name": "Velocitile",
+  "types": [
+   "wood"
+  ],
+  "stage": "stage2",
+  "line": [
+   "anoleaf",
+   "gectile",
+   "velocitile"
+  ],
+  "tags": [
+   "fighters",
+   "in-game-cast"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "vivicinder",
+  "name": "Vivicinder",
+  "types": [
+   "fire"
+  ],
+  "stage": "stage1",
+  "line": [
+   "vivipere",
+   "vivicinder"
+  ],
+  "tags": [
+   "mythology",
+   "serpents"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "vivipere",
+  "name": "Vivipere",
+  "types": [
+   "normal"
+  ],
+  "stage": "basic",
+  "line": [
+   "vivipere",
+   "vivicinder"
+  ],
+  "tags": [
+   "mythology",
+   "serpents"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "vulpyre",
+  "name": "Vulpyre",
+  "types": [
+   "fire"
+  ],
+  "stage": "stage1",
+  "line": [
+   "foxfire",
+   "vulpyre"
+  ],
+  "tags": [
+   "mythology"
+  ],
+  "myth": "Kitsune (Japanese)",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "waysprite",
+  "name": "Waysprite",
+  "types": [
+   "frost"
+  ],
+  "stage": "basic",
+  "line": [
+   "waysprite",
+   "angesnow",
+   "seraphice"
+  ],
+  "tags": [
+   "fighters",
+   "flyers-dark",
+   "your-pick"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "wendigger",
+  "name": "Wendigger",
+  "types": [
+   "wood",
+   "shadow"
+  ],
+  "stage": "stage2",
+  "line": [
+   "turnipper",
+   "beenstalker",
+   "wendigger"
+  ],
+  "tags": [
+   "flyers-dark"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "wolffsky",
+  "name": "Wolffsky",
+  "types": [
+   "wood",
+   "frost"
+  ],
+  "stage": "standalone",
+  "line": [
+   "wolffsky"
+  ],
+  "tags": [
+   "armoured-beasts",
+   "mythology"
+  ],
+  "myth": "Fenrir (Norse)",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "wrougon",
+  "name": "Wrougon",
+  "types": [
+   "metal"
+  ],
+  "stage": "basic",
+  "line": [
+   "wrougon",
+   "allagon",
+   "ferricran"
+  ],
+  "tags": [
+   "armoured-beasts"
+  ],
+  "myth": "",
+  "license": "CC BY-SA / CC BY / public domain (credited individually in Tuxemon ATTRIBUTIONS.md)"
+ },
+ {
+  "slug": "xeon_2",
+  "name": "Xeon 2",
+  "types": [
+   "metal"
+  ],
+  "stage": "standalone",
+  "line": [
+   "xeon_2"
+  ],
+  "tags": [
+   "fighters"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ },
+ {
+  "slug": "yamada",
+  "name": "Yamada",
+  "types": [
+   "shadow",
+   "heroic"
+  ],
+  "stage": "standalone",
+  "line": [
+   "yamada"
+  ],
+  "tags": [
+   "fighters"
+  ],
+  "myth": "",
+  "license": "GPLv3 (Tuxemon project; no individual credit line)"
+ }
+]
