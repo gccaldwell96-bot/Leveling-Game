@@ -159,7 +159,7 @@ function watchRace(sp, race, res){
     function step(){
       if(i >= log.length || WATCH.skip){ finish(); return; }
       const e = log[i], dur = (e.big ? 1500 : 1100) / WATCH.speed, t0 = performance.now(), A = prev || e.snap, lap0 = A.lap, lap1 = e.snap.lap, v0 = vis, v1 = vis + .6; // the cars show about half a lap per update, however many real laps pass
-      const tick = now => { if(WATCH.skip){ finish(); return; } const f = Math.min(1, (now - t0) / dur), lapF = lerp2(lap0, lap1, f);
+      const tick = now => { if(WATCH.skip){ finish(); return; } const f = clamp((now - t0) / dur, 0, 1), lapF = lerp2(lap0, lap1, f);
         draw(A, e.snap, easeIO(f), lerp2(v0, v1, f)); $('wc').textContent = `${Math.min(race.laps, Math.round(lapF))}/${race.laps}`;
         if(f < 1){ WATCH.raf = requestAnimationFrame(tick); return; }
         prev = e.snap; vis = v1; board(e.snap); $('wdd').textContent = e.type === 'pit' ? 'Pit window' : e.type === 'crash' ? c.cautionWord || 'Incident' : 'Racing';

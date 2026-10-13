@@ -97,7 +97,7 @@ function lgStatsView(sp){
   const sg = seg('lgstats', [['leaders', 'League leaders'], ['team', 'Your team']]);
   if(m === 'team'){ const r = lgRoster(sp, L.user).filter(p => p.st.gp).sort((a, b) => b.ovr - a.ovr);
     return sg + `<div class="card" style="padding:2px 12px">${r.map(p => `<div class="row small" data-lgp="${p.id}" style="cursor:pointer"><span class="pos">${p.pos}</span><span class="grow">${esc(lgName(p, true))}</span><span class="dim num">${lgStatLine(sp, p).slice(0, 4).map(([a, b]) => `${b} ${a}`).join(' · ')}</span></div>`).join('') || '<p class="dim small" style="padding:8px 0">No games played yet.</p>'}</div>`; }
-  return sg + c.leaders.map(([k, n, per, minf]) => { const val = p => per ? p.st[k] / Math.max(1, p.st.gp) : p.st[k]; const top = act.filter(p => p.st[k] > 0 && (!minf || minf(p))).sort((a, b) => val(b) - val(a)).slice(0, 5);
+  return sg + c.leaders.map(([k, n, per, minf]) => { const val = p => typeof per === 'function' ? +per(p) : per ? p.st[k] / Math.max(1, p.st.gp) : p.st[k]; const top = act.filter(p => p.st[k] > 0 && (!minf || minf(p))).sort((a, b) => val(b) - val(a)).slice(0, 5);
     return `<h3>${n}</h3><div class="card" style="padding:2px 12px">${top.map((p, i) => `<div class="row small ${p.tid === L.user ? 'gold' : ''}" data-lgp="${p.id}" style="cursor:pointer"><b class="num" style="width:16px">${i + 1}</b><span class="grow">${esc(lgName(p))} <span class="dim">${lgTeam(sp, p.tid).abbr}</span></span><b class="cond num" style="font-size:17px">${per ? (typeof per === 'function' ? per(p) : val(p).toFixed(1)) : p.st[k]}</b></div>`).join('') || '<p class="dim small" style="padding:8px 0">No stats yet.</p>'}</div>`; }).join('');
 }
 

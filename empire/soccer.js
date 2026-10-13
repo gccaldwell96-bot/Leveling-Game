@@ -72,7 +72,7 @@ function scSim(H, A, ctx){
     }
   };
   const half = (p, m0, len, add) => { per = p; for(let m = 1; m <= len + add; m++){ min = m0 + Math.min(m, len); st = Math.max(0, m - len); minute(); } };
-  push({type:'half', side:-1, lab:'KICK-OFF', txt:`Kick-off: ${H.t.name} v ${A.t.name}.`});
+  push({type:'half', side:-1, lab:'KICK-OFF', txt:`Kick-off: ${lgTeamName(H.t)} v ${lgTeamName(A.t)}.`});
   half(1, 0, 45, irand(1, 3)); push({type:'half', side:-1, lab:'HALF-TIME', txt:`Half-time: ${score()}.`});
   half(2, 45, 45, irand(2, 6));
   let so = null;
@@ -90,7 +90,7 @@ function scSim(H, A, ctx){
   for(const s of [0, 1]) if(sc[1 - s] === 0) for(const p of sd[s].played) if(p.pos === 'GK' || p.pos === 'DF') B(p).cs = 1;
   const w = so ? (so[0] > so[1] ? 0 : 1) : -1;
   if(so) sc[w]++;
-  push({type:'end', side:-1, lab:'FULL-TIME', txt:so ? `${T[w].t.name} win ${Math.max(...so)}-${Math.min(...so)} on penalties!` : per >= 3 ? `Full-time after extra time: ${score()}.` : `Full-time: ${score()}.`});
+  push({type:'end', side:-1, lab:'FULL-TIME', txt:so ? `${lgTeamName(T[w].t)} win ${Math.max(...so)}-${Math.min(...so)} on penalties!` : per >= 3 ? `Full-time after extra time: ${score()}.` : `Full-time: ${score()}.`});
   return {sc, ot:per >= 3, log, box, pens:so};
 }
 
@@ -120,12 +120,13 @@ const SC_RENDER = {
       ctx.strokeRect(Math.min(bx(0), bx(16.5)), Y(13.84), sx * 16.5, sy * 40.32); ctx.strokeRect(Math.min(bx(0), bx(5.5)), Y(24.84), sx * 5.5, sy * 18.32);
       dotP(ctx, bx(11), Y(34), 1.4, '#ffffffd9');
       const a = Math.acos(5.5 / 9.15); ctx.beginPath(); ctx.ellipse(bx(11), Y(34), sx * 9.15, sy * 9.15, 0, side ? Math.PI - a : -a, side ? Math.PI + a : a); ctx.stroke();
-      for(const cy of [0, 68]){ ctx.beginPath(); ctx.ellipse(X(gx), Y(cy), sx * 1.2, sy * 1.2, 0, 0, Math.PI * 2); ctx.stroke(); }
+      for(const cy of [0, 68]){ const a0 = side ? (cy ? Math.PI : Math.PI / 2) : (cy ? -Math.PI / 2 : 0); ctx.beginPath(); ctx.ellipse(X(gx), Y(cy), sx * 1.2, sy * 1.2, 0, a0, a0 + Math.PI / 2); ctx.stroke(); }
       const nx = side ? X(105) : X(-2.4), ny = Y(30.34), nw = sx * 2.4, nh = sy * 7.32; ctx.fillStyle = '#ffffff30'; ctx.fillRect(nx, ny, nw, nh);
       ctx.save(); ctx.lineWidth = .5; ctx.strokeStyle = '#ffffff55'; ctx.beginPath(); for(let k = 1; k < 4; k++){ ctx.moveTo(nx, ny + nh * k / 4); ctx.lineTo(nx + nw, ny + nh * k / 4); } ctx.moveTo(nx + nw / 2, ny); ctx.lineTo(nx + nw / 2, ny + nh); ctx.stroke(); ctx.restore();
       ctx.strokeRect(nx, ny, nw, nh); ctx.fillStyle = '#ffffffd9'; }
   },
   frame(ctx, e, t, st){
+    t = clamp(t, 0, 1); // the first animation frame can land a hair before t0
     const W = st.W, H = st.H, {X, Y, r} = SC_RENDER.geo(st), s = e.side === 1 ? 1 : 0, ks = e.k || [.5, .5];
     const F = p => s ? [105 - p[0], 68 - p[1]] : p, M = p => [105 - p[0], 68 - p[1]]; // to the canvas · the other team's frame
     const play = ['goal', 'save', 'chance', 'corner'].includes(e.type), k = easeIO(clamp(t / .45, 0, 1)), wob = (i, tm) => [Math.sin(t * 5 + i * 1.7 + tm * 3) * .5, Math.cos(t * 4 + i * 2.3 + tm) * .5];
@@ -176,10 +177,10 @@ const SC_RENDER = {
     for(const tm of [1, 0]){ const team = tm ? 1 - s : s, g = gone[team] || [];
       for(let n = 0; n < 11; n++){ if(g.includes(n)) continue; const p = F(pts[tm][n]), keep = n === 0;
         if(alpha && alpha[0] === tm && alpha[1] === n){ if(alpha[2] <= 0) continue; ctx.globalAlpha = alpha[2]; }
-        dotP(ctx, X(p[0]), Y(p[1]), r * (tm === 0 && n === i && e.side >= 0 && e.type !== 'corner' ? 1.2 : 1), keep ? st.outl[team] : st.cols[team], keep ? st.cols[team] : st.outl[team]); ctx.globalAlpha = 1; } }
+        dotP(ctx, X(p[0]), Y(p[1]), r * (tm === 0 && n === i && e.side >= 0 && e.type !== 'corner' ? 1.2 : 1), keep ? st.outl[team] : st.cols[team], keep ? (st.outl[team] === st.cols[team] ? '#fff' : st.cols[team]) : st.outl[team]); ctx.globalAlpha = 1; } }
     if(flash){ const gx = s ? X(-2.4) : X(105); ctx.fillStyle = (st.cols[s] || '#fff') + '88'; ctx.fillRect(gx, Y(30.34), X(2.4) - X(0), Y(37.66) - Y(30.34)); }
     if(ball){ const b = F(ball); ctx.fillStyle = '#0005'; ctx.beginPath(); ctx.ellipse(X(b[0]) + 1, Y(b[1]) + 1, r * .55, r * .4, 0, 0, Math.PI * 2); ctx.fill(); dotP(ctx, X(b[0]), Y(b[1]) - bh * H / 73, r * .58, '#fff', '#222'); }
-    if(card){ const p = F(card[0]), cx = X(p[0]) + r * 1.3, cy = Y(p[1]) - r * 3.2; ctx.save(); ctx.translate(cx, cy); ctx.rotate(.18); ctx.fillStyle = card[1]; ctx.strokeStyle = '#0008'; ctx.lineWidth = 1; ctx.fillRect(-r * .7, -r, r * 1.4, r * 2); ctx.strokeRect(-r * .7, -r, r * 1.4, r * 2); ctx.restore(); }
+    if(card){ const p = F(card[0]), cx = X(p[0]) + r * 1.3, cy = Y(p[1]) - r * 3.2; ctx.save(); ctx.translate(cx, cy); ctx.rotate(.18); ctx.fillStyle = card[1]; ctx.strokeStyle = '#0008'; ctx.lineWidth = 1; ctx.fillRect(-r * .85, -r * 1.2, r * 1.7, r * 2.4); ctx.strokeRect(-r * .85, -r * 1.2, r * 1.7, r * 2.4); ctx.restore(); }
     if(label){ const p = F(label[1]); ctx.font = CANVAS_FONT('700 ' + Math.max(11, Math.round(H * .055))); ctx.textAlign = 'center'; ctx.fillStyle = '#000a'; ctx.fillText(label[0], X(p[0]) + 1, Y(p[1]) - r * 1.8 + 1); ctx.fillStyle = '#fff'; ctx.fillText(label[0], X(p[0]), Y(p[1]) - r * 1.8); }
     if(e.type === 'half' || e.type === 'end'){ ctx.fillStyle = '#0009'; ctx.fillRect(0, H * .36, W, H * .28); ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.font = CANVAS_FONT('800 ' + Math.round(H * .1)); ctx.fillText(e.lab, W / 2, H * .48);
       ctx.font = CANVAS_FONT('700 ' + Math.round(H * .075)); ctx.fillText(`${st.home.abbr} ${e.sc[0]} - ${e.sc[1]} ${st.away.abbr}`, W / 2, H * .59); }
@@ -198,7 +199,7 @@ LG.soccer = {
   pos:{GK:[3, 1], DF:[8, 4], MF:[8, 4], FW:[5, 2]}, posNames:{GK:'Goalkeepers', DF:'Defenders', MF:'Midfielders', FW:'Forwards'}, posSal:{GK:.75, DF:.9, MF:1.05, FW:1.2},
   rosterMax:25, ages:[17, 37], peak:27, draftRounds:2, injRate:.004, injPool:16, hypeMul:1, awardMinGP:15, points:[3, 1, 0],
   reg:{weeks:38, gpw:1, double:true}, po:null, champName:'Union title',
-  money:{cap:150, maxSal:25, minSal:.6, tv:130, merch:60, ticket:65, seats:[24000, 60000], seatStep:2500, staff:.06, ops:30, arenaUp:120},
+  money:{cap:130, maxSal:25, minSal:.6, tv:130, merch:60, ticket:65, seats:[24000, 60000], seatStep:2500, staff:.06, ops:30, arenaUp:120},
   stats:[['g', 'G'], ['a', 'A'], ['sh', 'SH'], ['yc', 'YC'], ['rc', 'RC'], ['cs', 'CS'], ['sv', 'SV'], ['ga', 'GA']],
   statLine(s, p){ return p && p.pos === 'GK' ? [['Apps', s.gp], ['CS', s.cs], ['GA', s.ga], ['SV', s.sv]] : [['Apps', s.gp], ['G', s.g], ['A', s.a], ['YC', s.yc]]; },
   leaders:[['g', 'Goals', false], ['a', 'Assists', false], ['cs', 'Clean sheets', false, p => p.pos === 'GK'], ['yc', 'Yellow cards', false]],

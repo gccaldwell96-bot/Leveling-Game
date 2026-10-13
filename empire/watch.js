@@ -35,7 +35,7 @@ function watchMatch(o){ // o: {H, A, title, log, R, res:{sc, ot}, userSide}
       const e = log[i]; if(!e.txt){ i++; step(); return; }
       hud(e, false); setScore(prevSc);
       const dur = (R.dur ? R.dur(e) : 900) / WATCH.speed, t0 = performance.now();
-      const tick = now => { if(WATCH.skip){ finish(); return; } const t = Math.min(1, (now - t0) / dur);
+      const tick = now => { if(WATCH.skip){ finish(); return; } const t = clamp((now - t0) / dur, 0, 1); // the first frame's timestamp can predate t0
         ctx.clearRect(0, 0, W, Hh); R.bg(ctx, st); R.frame(ctx, e, t, st);
         if(t < 1){ WATCH.raf = requestAnimationFrame(tick); return; }
         hud(e, true); setScore(e.sc); prevSc = e.sc; line(e);

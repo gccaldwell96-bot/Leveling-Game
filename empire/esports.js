@@ -6,10 +6,10 @@
 //  the Titan, Gates, and finally the Core.
 // =====================================================================================
 const ES_POS = ['TOP', 'JNG', 'MID', 'ADC', 'SUP'], ES_LANE = ['top', 'jungle', 'mid', 'bot', 'bot'];
-const ES_W = [1, 1.1, 1.2, 1.15, .85], ES_KILL = [.9, 1, 1.35, 1.55, .22], ES_DIE = [1, 1, 1, 1.15, 1.2], ES_AST = [.42, .62, .5, .45, .8];
+const ES_W = [1, 1.1, 1.2, 1.15, .85], ES_KILL = [.9, .85, 1.35, 1.6, .22], ES_DIE = [1, 1, 1, 1.15, 1.2], ES_AST = [.42, .62, .5, .45, .8];
 const ES_WYRM = ['Storm', 'Ember', 'Frost', 'Stone'], ES_TIER = ['outer', 'inner', 'base'], ES_LN = {top:'top lane', mid:'mid lane', bot:'bot lane', jungle:'jungle'};
 const ES_FIRST = 'Minjun Seojun Jiho Hyunwoo Taeyang Dohyun Jaewon Sungmin Wei Hao Jun Lei Zhen Bowen Yuto Haruto Ren Sota Kaito Lukas Elias Mateus Rafael Joao Pedro Lucas Mads Emil Oskar Nils Felix Leon Theo Hugo Louis Jules Noah Liam Ethan Ryan Kevin Daniel Marcus Ivan Dmitri Mikhail Andrei Tomas Jakub Kacper Mateo Diego Carlos Arjun Omar Yusuf Kai Aiden Sami Tuan Minh Erik Anton'.split(' ');
-const ES_TAG = 'Aurik Bramble Calyx Dusk Embr Flint Glyph Harrow Ionix Kestrel Lumen Morrow Nimbus Onyx Pyrr Quasar Rune Sable Tempo Umbra Vanta Wisp Xeno Yarrow Zenit Brisk Coda Drift Fable Gale Haze Inkwell Jolt Kite Lark Moth Nox Orbit Pixel Quill Ripple Spark Thorn Vapor Warden Zest Axiom Bolt Dynamo Ember Fuse Grit Icarus Lynx Mako Opal Prism Slate Tundra Volt Wraith Zephyr Ardent Blink Crux Delta Eon Frost Ghost Hexa Ivo Krait Loki Mantis Nero Pulse Shade Torque Vigil Wynn Yuki Zircon Comet Dagger Flux Hydra Kairo Lyric Mirage Nyx Oath Sol Whisk Arro Basalt Cobalt Dune Equinox Fennec Gecko Heron Iris Jinto Koda Lotus Marrow Nova Orca Pike Rook Sprout Tidal Ursa Vesper Willow Yonder Zinc'.split(' ');
+const ES_TAG = 'Aurik Bramble Calyx Dusk Embr Flint Glyph Harrow Ionix Kestrel Lumen Morrow Nimbus Onyx Pyrr Quasar Rune Sable Tempo Umbra Vanta Wisp Xeno Yarrow Zenit Brisk Coda Drift Fable Gale Haze Inkwell Jolt Kite Lark Moth Nox Orbit Pixel Quill Ripple Spark Thorn Vapor Warden Zest Axiom Bolt Dynamo Ember Fuse Grit Icarus Lynx Mako Opal Prism Slate Tundra Volt Wraith Zephyr Ardent Blink Crux Delta Eon Frost Ghost Hexa Ivo Krait Loki Mantis Nero Pulse Shade Torque Vigil Wynn Yuki Zircon Comet Dagger Flux Hydra Kairo Lyric Mirage Nyx Oath Sol Whisk Arro Basalt Cobalt Dune Equinox Fennec Gecko Heron Iris Jinto Koda Lotus Marrow Orca Pike Rook Sprout Tidal Ursa Vesper Willow Yonder Zinc Acorn Adder Alder Amber Anvil Aspen Atlas Badger Barrow Beacon Birch Bluff Bounty Brook Buzz Cairn Canto Cedar Chime Clover Cobra Copper Coral Cosmo Crane Cricket Crow Cyclone Dart Dawn Dingo Dove Egret Elm Falcon Fern Finch Fjord Flicker Fox Gadget Garnet Geyser Ginger Glacier Granite Gravel Grove Gust Hawk Hazel Helix Hornet Husky Igloo Indigo Jackal Jasper Jay Juniper Kayak Kelp Kindle Koi Lagoon Lancer Ledger Lemur Lichen Magpie Mamba Maple Marble Marlin Meadow Mesa Mink Mist Mosaic Myth Nectar Needle Nettle Nimble Nomad Oak Ocelot Olive Osprey Otter Panda Pebble Pepper Petal Pilot Pine Plume Polar Puma Quartz Radar Raven Reef Relic Ridge Robin Rocket Rust Saber Saffron Salt Scarab Sequoia Shard Sierra Siren Sketch Slick Sonar Spruce Squall Static Stork Summit Swift Tango Tarot Thistle Timber Topaz Trek Tulip Turbo Valor Velvet Walnut Wasp Wick Wolfram Wren Yeti Yucca Zebra Zen'.split(' ');
 function esName(){ // "Given Tag": the engine shows the tag as the surname, so the sim calls players by their tag
   let used; try{ used = new Set((lg('esports') || {players:[]}).players.map(p => p.ln)); } catch(e){ used = new Set(); }
   const free = ES_TAG.filter(t => !used.has(t)); let tag = free.length ? pick(free) : pick(ES_TAG) + irand(2, 99);
@@ -25,7 +25,7 @@ function esSim(H, A, ctx){
   const binom = (n, p) => { let k = 0; for(let i = 0; i < n; i++) if(Math.random() < p) k++; return k; };
   const nm = p => p.ln, ab = s => T[s].abbr, LANES = ['top', 'mid', 'bot'];
   for(let map = 1; maps[0] < need && maps[1] < need; map++){
-    const E = base + gauss() * 3.4; // the draft and the day's form
+    const E = base + gauss() * 4.3; // the draft and the day's form
     let adv = 0, m = 0, fb = false, win = -1, wyrmAt = 5, titanAt = 20, soul = -1;
     const kills = [0, 0], down = [{top:0, mid:0, bot:0}, {top:0, mid:0, bot:0}], tk = [0, 0], wy = [0, 0], buff = [0, 0], elems = shuffle([...ES_WYRM]);
     const Ef = () => E + (soul < 0 ? 0 : soul ? -4 : 4) + (buff[0] > m ? 3 : 0) - (buff[1] > m ? 3 : 0);
@@ -37,10 +37,10 @@ function esSim(H, A, ctx){
     const pushLane = s => { const o = 1 - s, open = LANES.filter(L => down[o][L] < 4); if(!open.length) return null; return wpick(open, L => 1 + down[o][L] * .8); };
     const core = (s, how) => { win = s; push({type:'core', side:s, lane:'mid', txt:`${how ? how + ' ' : ''}${ab(s)} destroy the Core!`}); };
     const fight = (lane, late, pit) => {
-      const w = Math.random() < esSig(Ef() * .07 + 1.15 * Math.tanh(adv / 7)) ? 0 : 1, l = 1 - w;
+      const w = Math.random() < esSig(Ef() * .022 + .7 * Math.tanh(adv / 8)) ? 0 : 1, l = 1 - w;
       const roles = late ? [0, 1, 2, 3, 4] : lane === 'top' ? [0] : lane === 'mid' ? [2] : lane === 'bot' ? [3, 4] : [1];
       const inv = [0, 1].map(() => { const r = [...roles]; if(!late){ if(!r.includes(1) && Math.random() < .55) r.push(1); if(lane === 'jungle'){ if(Math.random() < .5) r.push(2); if(Math.random() < .4) r.push(4); if(pit && Math.random() < .5) r.push(3); } else if(lane !== 'mid' && Math.random() < .2) r.push(2); } return r; });
-      const kW = Math.min(inv[l].length, 1 + binom(inv[l].length - 1, late ? .45 : .28)), kL = Math.min(kW - 1, binom(inv[w].length, late ? .25 : .16));
+      const kW = Math.min(inv[l].length, 1 + binom(inv[l].length - 1, late ? .45 : .3)), kL = Math.min(kW - 1, binom(inv[w].length, late ? .27 : .18));
       const dead = [[], []], multi = {}, credit = (s, n) => { const alive = inv[1 - s].map(r => r); for(let i = 0; i < n; i++){ const vr = wpick(alive, r => ES_DIE[r]); alive.splice(alive.indexOf(vr), 1); dead[1 - s].push(vr);
         const kr = wpick(inv[s], r => ES_KILL[r] * Math.max(5, sd[s][r].ovr - 35)); B(sd[s][kr]).k++; B(sd[1 - s][vr]).d++; kills[s]++; if(s === w) multi[kr] = (multi[kr] || 0) + 1;
         for(const ar of inv[s]) if(ar !== kr && Math.random() < ES_AST[ar] + (late ? .15 : 0)) B(sd[s][ar]).as++; } };
@@ -61,28 +61,28 @@ function esSim(H, A, ctx){
       if(ev){ ev.txt += ' ' + t; ev.titan = true; ev.type = 'titan'; push(ev); } else push({type:'titan', side:s, lane:'jungle', pit:'titan', inv:[s ? [] : [0, 1, 2, 3, 4], s ? [0, 1, 2, 3, 4] : []], txt:t}); };
     for(m = 1; win < 0; m++){
       const ph = m < 14 ? 0 : m < 25 ? 1 : 2, ef = Ef();
-      adv += ef * (ph ? .016 : .028) + gauss() * .3; // farm and lane pressure
+      adv += ef * (ph ? .006 : .01) + gauss() * .4; // farm and lane pressure
       for(const s of [0, 1]) if(gatesDown(1 - s)) gold(s, .25 * gatesDown(1 - s)); // super minions
       const wyrmUp = soul < 0 && m >= wyrmAt, titanUp = m >= titanAt;
-      if(m >= 2 && Math.random() < [.25, .34, .44][ph] + (m > 40 ? .15 : 0)){
+      if(m >= 2 && Math.random() < [.25, .33, .42][ph] + (m > 40 ? .15 : 0)){
         const r = Math.random(), pit = titanUp && r < .3 ? 'titan' : wyrmUp && r < .55 ? 'wyrm' : null;
         const lane = pit ? 'jungle' : wpick(['top', 'mid', 'bot', 'jungle'], L => L === 'jungle' ? (ph ? .15 : .3) : L === 'bot' ? 1.2 : 1);
         const late = ph === 2 ? Math.random() < .75 : ph === 1 ? Math.random() < (pit ? .6 : .3) : false;
         const f = fight(lane, late, pit), ev = f.ev, o = 1 - f.w;
         if(pit === 'wyrm' && Math.random() < .8) takeWyrm(f.w, ev);
         else if(pit === 'titan' && f.dk >= 1 && Math.random() < .65) takeTitan(f.w, ev);
-        else if(late && f.dk >= 2 && gatesDown(o) && m >= 22 && Math.random() < .45 + f.dk * .08){ push(ev); core(f.w, 'They push straight in and'); }
+        else if(late && f.dk >= 2 && gatesDown(o) && m >= 22 && Math.random() < .3 + f.dk * .08){ push(ev); core(f.w, 'They push straight in and'); }
         else if((lane !== 'jungle' || late) && m >= 7 && Math.random() < .3 + f.dk * .15 + (late ? .2 : 0)){ const L = lane === 'jungle' || late ? pushLane(f.w) : lane, rz = L && raze(f.w, L);
-          if(rz){ ev.txt += ` ${ab(f.w)} take ${rz.what}.`; ev.bld = rz.bld; } push(ev); }
+          if(rz){ ev.txt += L === lane ? ` ${ab(f.w)} take ${rz.what}.` : ` ${ab(f.w)} push on and take ${rz.what}.`; ev.bld = rz.bld; } push(ev); }
         else push(ev);
         if(win >= 0) break;
       }
       // uncontested objectives and sieges
       if(soul < 0 && m >= wyrmAt && Math.random() < .2) takeWyrm(Math.random() < esSig(adv * .25 + Ef() * .05) ? 0 : 1);
       if(m >= titanAt && Math.random() < .08 + (Math.abs(adv) > 6 ? .12 : 0)) takeTitan(Math.random() < esSig(adv * .3 + Ef() * .05) ? 0 : 1);
-      if(m >= 11){ const pb = .16 + Math.min(.3, Math.abs(adv) / 25) + (buff[0] > m || buff[1] > m ? .35 : 0) + (m > 38 ? .2 : 0);
+      if(m >= 11){ const pb = .11 + Math.min(.25, Math.abs(adv) / 30) + (buff[0] > m || buff[1] > m ? .35 : 0) + (m > 38 ? .2 : 0);
         if(Math.random() < pb){ const s = buff[0] > m && buff[1] <= m ? 0 : buff[1] > m && buff[0] <= m ? 1 : Math.random() < esSig(adv * .35 + Ef() * .04) ? 0 : 1, o = 1 - s;
-          if(gatesDown(o) && m >= 20 && Math.random() < .12 + gatesDown(o) * .12 + (buff[s] > m ? .2 : 0) + Math.max(0, (s ? -adv : adv) - 6) * .03 + (m > 42 ? .3 : 0)) core(s, buff[s] > m ? 'With the Titan behind them,' : '');
+          if(gatesDown(o) && m >= 20 && Math.random() < .06 + gatesDown(o) * .1 + (buff[s] > m ? .15 : 0) + Math.max(0, (s ? -adv : adv) - 6) * .03 + (m > 42 ? .3 : 0)) core(s, buff[s] > m ? 'With the Titan behind them,' : '');
           else { const L = pushLane(s), rz = L && raze(s, L); if(rz) push({type:rz.gate ? 'gate' : 'tower', side:s, lane:L, bld:rz.bld, inv:[s ? [] : rz.gate ? [0, 1, 2, 3, 4] : [ES_LANE.indexOf(L) < 0 ? 2 : ES_LANE.indexOf(L), 1], s ? (rz.gate ? [0, 1, 2, 3, 4] : [ES_LANE.indexOf(L), 1]) : []], txt:`${ab(s)} ${rz.gate ? 'break' : 'take'} ${rz.what}.`}); } } }
       if(m >= 60 && win < 0){ core(adv >= 0 ? 0 : 1, 'After an hour-long war,'); }
       if(win >= 0) break;
@@ -133,7 +133,7 @@ function esCommit(e, st){
 const ES_RENDER = {
   aspect:.9, otLabel:'', startPer:'Map 1', startClk:'0:00', startDd:'Kills 0-0', gap:120, side:true,
   dur:e => e.type === 'core' ? 1500 : e.type === 'mapend' ? 1100 : e.type === 'end' ? 700 : e.type === 'titan' ? 1100 : 820,
-  init(st){ st.map = 0; st.n = 0; st.down = new Set(); st.coreDown = -1; st.hp = [0, 1].map(s => [0, 1, 2, 3, 4].map(r => esRest(st, s, r))); st.cache = null; },
+  init(st){ st.dc = st.cols.map((c, i) => lum(c) >= 55 ? c : lum(st.outl[i]) >= 55 ? st.outl[i] : '#b8c2d6'); st.map = 0; st.n = 0; st.down = new Set(); st.coreDown = -1; st.hp = [0, 1].map(s => [0, 1, 2, 3, 4].map(r => esRest(st, s, r))); st.cache = null; },
   hud(e, after, st){ if(after) esCommit(e, st); else esPrep(e, st);
     const g = e.gold || 0, lead = Math.abs(g) < .5 ? 'Gold even' : `<b>${(g > 0 ? st.home : st.away).abbr}</b> +${Math.abs(g).toFixed(1)}k gold`;
     return {per:`Map ${e.map}`, clk:`${e.min}:00`, dd:`Kills ${e.kills[0]}-${e.kills[1]}`, stamp:`M${e.map} ${e.min}'`, side:e.tk ? `${lead} · Towers ${e.tk[0]}-${e.tk[1]} · Wyrms ${e.wy[0]}-${e.wy[1]}` : ''}; },
@@ -150,7 +150,7 @@ const ES_RENDER = {
   frame(ctx, e, t, st){
     const W = st.W, H = st.H, X = x => x / 100 * W, Y = y => y / 100 * H, u = W / 100, r = Math.max(4, W * .014);
     if(e.type === 'mapend' || e.type === 'end'){ const w = e.side >= 0 ? e.side : (e.sc[0] > e.sc[1] ? 0 : 1), a = Math.min(1, t * 3);
-      ctx.globalAlpha = a; ctx.fillStyle = '#000b'; ctx.fillRect(0, H * .38, W, H * .24); ctx.fillStyle = st.cols[w]; ctx.fillRect(0, H * .38, W, 3); ctx.fillRect(0, H * .62 - 3, W, 3);
+      ctx.globalAlpha = a; ctx.fillStyle = '#000b'; ctx.fillRect(0, H * .38, W, H * .24); ctx.fillStyle = st.dc[w]; ctx.fillRect(0, H * .38, W, 3); ctx.fillRect(0, H * .62 - 3, W, 3);
       ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.font = CANVAS_FONT('800 ' + Math.round(H * .085));
       ctx.fillText(e.type === 'end' ? `${(w ? st.away : st.home).abbr} WIN ${Math.max(...e.sc)}-${Math.min(...e.sc)}` : `MAP ${e.map} · ${(w ? st.away : st.home).abbr}`, W / 2, H * .5);
       ctx.font = CANVAS_FONT('600 ' + Math.round(H * .045)); ctx.fillStyle = '#ddd'; ctx.fillText(e.type === 'end' ? 'Series over' : `${e.kills[w]}-${e.kills[1 - w]} kills · ${e.min} min · series ${e.sc[0]}-${e.sc[1]}`, W / 2, H * .575); ctx.globalAlpha = 1; return; }
@@ -164,23 +164,23 @@ const ES_RENDER = {
       if(t > .85){ ctx.globalAlpha = (1 - t) / .15; dotP(ctx, X(p[0]), Y(p[1]), u * 8 * (t - .7), '#ffffff55'); ctx.globalAlpha = 1; } }
     // the core going up
     if(e.type === 'core'){ const o = 1 - e.side, p = ES_CORE[o]; esCore(ctx, X, Y, u, o, st, clamp(1 - (t - .3) / .5, 0, 1));
-      if(t > .3){ const f = (t - .3) / .7; for(const [c, m] of [['#ffffff', 1], ['#ffcf4a', .75], [st.cols[e.side], .5]]){ ctx.globalAlpha = Math.max(0, 1 - f) * .85; dotP(ctx, X(p[0]), Y(p[1]), u * 26 * f * m, c + (c.length === 7 ? '' : '')); }
+      if(t > .3){ const f = (t - .3) / .7; for(const [c, m] of [['#ffffff', 1], ['#ffcf4a', .75], [st.dc[e.side], .5]]){ ctx.globalAlpha = Math.max(0, 1 - f) * .85; dotP(ctx, X(p[0]), Y(p[1]), u * 26 * f * m, c + (c.length === 7 ? '' : '')); }
         ctx.globalAlpha = 1; } }
     // the heroes
     for(const s of [0, 1]) for(let i = 0; i < 5; i++){ const a = st.from ? st.from[s][i] : [50, 50], b = st.to ? st.to[s][i] : a, dead = e.dead && e.dead[s].includes(i);
       let x = lerp2(a[0], b[0], k), y = lerp2(a[1], b[1], k); if(fight && t > .5 && e.inv && e.inv[s].includes(i)){ x += Math.sin(t * 24 + i * 2 + s) * .9; y += Math.cos(t * 19 + i) * .9; }
-      ctx.globalAlpha = dead && t > .62 ? Math.max(.25, 1 - (t - .62) * 2.5) : 1; dotP(ctx, X(x), Y(y), r * (e.side === s && e.star === i && fight ? 1.2 : 1), st.cols[s], s === 0 ? '#ffffffcc' : '#111111cc'); ctx.globalAlpha = 1;
+      ctx.globalAlpha = dead && t > .62 ? Math.max(.25, 1 - (t - .62) * 2.5) : 1; dotP(ctx, X(x), Y(y), r * (e.side === s && e.star === i && fight ? 1.2 : 1), st.dc[s], s === 0 ? '#ffffffcc' : '#111111cc'); ctx.globalAlpha = 1;
       if(dead && t > .58){ const f = (t - .58) / .42; ctx.strokeStyle = `rgba(255,60,60,${1 - f})`; ctx.lineWidth = 2; for(let q = 0; q < 8; q++){ const ang = q * Math.PI / 4; ctx.beginPath(); ctx.moveTo(X(x) + Math.cos(ang) * r * (1 + f), Y(y) + Math.sin(ang) * r * (1 + f)); ctx.lineTo(X(x) + Math.cos(ang) * r * (1.6 + f * 3), Y(y) + Math.sin(ang) * r * (1.6 + f * 3)); ctx.stroke(); }
         ctx.globalAlpha = (1 - f) * .5; dotP(ctx, X(x), Y(y), r * (1.2 + f * 2), '#ff2a2a'); ctx.globalAlpha = 1; } }
   },
 };
 function esStruct(ctx, X, Y, u, s, L, t, st, a){ const p = esBld(s, L, t), x = X(p[0]), y = Y(p[1]); ctx.globalAlpha = a;
-  if(t === 3){ const z = u * 1.7; ctx.beginPath(); ctx.moveTo(x, y - z); ctx.lineTo(x + z, y); ctx.lineTo(x, y + z); ctx.lineTo(x - z, y); ctx.closePath(); ctx.fillStyle = st.cols[s]; ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = '#e9f3ff'; ctx.stroke(); }
-  else { const z = u * 2.4; ctx.fillStyle = '#0008'; ctx.fillRect(x - z / 2 + 1, y - z / 2 + 1.5, z, z); ctx.fillStyle = st.cols[s]; ctx.fillRect(x - z / 2, y - z / 2, z, z); ctx.lineWidth = 1.2; ctx.strokeStyle = '#f4ead2'; ctx.strokeRect(x - z / 2, y - z / 2, z, z); }
+  if(t === 3){ const z = u * 1.7; ctx.beginPath(); ctx.moveTo(x, y - z); ctx.lineTo(x + z, y); ctx.lineTo(x, y + z); ctx.lineTo(x - z, y); ctx.closePath(); ctx.fillStyle = st.dc[s]; ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = '#e9f3ff'; ctx.stroke(); }
+  else { const z = u * 2.4; ctx.fillStyle = '#0008'; ctx.fillRect(x - z / 2 + 1, y - z / 2 + 1.5, z, z); ctx.fillStyle = st.dc[s]; ctx.fillRect(x - z / 2, y - z / 2, z, z); ctx.lineWidth = 1.2; ctx.strokeStyle = '#f4ead2'; ctx.strokeRect(x - z / 2, y - z / 2, z, z); }
   ctx.globalAlpha = 1; }
 function esCore(ctx, X, Y, u, s, st, a){ const p = ES_CORE[s], x = X(p[0]), y = Y(p[1]), z = u * 3.6; ctx.globalAlpha = a;
   ctx.beginPath(); for(let i = 0; i < 6; i++){ const ang = Math.PI / 6 + i * Math.PI / 3; ctx[i ? 'lineTo' : 'moveTo'](x + Math.cos(ang) * z, y + Math.sin(ang) * z); } ctx.closePath();
-  ctx.fillStyle = st.cols[s]; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke(); dotP(ctx, x, y, z * .38, '#ffffffcc'); ctx.globalAlpha = 1; }
+  ctx.fillStyle = st.dc[s]; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke(); dotP(ctx, x, y, z * .38, '#ffffffcc'); ctx.globalAlpha = 1; }
 function esStatic(ctx, st){ // the parts of the board that never change: ground, jungle, river, lanes, pits and bases
   const W = st.W, H = st.H, X = x => x / 100 * W, Y = y => y / 100 * H, u = W / 100; let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   const g = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, W * .75); g.addColorStop(0, '#16261c'); g.addColorStop(1, '#09110c'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
@@ -192,8 +192,8 @@ function esStatic(ctx, st){ // the parts of the board that never change: ground,
   for(const L of ['top', 'mid', 'bot']){ path(ES_PATH[L], u * 5.6, '#2c2419'); path(ES_PATH[L], u * 4, '#4a3d2a'); ctx.globalAlpha = .25; path(ES_PATH[L], u * 1.2, '#8c7552'); ctx.globalAlpha = 1; }
   for(const [k, col, lab] of [['titan', '#a56bff', 'TITAN'], ['wyrm', '#ff8a2a', 'WYRM']]){ const [x, y] = ES_PIT[k]; dotP(ctx, X(x), Y(y), u * 5.2, '#0a1216', col); ctx.globalAlpha = .45; dotP(ctx, X(x), Y(y), u * 1.8, col); ctx.globalAlpha = 1;
     ctx.font = CANVAS_FONT('700 ' + Math.max(9, Math.round(H * .028))); ctx.textAlign = 'center'; ctx.fillStyle = col + 'aa'; ctx.fillText(lab, X(x), Y(y) + u * 8.4); }
-  for(const s of [0, 1]){ const [x, y] = s ? [100, 0] : [0, 100]; ctx.beginPath(); ctx.arc(X(x), Y(y), u * 21, 0, Math.PI * 2); ctx.fillStyle = st.cols[s] + '30'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = st.cols[s] + '99'; ctx.stroke();
-    const [fx, fy] = ES_FOUNT[s]; ctx.globalAlpha = .5; dotP(ctx, X(fx), Y(fy), u * 3, st.cols[s], '#fff'); ctx.globalAlpha = 1; }
+  for(const s of [0, 1]){ const [x, y] = s ? [100, 0] : [0, 100]; ctx.beginPath(); ctx.arc(X(x), Y(y), u * 21, 0, Math.PI * 2); ctx.fillStyle = st.dc[s] + '30'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = st.dc[s] + '99'; ctx.stroke();
+    const [fx, fy] = ES_FOUNT[s]; ctx.globalAlpha = .5; dotP(ctx, X(fx), Y(fy), u * 3, st.dc[s], '#fff'); ctx.globalAlpha = 1; }
   ctx.font = CANVAS_FONT('800 ' + Math.round(H * .05)); ctx.fillStyle = '#ffffff18'; ctx.textAlign = 'center'; ctx.save(); ctx.translate(X(50), Y(50)); ctx.rotate(-Math.PI / 4); ctx.fillText('ARENA', 0, -u * 6); ctx.restore();
 }
 
@@ -205,17 +205,17 @@ LG.esports = {
   pos:{TOP:[2, 1], JNG:[2, 1], MID:[2, 1], ADC:[2, 1], SUP:[2, 1]}, posNames:{TOP:'Top laners', JNG:'Junglers', MID:'Mid laners', ADC:'Carries', SUP:'Supports'},
   rosterMax:12, ages:[16, 30], peak:22, draftRounds:1, injRate:.0005, injPool:10, hypeMul:1.2, awardMinGP:8, names:esName,
   reg:{weeks:18, gpw:1, double:true}, po:{teams:4, byConf:false, bestOf:1, name:'playoffs', rounds:['Semi-finals', 'Grand Final']}, champName:'Arena Championship',
-  money:{cap:5, maxSal:1.2, minSal:.06, tv:4, merch:3, ticket:45, seats:[2500, 9000], seatStep:600, staff:.004, ops:1.5, arenaUp:4},
+  money:{cap:5, maxSal:1.5, minSal:.06, tv:5, merch:4, ticket:45, seats:[2500, 9000], seatStep:600, staff:.004, ops:1.5, arenaUp:4},
   stats:[['k', 'K'], ['d', 'D'], ['as', 'A'], ['mp', 'MP'], ['mw', 'MW']],
   statLine(s){ return [['Series', s.gp], ['K', s.k], ['D', s.d], ['A', s.as], ['KDA', ((s.k + s.as) / Math.max(1, s.d)).toFixed(1)]]; },
   leaders:[['k', 'Kills', false], ['as', 'Assists', false], ['k', 'KDA (20+ maps)', p => ((p.st.k + p.st.as) / Math.max(1, p.st.d)).toFixed(1), p => p.st.mp >= 20], ['mw', 'Maps won', false]],
   records:[['k', 'Kills in a split'], ['as', 'Assists in a split'], ['mw', 'Maps won in a split']],
   awards:[
-    {k:'mvp', n:'Split MVP', score:(p, t) => (p.st.k * 1.2 + p.st.as * .55 - p.st.d * .7) / Math.max(1, p.st.mp) * 9 + lgPct(t) * 22 + p.ovr / 6},
+    {k:'mvp', n:'Split MVP', score:(p, t) => (p.st.k + p.st.as * .6 - p.st.d * .6) / Math.max(1, p.st.mp) * 4 + lgPct(t) * 40 + p.ovr / 3},
     {k:'carry', n:'Best Carry', pos:['ADC', 'MID'], score:p => (p.st.k * 1.3 + p.st.as * .4 - p.st.d * .8) / Math.max(1, p.st.mp) * 10 + p.ovr / 8},
     {k:'roy', n:'Rookie of the Split', score:p => (p.st.k + p.st.as * .7 - p.st.d * .5) / Math.max(1, p.st.mp) + p.ovr / 10},
   ],
-  hofProd:c => c.k / 60 + c.as / 90 + c.mw / 25,
+  hofProd:c => c.k / 110 + c.as / 160 + c.mw / 45,
   sim:esSim, render:ES_RENDER,
 };
 SPORTS.esports = lgModule('esports');

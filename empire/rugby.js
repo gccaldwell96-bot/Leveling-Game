@@ -7,7 +7,7 @@
 // =====================================================================================
 const RG_JERSEY = ['PR', 'HK', 'PR', 'LK', 'LK', 'BR', 'BR', 'BR', 'SH', 'FH', 'WG', 'CE', 'CE', 'WG', 'FB']; // index = jersey number - 1
 const RG_FWD = new Set(['PR', 'HK', 'LK', 'BR']);
-const RG_TRY = {PR:.3, HK:.85, LK:.4, BR:1, SH:.8, FH:.55, CE:1.5, WG:3, FB:1.5}, RG_TK = {PR:.95, HK:1.1, LK:1.25, BR:1.5, SH:.7, FH:.85, CE:1.15, WG:.5, FB:.45};
+const RG_TRY = {PR:.35, HK:.9, LK:.4, BR:1, SH:.8, FH:.55, CE:1.4, WG:2.2, FB:1.4}, RG_TK = {PR:.95, HK:1.1, LK:1.25, BR:1.5, SH:.7, FH:.85, CE:1.15, WG:.5, FB:.45};
 const RG_FN = 'Sione Tane Rhys Gareth Owen Cian Conor Ruan Pieter Tevita Josefa Semi Mako Ngani Lachlan Angus Callum Finn Hamish Tadhg Eoin Dafydd Ieuan Morgan Teo Vili Manu Kalani Ruben Thibault Mathieu Baptiste Tomas Joaquin Facundo Kenta Taiga Ardie Jaco Duane Brodie Kurt Reece Toby Elliot Harvey'.split(' ');
 const RG_LN = 'Fifita Taufa Latu Moala Havili Vaipulu Tuipulotu Naivalu Radrodro Waqa Tikoisuva Pienaar Botha Venter Coetzee Nel Kruger Steyn Morgan Llewellyn Pryce Davies Jenkins Rees Byrne Doyle Kerr Fraser McLeod Dunbar Lefevre Marchand Dupuis Garnier Ortega Fujita Matsuda Henare Ngata Paewai Tamati Rata Ellison Hollis Whitlock Brannigan'.split(' ');
 function rgSim(H, A, ctx){
@@ -37,16 +37,16 @@ function rgSim(H, A, ctx){
   const passage = sd => { // one passage of play; returns true when somebody scored
     for(const x of subs) if(!x.done && min >= x.at){ x.done = true; const sl = x.slots.filter(i => sides[x.s].on[i] === on[x.s][i]).sort((a, b) => on[x.s][a].ovr - on[x.s][b].ovr)[0]; if(sl != null && on[x.s][sl] !== binP[x.s]){ on[x.s][sl] = x.p; B(x.p); } }
     const r0 = rate(0), r1 = rate(1), man = [bin[0] > min, bin[1] > min];
-    let pa = .5 + (r0.F - r1.F) * .01 + (r0.B - r1.B) * .004 + .02 + (coach[0] - coach[1]) / 700 + (man[1] ? .12 : 0) - (man[0] ? .12 : 0);
+    const pa = .5 + (r0.F - r1.F) * .008 + (r0.B - r1.B) * .003 + .02 + (coach[0] - coach[1]) / 700 + (man[1] ? .12 : 0) - (man[0] ? .12 : 0);
     const s = corner >= 0 ? corner : Math.random() < clamp(pa, .2, .8) ? 0 : 1, o = 1 - s, rs = s ? r1 : r0, ro = s ? r0 : r1, cb = corner >= 0; corner = -1;
     const ae = ((rs.B - ro.B) * .6 + (rs.F - ro.F) * .4 + (s ? -.9 : .9) + (coach[s] - coach[o]) / 40) / 10 + (man[o] ? .4 : 0) - (man[s] ? .3 : 0);
     // the defence makes its tackles
     const def = on[o].filter(p => p !== binP[o] || !man[o]), nt = irand(4, 11);
     for(let k = 0; k < nt; k++) B(def[wpick(def, p => RG_TK[RG_JERSEY[on[o].indexOf(p)]] * Math.max(8, p.ovr - 30))]).tk++;
-    const pTry = clamp(.166 * (1 + ae * .8) * (cb ? 2.2 : 1), .04, .5), pPen = clamp(.235 * (1 + (rs.F - ro.F) / 40), .12, .32), late = h >= 2 && min > 70 && sc[o] - sc[s] >= 0 && sc[o] - sc[s] <= 3, level = late && sc[o] - sc[s] === 3;
-    const pDg = (level ? .14 : late ? .05 : .007) * (sd ? 3 : 1), r = Math.random(), att = on[s], dnm = () => nm(pick(def));
+    const pTry = clamp(.166 * (1 + ae * .55) * (cb ? 2.2 : 1), .04, .5), pPen = clamp(.235 * (1 + (rs.F - ro.F) / 40), .12, .32), late = h >= 2 && min > 70 && sc[o] - sc[s] >= 0 && sc[o] - sc[s] <= 3, level = late && sc[o] - sc[s] === 3;
+    const pDg = (level ? .3 : late ? .05 : .007) * (sd ? 3 : 1), r = Math.random(), att = on[s], dnm = () => nm(pick(def));
     if(r < pTry){ // TRY
-      const i = wpick(att, (p, j) => RG_TRY[RG_JERSEY[j]] * Math.max(5, p.ovr - 45)), p = att[i], back = i >= 8;
+      const i = wpick(att, (p, j) => RG_TRY[RG_JERSEY[j]] * Math.max(10, p.ovr - 30)), p = att[i], back = i >= 8;
       const y = RG_JERSEY[i] === 'WG' ? (i === 10 ? rand(5, 12) : rand(88, 95)) : back ? rand(22, 78) : rand(38, 62);
       let x0 = back ? rand(30, 70) : rand(88, 96);
       if(back && Math.random() < .55){ const bi = Math.random() < .6 ? i : wpick(att, (q, j) => j >= 8 && j !== i ? q.ovr - 40 : 0), bk = att[bi]; x0 = rand(25, 55); const x1 = rand(60, 82);
@@ -110,14 +110,15 @@ const RG_RENDER = {
   bg(ctx, st){ const W = st.W, H = st.H, X = u => (u + 11) / 122 * W, Y = v => (v + 1.6) / 73.2 * H;
     ctx.fillStyle = '#245e2c'; ctx.fillRect(0, 0, W, H);
     for(let k = 0; k < 10; k++){ ctx.fillStyle = k % 2 ? '#3b8f40' : '#348838'; ctx.fillRect(X(k * 10), Y(0), X(10) - X(0) + .5, Y(70) - Y(0)); }
-    for(const [u0, c] of [[-10, st.cols[0]], [100, st.cols[1]]]){ ctx.fillStyle = '#2f7d34'; ctx.fillRect(X(u0), Y(0), X(10) - X(0), Y(70) - Y(0)); ctx.fillStyle = c + '66'; ctx.fillRect(X(u0), Y(0), X(10) - X(0), Y(70) - Y(0)); }
+    for(const [u0, c, t] of [[-10, st.cols[0], st.home], [100, st.cols[1], st.away]]){ ctx.fillStyle = '#1d4d22'; ctx.fillRect(X(u0), Y(0), X(10) - X(0), Y(70) - Y(0)); ctx.fillStyle = c + 'aa'; ctx.fillRect(X(u0), Y(0), X(10) - X(0), Y(70) - Y(0)); // in-goals in team colours
+      ctx.save(); ctx.translate(X(u0 + 5), Y(35)); ctx.rotate(u0 < 0 ? -Math.PI / 2 : Math.PI / 2); ctx.font = CANVAS_FONT('800 ' + Math.round(H * .085)); ctx.textAlign = 'center'; ctx.fillStyle = textOn(c) + '66'; ctx.fillText(t.abbr, 0, H * .03); ctx.restore(); }
     ctx.font = CANVAS_FONT(800 + ' ' + Math.round(H * .14)); ctx.textAlign = 'center'; ctx.fillStyle = '#ffffff1c'; ctx.fillText(st.home.abbr, X(50), Y(35) + H * .05);
     ctx.strokeStyle = '#ffffffdd'; ctx.lineWidth = 1.5; ctx.strokeRect(X(-10), Y(0), X(110) - X(-10), Y(70) - Y(0));
     const vl = (u, w, dash) => { ctx.setLineDash(dash || []); ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(X(u), Y(0)); ctx.lineTo(X(u), Y(70)); ctx.stroke(); };
     ctx.strokeStyle = '#ffffffee'; vl(0, 2.2); vl(100, 2.2); vl(50, 1.6); ctx.strokeStyle = '#ffffffbb'; vl(22, 1.4); vl(78, 1.4); vl(40, 1.2, [5, 4]); vl(60, 1.2, [5, 4]); vl(5, 1, [2, 5]); vl(95, 1, [2, 5]);
     ctx.setLineDash([4, 8]); ctx.lineWidth = 1; ctx.strokeStyle = '#ffffff66'; for(const v of [5, 15, 55, 65]){ ctx.beginPath(); ctx.moveTo(X(0), Y(v)); ctx.lineTo(X(100), Y(v)); ctx.stroke(); } ctx.setLineDash([]);
-    ctx.fillStyle = '#ffffffaa'; ctx.font = CANVAS_FONT('700 ' + Math.round(H * .055)); for(const [u, t] of [[22, '22'], [40, '10'], [50, '50'], [60, '10'], [78, '22']]){ ctx.fillText(t, X(u), Y(9)); ctx.fillText(t, X(u), Y(64)); }
-    for(const u of [0, 100]){ const r = Math.max(2.2, W * .006); ctx.strokeStyle = '#fff'; ctx.lineWidth = Math.max(2, W * .005); ctx.beginPath(); ctx.moveTo(X(u), Y(32.2)); ctx.lineTo(X(u), Y(37.8)); ctx.stroke(); // posts, top-down
+    ctx.fillStyle = '#ffffffaa'; ctx.font = CANVAS_FONT('700 ' + Math.round(H * .055)); ctx.textAlign = 'center'; for(const [u, t] of [[22, '22'], [78, '22']]){ ctx.fillText(t, X(u), Y(9)); ctx.fillText(t, X(u), Y(64)); }
+    for(const u of [0, 100]){ const r = Math.max(2.6, W * .0075); ctx.strokeStyle = '#fff'; ctx.lineWidth = Math.max(2.5, W * .0065); ctx.beginPath(); ctx.moveTo(X(u), Y(32.2)); ctx.lineTo(X(u), Y(37.8)); ctx.stroke(); // posts, top-down
       for(const v of [32.2, 37.8]) dotP(ctx, X(u), Y(v), r, '#fff', '#555'); }
   },
   frame(ctx, e, t, st){
@@ -136,7 +137,7 @@ const RG_RENDER = {
       if(e.type === 'try' && t > .78){ ctx.fillStyle = '#ffffff55'; ctx.beginPath(); ctx.arc(X(bu), Y(bv), r * (1.5 + (t - .78) * 12), 0, Math.PI * 2); ctx.fill(); }
     } else if(kick){
       const ku = U(e.x), gu = s === 0 ? 100 : 0, miss = e.type === 'penmiss' || e.type === 'conmiss', tv = 35 + (miss ? (v < 35 ? -1 : 1) * 6.5 : 0), f = clamp((t - .2) / .7, 0, 1);
-      carrier = e.type === 'dg' ? 9 : 9;
+      carrier = 9;
       if(e.type === 'con' || e.type === 'conmiss' || e.kc){ att = rgForm(ku - d * 12, v, d, true).map(([u, vv], i) => [u - d * 4, lerp2(vv, 35, .3)]); def = Array.from({length:15}, (_, i) => [gu + d * (1.5 + (i % 2) * 1.5), 12 + i * 3.2]); if(e.kc) def = def.map(([u, vv]) => [u + d * 6, vv > 35 ? vv + 18 : vv - 18].map((z, n) => n ? clamp(z, 2, 68) : z)); }
       else { att = rgForm(ku, v, d, true); def = rgForm(ku, v, d, false).map(([u, vv]) => [u + d * 6, vv]); if(e.type === 'pen'){ def = def.map(([u, vv]) => [u + d * 8, vv]); } }
       att[9] = [ku - d * Math.max(0, 1.5 - t * 6), v];
@@ -171,15 +172,15 @@ LG.rugby = {
   posNames:{PR:'Props', HK:'Hookers', LK:'Locks', BR:'Back row', SH:'Scrum-halves', FH:'Fly-halves', CE:'Centres', WG:'Wings', FB:'Fullbacks'}, posSal:{PR:1, HK:.95, LK:1, BR:1, SH:1.05, FH:1.25, CE:1, WG:1, FB:1.05},
   rosterMax:32, ages:[19, 36], peak:27, draftRounds:2, injRate:.006, injPool:23, hypeMul:1, awardMinGP:8, points:[4, 2, 0],
   reg:{weeks:22, gpw:1, double:true}, po:{teams:4, byConf:false, bestOf:1, name:'finals', rounds:['Semi-finals', 'Grand Final']}, champName:'Super Series',
-  money:{cap:11, maxSal:1.3, minSal:.08, tv:14, merch:4, ticket:45, seats:[14000, 32000], seatStep:1500, staff:.006, ops:3, arenaUp:12},
+  money:{cap:11, maxSal:1.3, minSal:.08, tv:13, merch:4, ticket:45, seats:[14000, 32000], seatStep:1500, staff:.006, ops:3, arenaUp:12},
   stats:[['tr', 'TR'], ['pts', 'PTS'], ['con', 'CON'], ['pen', 'PEN'], ['dg', 'DG'], ['tk', 'TK'], ['yc', 'YC']],
   statLine(s, p){ return p && p.pos === 'FH' ? [['Apps', s.gp], ['PTS', s.pts], ['TR', s.tr], ['CON', s.con], ['PEN', s.pen]] : [['Apps', s.gp], ['TR', s.tr], ['PTS', s.pts], ['TK', s.tk], ['YC', s.yc]]; },
   leaders:[['tr', 'Tries', false], ['pts', 'Points', false], ['tk', 'Tackles', false], ['yc', 'Yellow cards', false]],
   records:[['tr', 'Tries in a season'], ['pts', 'Points in a season'], ['tk', 'Tackles in a season']],
   awards:[
-    {k:'mvp', n:'Player of the Year', score:(p, t) => (p.st.tr * 2.5 + p.st.pts * .2 + p.st.tk * .12) / p.st.gp * 5 + p.ovr * .3 + lgPct(t) * 12},
+    {k:'mvp', n:'Player of the Year', score:(p, t) => (p.st.tr * 1.5 + p.st.pts * .15 + p.st.tk * .1) / p.st.gp * 5 + p.ovr * .4 + lgPct(t) * 12},
     {k:'tries', n:'Top try scorer', score:p => p.st.tr + p.st.pts / 1000},
-    {k:'roy', n:'Rookie of the Year', score:p => (p.st.tr * 4 + p.st.pts * .2 + p.st.tk * .12) / p.st.gp + p.st.gp * .3},
+    {k:'roy', n:'Rookie of the Year', score:p => (p.st.tr * 1.5 + p.st.pts * .15 + p.st.tk * .1) / p.st.gp * 5 + p.ovr * .3 + p.st.gp * .3},
   ],
   hofProd:c => c.tr / 9 + c.pts / 150 + c.tk / 200,
   sim:rgSim, render:RG_RENDER,

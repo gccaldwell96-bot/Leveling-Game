@@ -166,7 +166,7 @@ function lgSeasonEnd(sp){
   // awards
   const act = L.players.filter(p => p.tid >= 0 && p.st.gp >= c.awardMinGP);
   const row = {y:lgSeasonLabel(sp)};
-  for(const a of c.awards){ let pool = act.filter(p => !a.pos || a.pos.includes(p.pos)); if(a.k === 'roy') pool = pool.filter(p => p.dr && p.dr.y === L.season); if(!pool.length) continue;
+  for(const a of c.awards){ let pool = act.filter(p => !a.pos || a.pos.includes(p.pos)); if(a.k === 'roy') pool = pool.filter(p => p.dr && p.dr.y === L.season - (c.start >= 30 ? 0 : 1)); /* spring/summer leagues draft after the season, so rookies debut next year */ if(!pool.length) continue;
     const best = pool.sort((x, y) => a.score(y, lgTeam(sp, y.tid)) - a.score(x, lgTeam(sp, x.tid)))[0]; best.aw.push({y:row.y, a:a.k}); row[a.k] = {id:best.id, n:lgName(best), pos:best.pos, tid:best.tid, abbr:lgTeam(sp, best.tid).abbr};
     if(best.tid === L.user && a.k === 'mvp'){ ach('mvp'); if(best.dr && best.dr.tid === L.user) ach('draftstar'); } }
   L.hist.awards.unshift(row);
