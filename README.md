@@ -56,6 +56,7 @@ Once installed it works offline.
 | `manifest.webmanifest`, `sw.js` | Make it installable and playable offline |
 | `icon.svg`, `icon-*.png` | App icons |
 | `horse/` | **Derby Dynasty**, a second game (see below) |
+| `empire/` | **Franchise Empire**, a third game (see the end) |
 
 # 🐎 Derby Dynasty
 
@@ -90,3 +91,16 @@ A free **turn-based horse breeding and racing tycoon** in `horse/`. It plays on 
 - **Ranch:** Stables, Training Center, Vet Clinic, Breeding Barn, Jockey Academy, Lush Pastures, Equine Pool (more training, less fatigue) and Head Trainer (flat bonus points each month). They appear on your ranch as you build them.
 - **Betting (play money):** a 🎟️ Bets tab shows every race's field in advance. Bet Win, Place (top 2) or Show (top 3) on any runner, yours or a rival's. Odds come from simulating each race 1,000 times, minus a 15% bookmaker's cut. A "last call for bets" window pops up before your races (can be turned off).
 - **Rivals, goals and Hall of Fame:** every race on the card is run each month, and 5 rival stables (each with its own level, improving a little every year) earn only what their horses win. Beat them in the yearly standings, chase 15 goals, retire champions to the Hall of Fame.
+
+# 🏟️ Franchise Empire
+
+A free **sports-franchise owner game** in `empire/` (play at `/empire/`). You start with $4.6B, buy a team, and grow a fortune and legacy across ten leagues. Every turn is one week.
+
+- **Football (playable):** 32 fictional teams in two conferences, a 17-game schedule, 7-team playoffs per conference and the Grand Bowl. Each team has a 50-man roster with ratings, potential, contracts and a salary cap.
+- **Watch live:** your games play out on an animated field with a TV score bug, down and distance, and play-by-play (speed 1×/2×/4× or skip to the final). Or just sim.
+- **Running the team:** re-sign or let go of expiring contracts, free agency, trades (AI teams judge value and cap), a 4-round draft with scouted potential ranges, stadium expansion, ticket prices, coaches and scouting.
+- **History:** awards (MVP, OPOY, DPOY, ROY), champions, records, Hall of Fame, trophies and achievements.
+- **Sims ahead** stop for your draft pick and for contract decisions before free agency.
+- **Coming next:** basketball, baseball, soccer, hockey, rugby, Formula racing, stock car racing, MMA and esports, all in the same empire with one bank account.
+- Saves on the device; save codes move an empire between devices.
+
